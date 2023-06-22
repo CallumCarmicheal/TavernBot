@@ -1,9 +1,12 @@
 using System;
+using System.Linq;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
 
 using CCTavern;
 using CCTavern.Commands;
+using CCTavern.Commands.Test;
+using CCTavern.Database;
 
 using Config.Net;
 
@@ -22,12 +25,11 @@ namespace CCTavern
     // We're sealing it because nothing will be inheriting this class
     public sealed class Program
     {
-#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         internal static ITavernSettings Settings { get; private set; }
 
         internal static Logger.TavernLoggerFactory LoggerFactory { get; private set; } = new CCTavern.Logger.TavernLoggerFactory();
+
         private static ILogger logger;
-#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
         // Remember to make your main method async! You no longer need to have both a Main and MainAsync method in the same class.
         public static async Task Main()
@@ -36,7 +38,7 @@ namespace CCTavern
             LoggerFactory.AddProvider(new CCTavern.Logger.TavernLoggerProvider());
 
             logger = LoggerFactory.CreateLogger<Program>();
-            logger.LogInformation(LoggerEvents.Startup, "Application started.");
+            logger.LogInformation(LoggerEvents.Startup, "Application starting");
 
             // Load our settings
             Settings = new ConfigurationBuilder<ITavernSettings>()
@@ -55,22 +57,26 @@ namespace CCTavern
                 return;
             }
 
+            setupDatabase();
+
             // Next, we instantiate our client.
             DiscordConfiguration config = new()
             {
                 Token = Settings.DiscordToken,
                 TokenType = TokenType.Bot,
 
-                // We're asking for unprivileged intents, which means we won't receive any member or presence updates.
-                // Privileged intents must be enabled in the Discord Developer Portal.
-
-                // TODO: Enable the message content intent in the Discord Developer Portal.
-                // The !ping command will not work without it.
                 Intents = DiscordIntents.AllUnprivileged | DiscordIntents.MessageContents 
                     | DiscordIntents.GuildVoiceStates | DiscordIntents.DirectMessageReactions
             };
 
             DiscordClient client = new(config);
+
+            // We can specify a status for our bot. Let's set it to "online" and set the activity to "with fire".
+            DiscordActivity status = new("Loading :)", ActivityType.Playing);
+
+            // Now we connect and log in.
+            await client.ConnectAsync(status, UserStatus.DoNotDisturb);
+
             MusicBot music = new MusicBot(client);
 
             var services = new ServiceCollection();
@@ -82,16 +88,12 @@ namespace CCTavern
             });
 
             logger.LogInformation(LoggerEvents.Startup, "Registering commands");
-            commands.RegisterCommands<MusicCmdModule>();
-
-            // We can specify a status for our bot. Let's set it to "online" and set the activity to "with fire".
-            DiscordActivity status = new("Loading :)", ActivityType.Playing);
-
-            // Now we connect and log in.
-            await client.ConnectAsync(status, UserStatus.DoNotDisturb);
+            commands.RegisterCommands<MusicCommandModule>();
+            //commands.RegisterCommands<TestMusicCmdModule>();
+            //commands.RegisterCommands<TestMusicPlayModule>();
 
             // Setup the lavalink connection
-            
+
             await music.SetupLavalink();
 
             status = new("Ready", ActivityType.Playing);
@@ -99,6 +101,13 @@ namespace CCTavern
 
             // And now we wait infinitely so that our bot actually stays connected.
             await Task.Delay(-1);
+        }
+
+        private static void setupDatabase() {
+            logger.LogInformation(LoggerEvents.Startup, "Setting up database");
+
+            var ctx = new TavernContext();
+            ctx.Database.EnsureCreated();
         }
     }
 }

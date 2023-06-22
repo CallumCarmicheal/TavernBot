@@ -40,5 +40,11 @@ namespace CCTavern.Logger {
         /// Events pertaining to MusicBot Playing
         /// </summary>
         public static EventId MBPlay { get; } = new EventId(212, "MB:Play");
+
+        /// <summary>
+        /// Events pertaining to MusicBot Lavasink events
+        /// </summary>
+        public static EventId MBLava { get; } = new EventId(213, "MB:Lava");
+
     }
 }

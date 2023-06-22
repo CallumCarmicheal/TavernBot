@@ -28,10 +28,9 @@ namespace CCTavern.Logger {
                 throw new InvalidOperationException("This logger provider is already disposed.");
 
             return new TavernLogger(this.MinimumLevel, this.TimestampFormat);
-
-            return categoryName != typeof(BaseDiscordClient).FullName && categoryName != typeof(DiscordWebhookClient).FullName
-                ? throw new ArgumentException($"This provider can only provide instances of loggers for {typeof(BaseDiscordClient).FullName} or {typeof(DiscordWebhookClient).FullName}.", nameof(categoryName))
-                : new TavernLogger(this.MinimumLevel, this.TimestampFormat);
+            //return categoryName != typeof(BaseDiscordClient).FullName && categoryName != typeof(DiscordWebhookClient).FullName
+            //    ? throw new ArgumentException($"This provider can only provide instances of loggers for {typeof(BaseDiscordClient).FullName} or {typeof(DiscordWebhookClient).FullName}.", nameof(categoryName))
+            //    : new TavernLogger(this.MinimumLevel, this.TimestampFormat);
         }
 
         public void Dispose() => this._isDisposed = true;

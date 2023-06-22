@@ -13,6 +13,10 @@ namespace CCTavern {
 
         [Option(Alias = "lavalink")]
         public ILavalinkSettings Lavalink { get; set; }
+
+
+        [Option(Alias = "mysqlConnectionString", DefaultValue = "")]
+        public string MySQLConnectionString { get; set; }
     }
 
     // ll.hostname=127.0.0.1 ll.port=2800 ll.password=Password123

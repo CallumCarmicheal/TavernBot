@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using System;
 using Microsoft.Extensions.Logging;
 using CCTavern;
 
@@ -30,6 +29,7 @@ namespace CCTavern.Logger {
             this.TimestampFormat = timestampFormat;
         }
 
+#pragma warning disable CS8767 // Nullability of reference types in type of parameter doesn't match implicitly implemented member (possibly because of nullability attributes).
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter) {
             if (!this.IsEnabled(logLevel))
                 return;
@@ -88,10 +88,13 @@ namespace CCTavern.Logger {
                     Console.WriteLine(exception);
             }
         }
+#pragma warning restore CS8767 // Nullability of reference types in type of parameter doesn't match implicitly implemented member (possibly because of nullability attributes).
 
         public bool IsEnabled(LogLevel logLevel)
             => logLevel >= this.MinimumLevel;
 
+#pragma warning disable CS8633 // Nullability in constraints for type parameter doesn't match the constraints for type parameter in implicitly implemented interface method'.
         public IDisposable BeginScope<TState>(TState state) => throw new NotImplementedException();
+#pragma warning restore CS8633 // Nullability in constraints for type parameter doesn't match the constraints for type parameter in implicitly implemented interface method'.
     }
 }

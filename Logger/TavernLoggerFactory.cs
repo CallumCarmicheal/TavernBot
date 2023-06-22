@@ -21,9 +21,9 @@ namespace CCTavern.Logger {
 
             return new CompositeTavernLogger(this.Providers.AsEnumerable()); ;
 
-            return categoryName != typeof(Program).FullName
-                ? throw new ArgumentException($"This factory can only provide instances of loggers for {typeof(Program).FullName}.", nameof(categoryName))
-                : new CompositeTavernLogger(this.Providers.AsEnumerable());
+            //return categoryName != typeof(Program).FullName
+            //    ? throw new ArgumentException($"This factory can only provide instances of loggers for {typeof(Program).FullName}.", nameof(categoryName))
+            //    : new CompositeTavernLogger(this.Providers.AsEnumerable());
         }
 
         public void Dispose() {
