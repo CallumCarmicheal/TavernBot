@@ -14,10 +14,11 @@ namespace CCTavern.Database {
 
         public string Title { get; set; }
 
+        public int PlaylistSongCount { get; set; }
+
         [ForeignKey("Id")]
         public ulong? CreatedById { get; set; }
         public virtual CachedUser CreatedBy { get; set; }
-
 
         public ICollection<GuildQueueItem> Songs { get; set; }
     }

@@ -133,6 +133,7 @@ namespace CCTavern.Commands {
                     var playlist = new GuildQueuePlaylist();
                     playlist.Title = loadResult.PlaylistInfo.Name;
                     playlist.CreatedById = requestedBy.Id;
+                    playlist.PlaylistSongCount = list.Count();
                     db.GuildQueuePlaylists.Add(playlist);
                     await db.SaveChangesAsync();
 
@@ -146,14 +147,12 @@ namespace CCTavern.Commands {
                             dbGuild = await db.GetOrCreateDiscordGuild(conn.Guild);
                             dbGuild.CurrentTrack = trackIdx;
                             await db.SaveChangesAsync();
-
                             await conn.PlayAsync(lt);
                         }
 
                         // Every 5 tracks update the index
-                        if (x % 15 == 0) {
+                        if (x % 15 == 0) 
                             await addingMessage.ModifyAsync($"Adding `{x}`/`{list.Count()}` tracks to playlist...");
-                        }
                     }
                     
                     await addingMessage.ModifyAsync($"Successfully added `{list.Count()}` tracks to playlist...");

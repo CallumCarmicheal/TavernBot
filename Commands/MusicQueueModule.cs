@@ -72,7 +72,9 @@ namespace CCTavern.Commands {
                 if (dbTrack.PlaylistId == null) {
                     queueContent += " ";
                 } else {
-                    var lineSymbol = (nextTrack != null && nextTrack.PlaylistId != dbTrack.PlaylistId)
+                    var lineSymbol = 
+                        (nextTrack != null && nextTrack.PlaylistId != dbTrack.PlaylistId)
+                        || (dbTrack.Playlist.PlaylistSongCount == 1)
                         ? "/" : "|";
 
                     if (currentPlaylist == dbTrack.PlaylistId) {
@@ -86,15 +88,14 @@ namespace CCTavern.Commands {
                     } else {
                         queueContent += " ";
                     }
-
                 }
 
                 currentPlaylist = dbTrack.PlaylistId;
 
-                queueContent += " " + ((dbTrack.Position == guild.CurrentTrack) ? "*" : " ");
-                queueContent += $"{dbTrack.Position,4}) ";
+                queueContent += " " + ((dbTrack.Position == guild.CurrentTrack && guild.IsPlaying) ? "*" : " ");
+                queueContent += $"{dbTrack.Position,3}) ";
                 queueContent += $"{dbTrack.Title} - Requested by ";
-                queueContent += (dbTrack.RequestedBy == null) ? "<#DELETED>" : $"{dbTrack.RequestedBy.DisplayName}\n";
+                queueContent += (dbTrack.RequestedBy == null) ? "<#DELETED>" : $"{dbTrack.RequestedBy.Username}\n";
             }
 
             await message.ModifyAsync($"```{queueContent}```");
