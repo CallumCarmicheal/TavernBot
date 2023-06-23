@@ -5,6 +5,7 @@ using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using Microsoft.EntityFrameworkCore.Update;
 using Microsoft.Extensions.Logging;
 
@@ -23,7 +24,7 @@ namespace CCTavern.Commands {
         private ILogger _logger;
         private ILogger logger {
             get {
-                if (_logger == null) _logger = Program.LoggerFactory.CreateLogger<MusicCommandModule>();
+                if (_logger == null) _logger = Program.LoggerFactory.CreateLogger<MusicQueueModule>();
                 return _logger;
             }
         }
@@ -46,7 +47,7 @@ namespace CCTavern.Commands {
             var guildQueueQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(x => x.GuildId == guild.Id && x.IsDeleted == false);
             var guildQueueCount = await guildQueueQuery.CountAsync();
             var pages           = (int)Math.Ceiling(guildQueueCount / (double)ITEMS_PER_PAGE);
-            targetPage          = Math.Clamp(targetPage, 0, pages);
+            targetPage          = Math.Clamp(targetPage, 1, pages);
 
             if (guildQueueCount == 0) {
                 queueContent += $"Queue Page 0 / 0 (0 songs [index @ {guild.TrackCount}])\n\n";
@@ -57,14 +58,47 @@ namespace CCTavern.Commands {
 
             queueContent += $"Queue Page {targetPage} / {pages} ({guildQueueCount} songs [index @ {guild.TrackCount}])\n\n";
 
-            var pageContents = guildQueueQuery.Page(targetPage, ITEMS_PER_PAGE);
-            foreach (var song in pageContents) {
-                queueContent += " " + ((song.Position == guild.CurrentTrack) ? "*" : " "); 
-                queueContent += $"{song.Position,4}) ";
-                queueContent += $"{song.Title} - Requested by ";
-                queueContent += (song.RequestedBy == null) ? "<#DELETED>" : $"{song.RequestedBy.DisplayName}\n";
+            var pageContents = guildQueueQuery
+                .OrderBy(x => x.Position)
+                .Include(x => x.Playlist)
+                .Page(targetPage, ITEMS_PER_PAGE)
+                .ToList();
+            ulong? currentPlaylist = null;
+
+            for (int x = 0; x < pageContents.Count(); x++) {
+                var dbTrack = pageContents[x];
+
+                GuildQueueItem? nextTrack = pageContents.ElementAtOrDefault(x + 1);
+
+                if (dbTrack.PlaylistId == null) {
+                    queueContent += " ";
+                } else {
+                    var lineSymbol = (nextTrack != null && nextTrack.PlaylistId != dbTrack.PlaylistId)
+                        ? "/" : "|";
+
+                    if (currentPlaylist == dbTrack.PlaylistId) {
+                        queueContent += lineSymbol;
+                    } else if (currentPlaylist != dbTrack.PlaylistId) {
+                        queueContent += $"/ Playlist: {dbTrack.Playlist.Title} \n";
+
+                        queueContent += lineSymbol;
+                    } else if (currentPlaylist == null) {
+                        queueContent += " ";
+                    } else {
+                        queueContent += " ";
+                    }
+
+                }
+
+                currentPlaylist = dbTrack.PlaylistId;
+
+                queueContent += " " + ((dbTrack.Position == guild.CurrentTrack) ? "*" : " ");
+                queueContent += $"{dbTrack.Position,4}) ";
+                queueContent += $"{dbTrack.Title} - Requested by ";
+                queueContent += (dbTrack.RequestedBy == null) ? "<#DELETED>" : $"{dbTrack.RequestedBy.DisplayName}\n";
             }
 
+            int test = 0;
             await message.ModifyAsync($"```{queueContent}```");
         }
 

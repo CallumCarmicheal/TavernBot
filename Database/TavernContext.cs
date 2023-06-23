@@ -18,6 +18,7 @@ public partial class TavernContext : DbContext
     public DbSet<Guild> Guilds { get; set; }
     public DbSet<GuildQueueItem> GuildQueueItems { get; set; }
     public DbSet<CachedUser> CachedUsers { get; set; }
+    public DbSet<GuildQueuePlaylist> GuildQueuePlaylists { get; set; }
 
 
     public TavernContext() { }
@@ -46,7 +47,12 @@ public partial class TavernContext : DbContext
            .ToTable("Guilds")
            .HasKey(t => t.Id);
 
-        /*Guild Queue Item*/ {
+        modelBuilder.Entity<GuildQueuePlaylist>()
+            .ToTable("GuildQueuePlaylists")
+            .HasKey(t => t.Id);
+
+        /*Guild Queue Item*/
+        {
             modelBuilder.Entity<GuildQueueItem>()
                 .Property(t => t.Id)
                 .ValueGeneratedOnAdd();
@@ -57,6 +63,13 @@ public partial class TavernContext : DbContext
                 .HasForeignKey(p => p.RequestedById)
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<GuildQueueItem>()
+               .HasOne(qi => qi.Playlist)
+               .WithMany(usr => usr.Songs)
+               .HasForeignKey(p => p.PlaylistId)
+               .IsRequired(false)
+               .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<GuildQueueItem>()
                .ToTable("GuildQueueItems")

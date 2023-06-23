@@ -31,5 +31,10 @@ namespace CCTavern.Database {
         [ForeignKey("Id")]
         public ulong GuildId { get; set; }
         public virtual Guild Guild { get; set; }
+
+
+        [ForeignKey("Id")]
+        public ulong? PlaylistId { get; set; }
+        public virtual GuildQueuePlaylist Playlist { get; set; }
     }
 }

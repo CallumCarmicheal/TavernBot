@@ -13,6 +13,9 @@ using Config.Net;
 using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.Entities;
+using DSharpPlus.Interactivity;
+using DSharpPlus.Interactivity.Enums;
+using DSharpPlus.Interactivity.Extensions;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -71,6 +74,11 @@ namespace CCTavern
 
             DiscordClient client = new(config);
 
+            client.UseInteractivity(new InteractivityConfiguration() {
+                PollBehaviour = PollBehaviour.KeepEmojis,
+                Timeout = TimeSpan.FromSeconds(30)
+            });
+
             // We can specify a status for our bot. Let's set it to "online" and set the activity to "with fire".
             DiscordActivity status = new("Loading :)", ActivityType.Playing);
 
@@ -89,6 +97,7 @@ namespace CCTavern
 
             logger.LogInformation(LoggerEvents.Startup, "Registering commands");
             commands.RegisterCommands<MusicCommandModule>();
+            commands.RegisterCommands<MusicPlayModule>();
             commands.RegisterCommands<MusicQueueModule>();
             //commands.RegisterCommands<TestMusicCmdModule>();
             //commands.RegisterCommands<TestMusicPlayModule>();

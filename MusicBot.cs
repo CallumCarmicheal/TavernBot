@@ -94,7 +94,7 @@ namespace CCTavern {
                 guildMusicChannelTempCached.Remove(channel.Guild.Id);
         }
 
-        public async Task<ulong> enqueueMusicTrack(LavalinkTrack track, DiscordChannel channel, DiscordMember requestedBy, bool updateNextTrack) {
+        public async Task<ulong> enqueueMusicTrack(LavalinkTrack track, DiscordChannel channel, DiscordMember requestedBy, GuildQueuePlaylist? playlist, bool updateNextTrack) {
             var db = new TavernContext();
             var dbGuild = await db.GetOrCreateDiscordGuild(channel.Guild);
 
@@ -103,7 +103,7 @@ namespace CCTavern {
             await db.SaveChangesAsync();
 
             logger.LogInformation(TavernLogEvents.Misc, $"Queue Music into {channel.Guild.Name}.{channel.Name} [{trackPosition}] from {requestedBy.Username}: {track.Title}, {track.Length.ToString(@"hh\:mm\:ss")}");
-
+            
             var requestedUser = await db.GetOrCreateCachedUser(dbGuild, requestedBy);
             var qi = new GuildQueueItem() {
                 GuildId = channel.Guild.Id,
@@ -111,7 +111,8 @@ namespace CCTavern {
                 Position = trackPosition,
                 RequestedById = requestedUser.Id,
                 Title = track.Title,
-                TrackString = track.TrackString
+                TrackString = track.TrackString,
+                PlaylistId = playlist?.Id
             };
 
             if (updateNextTrack) {
@@ -266,11 +267,9 @@ namespace CCTavern {
 
             var outputChannel = await GetMusicTextChannelFor(conn.Guild);
             if (outputChannel == null) {
-                await db.SaveChangesAsync();
                 logger.LogError(TavernLogEvents.MBLava, "Failed to get music channel for lavalink connection.");
             } else {
                 await deletePastStatusMessage(guild, outputChannel);
-                await db.SaveChangesAsync();
             }
 
             // Get the next track
@@ -279,9 +278,9 @@ namespace CCTavern {
                 if (outputChannel != null) {
                     var message = await outputChannel.SendMessageAsync("Finished queue.");
                     guild.LastMessageStatusId = message.Id;
+                    await db.SaveChangesAsync();
                 }
-                
-                await db.SaveChangesAsync();
+
                 return;
             }
 
