@@ -2,8 +2,10 @@
 
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
+using DSharpPlus.Entities;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Update;
 using Microsoft.Extensions.Logging;
 
 using System;
@@ -41,7 +43,7 @@ namespace CCTavern.Commands {
             if (targetPage < 1) targetPage = 1;
             if (Page != -1)     targetPage = Page;
 
-            var guildQueueQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(x => x.GuildId == guild.Id);
+            var guildQueueQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(x => x.GuildId == guild.Id && x.IsDeleted == false);
             var guildQueueCount = await guildQueueQuery.CountAsync();
             var pages           = (int)Math.Ceiling(guildQueueCount / (double)ITEMS_PER_PAGE);
             targetPage          = Math.Clamp(targetPage, 0, pages);
@@ -64,6 +66,39 @@ namespace CCTavern.Commands {
             }
 
             await message.ModifyAsync($"```{queueContent}```");
+        }
+
+
+        [Command("remove"), Aliases("delete")]
+        [Description("Delete a song from the queue")]
+        public async Task DeleteSongFromQueue(CommandContext ctx, ulong songIndex) {
+            // Get the guild
+            var db = new TavernContext();
+            var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
+
+            // Get the song
+            var guildQueueQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(x => x.GuildId == guild.Id && x.IsDeleted == false && x.Position == songIndex);
+            
+            // Check if the song doesn't exist
+            if (await guildQueueQuery.AnyAsync() == false) {
+                var emoji = DiscordEmoji.FromName(ctx.Client, ":question:");
+                await ctx.Message.CreateReactionAsync(emoji);
+                return;
+            }
+
+            // Make sure we only have one in our count
+            int count = await guildQueueQuery.CountAsync();
+            if (count > 1) {
+                await ctx.RespondAsync($"Alright so heres the funny thing, this delete function should only find 1 song... I uhh found {count}.");
+                return;
+            }
+
+            // Get the song
+            var dbTrack = await guildQueueQuery.FirstAsync();
+            await ctx.RespondAsync($"Successfully removed `{dbTrack.Title}` from the queue at position `{dbTrack.Position}`.");
+
+            dbTrack.IsDeleted = true;
+            await db.SaveChangesAsync();
         }
     }
 }

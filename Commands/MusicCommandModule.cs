@@ -19,6 +19,8 @@ using System.Threading.Tasks;
 
 using TimeSpanParserUtil;
 
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
+
 namespace CCTavern.Commands {
     internal class MusicCommandModule : BaseCommandModule {
         public MusicBot Music { private get; set; }
@@ -275,15 +277,14 @@ namespace CCTavern.Commands {
             var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
-            var query = db.GuildQueueItems.Where(x => x.GuildId == ctx.Guild.Id && x.Position == guild.NextTrack);
-            if (query.Any() == false) {
+            // Get the next song
+            var dbTrack = await Music.getNextTrackForGuild(ctx.Guild);
+
+            if (dbTrack == null) {
                 await ctx.RespondAsync("Skipping... (There are no more tracks to play, add to the queue?)");
                 await conn.StopAsync();
                 return;
             }
-
-            // Get the next song
-            var dbTrack = await query.FirstAsync();
             
             var track = await node.Rest.DecodeTrackAsync(dbTrack.TrackString);
             if (track == null) {
@@ -327,7 +328,7 @@ namespace CCTavern.Commands {
             var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
-            var query = db.GuildQueueItems.Where(x => x.GuildId == ctx.Guild.Id && x.Position == nextTrackPosition);
+            var query = db.GuildQueueItems.Where(x => x.GuildId == ctx.Guild.Id && x.Position == nextTrackPosition && x.IsDeleted == false);
             if (query.Any() == false) {
                 await ctx.RespondAsync("Failed to jump to track (could not be found).");
                 return;

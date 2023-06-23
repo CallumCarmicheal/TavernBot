@@ -132,7 +132,11 @@ namespace CCTavern {
             if (targetTrackId == null)
                 targetTrackId = guild.NextTrack;
 
-            var query = db.GuildQueueItems.Where(x => x.GuildId == guild.Id && x.Position >= targetTrackId);
+            var query = db.GuildQueueItems.Where(
+                x => x.GuildId   == guild.Id 
+                  && x.Position  >= targetTrackId 
+                  && x.IsDeleted == false);
+
             if (query.Any() == false)
                 return null;
 

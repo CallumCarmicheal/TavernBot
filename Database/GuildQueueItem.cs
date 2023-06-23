@@ -22,6 +22,7 @@ namespace CCTavern.Database {
 
         public string TrackString { get; set; }
 
+        public bool IsDeleted { get; set; } = false;
 
         [ForeignKey("Id")]
         public ulong? RequestedById { get; set; }
