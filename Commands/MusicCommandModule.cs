@@ -163,7 +163,7 @@ namespace CCTavern.Commands {
             await node.ConnectAsync(channel);
             Music.announceJoin(channel);
 
-            await ctx.RespondAsync($"Joined {channel.Name}!");
+            await ctx.RespondAsync($"Joined <#{channel.Id}>!");
         }
 
         [Command("leave"), Aliases("quit", "stop")]
