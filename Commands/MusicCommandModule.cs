@@ -261,7 +261,7 @@ namespace CCTavern.Commands {
             var node = lava.ConnectedNodes.Values.First();
             var conn = node?.GetGuildConnection(ctx.Member.VoiceState.Guild);
 
-            if (conn == null) {
+            if (conn == null || node == null) {
                 await ctx.RespondAsync("Lavalink is not connected.");
                 return;
             }
@@ -284,6 +284,7 @@ namespace CCTavern.Commands {
 
             // Get the next song
             var dbTrack = await query.FirstAsync();
+            
             var track = await node.Rest.DecodeTrackAsync(dbTrack.TrackString);
             if (track == null) {
                 await ctx.RespondAsync($"Skipping... Error, Failed to parse next track `{dbTrack.Title}` at position `{dbTrack.Position}`.");
@@ -315,7 +316,7 @@ namespace CCTavern.Commands {
             var node = lava.ConnectedNodes.Values.First();
             var conn = node?.GetGuildConnection(ctx.Member.VoiceState.Guild);
 
-            if (conn == null) {
+            if (conn == null || node == null) {
                 //await ctx.RespondAsync("Lavalink is not connected.");
                 DiscordEmoji? emoji = DiscordEmoji.FromName(ctx.Client, ":face_with_raised_eyebrow:");
                 await ctx.Message.CreateReactionAsync(emoji);

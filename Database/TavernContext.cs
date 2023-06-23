@@ -70,6 +70,7 @@ public partial class TavernContext : DbContext
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
 
 
+
     public async Task<CachedUser> GetOrCreateCachedUser(Guild guild, DiscordMember user) {
         CachedUser cachedUser;
 
@@ -86,6 +87,11 @@ public partial class TavernContext : DbContext
             CachedUsers.Add(cachedUser);
             await SaveChangesAsync();
         } else cachedUser = await query.FirstAsync();
+
+        if (cachedUser.DisplayName != user.DisplayName) {
+            cachedUser.DisplayName = user.DisplayName;
+            await SaveChangesAsync();
+        }
 
         return cachedUser;
     }
