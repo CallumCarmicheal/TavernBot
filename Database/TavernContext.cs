@@ -18,7 +18,6 @@ public partial class TavernContext : DbContext
     public DbSet<CachedUser> CachedUsers { get; set; }
 
 
-
     public TavernContext() { }
     public TavernContext(DbContextOptions<TavernContext> options)
         : base(options) { }
@@ -56,7 +55,7 @@ public partial class TavernContext : DbContext
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
 
 
-    public async Task<CachedUser> GetOrCreateCachedUser(DiscordMember user) {
+    public async Task<CachedUser> GetOrCreateCachedUser(Guild guild, DiscordMember user) {
         CachedUser cachedUser;
 
         var query = CachedUsers.Where(x => x.Id == user.Id);

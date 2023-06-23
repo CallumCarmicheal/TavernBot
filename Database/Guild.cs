@@ -26,6 +26,8 @@ namespace CCTavern.Database {
 
         public ulong CurrentTrack { get; set; }
 
+        public bool IsPlaying { get; set; } = false;
+
         public ICollection<GuildQueueItem> Queue { get; set; }
     }
 }

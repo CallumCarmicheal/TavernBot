@@ -80,7 +80,7 @@ namespace CCTavern
             MusicBot music = new MusicBot(client);
 
             var services = new ServiceCollection();
-            services.AddSingleton<MusicBot>(music);
+            services.AddSingleton(music);
 
             var commands = client.UseCommandsNext(new CommandsNextConfiguration() {
                 StringPrefixes = new[] { "!!" },
@@ -89,6 +89,7 @@ namespace CCTavern
 
             logger.LogInformation(LoggerEvents.Startup, "Registering commands");
             commands.RegisterCommands<MusicCommandModule>();
+            commands.RegisterCommands<MusicQueueModule>();
             //commands.RegisterCommands<TestMusicCmdModule>();
             //commands.RegisterCommands<TestMusicPlayModule>();
 

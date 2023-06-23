@@ -17,5 +17,9 @@ namespace CCTavern.Database {
         
         [Required]
         public string DisplayName { get; set; }
+
+        [ForeignKey("Id")]
+        public ulong GuildId { get; set; }
+        public virtual Guild Guild { get; set; }
     }
 }

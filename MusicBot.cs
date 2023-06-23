@@ -104,7 +104,7 @@ namespace CCTavern {
 
             logger.LogInformation(TavernLogEvents.Misc, $"Queue Music into {channel.Guild.Name}.{channel.Name} [{trackPosition}] from {requestedBy.Username}: {track.Title}, {track.Length.ToString(@"hh\:mm\:ss")}");
 
-            var requestedUser = await db.GetOrCreateCachedUser(requestedBy);
+            var requestedUser = await db.GetOrCreateCachedUser(dbGuild, requestedBy);
             var qi = new GuildQueueItem() {
                 GuildId = channel.Guild.Id,
                 Length = track.Length,
@@ -137,6 +137,22 @@ namespace CCTavern {
                 return null;
 
             return await query.FirstAsync();
+        }
+
+        public async Task<bool> deletePastStatusMessage(Guild guild, DiscordChannel outputChannel) {
+            if (guild.LastMessageStatusId != null && outputChannel != null) {
+                ulong lastMessageStatusId = guild.LastMessageStatusId.Value;
+                try {
+                    var oldMessage = await outputChannel.GetMessageAsync(lastMessageStatusId);
+                    if (oldMessage != null) {
+                        guild.LastMessageStatusId = null;
+
+                        await oldMessage.DeleteAsync();
+                        return true;
+                    }
+                } catch { }
+            }
+            return false;
         }
 
         private async Task LavalinkNode_TrackStuck(LavalinkGuildConnection conn, DSharpPlus.Lavalink.EventArgs.TrackStuckEventArgs args) {
@@ -188,21 +204,16 @@ namespace CCTavern {
             var outputChannel = await GetMusicTextChannelFor(conn.Guild);
             if (outputChannel == null) {
                 logger.LogError(TavernLogEvents.MBLava, "Failed to get music channel for lavalink connection.");
-            } 
-            else if (guild.LastMessageStatusId != null && outputChannel != null) {
-                ulong lastMessageStatusId = guild.LastMessageStatusId.Value;
-                try {
-                    var oldMessage = await outputChannel.GetMessageAsync(lastMessageStatusId);
-                    if (oldMessage != null) {
-                        await oldMessage.DeleteAsync();
-                    }
-                } catch { }
+            } else {
+                await deletePastStatusMessage(guild, outputChannel);
+                await db.SaveChangesAsync();
             }
 
+            GuildQueueItem? dbTrack = null;
             var requestedBy = "<ERROR>";
-            var currentTrackQuery = db.GuildQueueItems.Where(x => x.GuildId == guild.Id && x.Position == guild.CurrentTrack);
+            var currentTrackQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(x => x.GuildId == guild.Id && x.Position == guild.CurrentTrack);
             if (currentTrackQuery.Any()) {
-                var dbTrack = await currentTrackQuery.FirstAsync();
+                dbTrack = await currentTrackQuery.FirstAsync();
                 requestedBy = dbTrack.RequestedBy.DisplayName;
             }
 
@@ -224,13 +235,17 @@ namespace CCTavern {
                 embed.WithThumbnail(thumbnail);
 
             embed.WithAuthor(args.Track.Author);
-            embed.AddField("[url test2](https://google.com)", "[url test2](https://google.com)", false);
+            embed.AddField("Player Panel", "[Manage bot through web panel (not added)](https://callumcarmicheal.com/#)", false);
+            if (dbTrack == null)
+                 embed.AddField("Position", "<ERR>", true);
+            else embed.AddField("Position", dbTrack.Position.ToString(), true);
             embed.AddField("Duration", args.Track.Length.ToString(@"hh\:mm\:ss"), true);
             embed.AddField("Requested by", requestedBy, true);
             embed.WithFooter("gb:callums-basement");
 
             var message = await client.SendMessageAsync(outputChannel, embed: embed);
             guild.LastMessageStatusId = message.Id;
+            guild.IsPlaying = true;
             db.SaveChanges();
         }
 
@@ -240,27 +255,30 @@ namespace CCTavern {
             // Check if we have a channel for the guild
             var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(conn.Guild);
+
+            // Set IsPlaying to false.
+            guild.IsPlaying = false;
+            await db.SaveChangesAsync();
+
             var outputChannel = await GetMusicTextChannelFor(conn.Guild);
             if (outputChannel == null) {
+                await db.SaveChangesAsync();
                 logger.LogError(TavernLogEvents.MBLava, "Failed to get music channel for lavalink connection.");
-                return;
+            } else {
+                await deletePastStatusMessage(guild, outputChannel);
+                await db.SaveChangesAsync();
             }
 
-            if (guild.LastMessageStatusId != null) {
-                try {
-                    var message = await outputChannel.GetMessageAsync(guild.LastMessageStatusId.Value);
-                    if (message != null) {
-                        await message.DeleteAsync();
-                    }
-                } catch { }
-            }
 
             // Get the next track
             var dbTrack = await getNextTrackForGuild(conn.Guild);
             if (dbTrack == null) {
-                var message = await outputChannel.SendMessageAsync("Finished queue.");
-                guild.LastMessageStatusId = message.Id;
-
+                if (outputChannel != null) {
+                    var message = await outputChannel.SendMessageAsync("Finished queue.");
+                    guild.LastMessageStatusId = message.Id;
+                }
+                
+                await db.SaveChangesAsync();
                 return;
             }
 
@@ -269,15 +287,25 @@ namespace CCTavern {
 
             if (track == null) {
                 logger.LogError(TavernLogEvents.MBLava, $"Error, Failed to parse next track `{dbTrack.Title}` at position `{dbTrack.Position}`.");
-                await outputChannel.SendMessageAsync($"Error, Failed to parse next track `{dbTrack.Title}` at position `{dbTrack.Position}`.");
+
+                if (outputChannel != null) 
+                    await outputChannel.SendMessageAsync($"Error, Failed to parse next track `{dbTrack.Title}` at position `{dbTrack.Position}`.");
+
                 return;
             }
 
+            // Fix the missing track string
+            track.TrackString = dbTrack.TrackString;
+
+            // Update guild in database
+            guild.IsPlaying = true;
             guild.CurrentTrack = dbTrack.Position;
             guild.NextTrack = dbTrack.Position + 1;
-            await conn.PlayAsync(track);
+            await db.SaveChangesAsync();
 
-            // await client.SendMessageAsync(outputChannel, "LavalinkNode_PlaybackFinished");
+            // Play the next track.
+            await Task.Delay(500);
+            await conn.PlayAsync(track);
         }
     }
 }
