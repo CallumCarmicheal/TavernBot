@@ -381,7 +381,7 @@ namespace CCTavern.Commands {
                 return;
             }
 
-            // Get the next song
+            // Get the current song
             var dbTrack = await query.FirstAsync();
             await ctx.RespondAsync($"Currently playing `{dbTrack.Title}` at position `{dbTrack.Position}`.");
         }
