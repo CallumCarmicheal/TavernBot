@@ -1,1 +1,2 @@
-﻿git pull && docker build -t cctavern-image -f Dockerfile .
+﻿#\bin\bash
+git pull && docker build -t cctavern-image -f Dockerfile .
