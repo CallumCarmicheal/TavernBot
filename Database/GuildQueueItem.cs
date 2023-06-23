@@ -24,7 +24,7 @@ namespace CCTavern.Database {
 
 
         [ForeignKey("Id")]
-        public ulong RequestedById { get; set; }
+        public ulong? RequestedById { get; set; }
         public virtual CachedUser RequestedBy { get; set; }
 
         [ForeignKey("Id")]

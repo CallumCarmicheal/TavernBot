@@ -214,7 +214,7 @@ namespace CCTavern {
             var currentTrackQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(x => x.GuildId == guild.Id && x.Position == guild.CurrentTrack);
             if (currentTrackQuery.Any()) {
                 dbTrack = await currentTrackQuery.FirstAsync();
-                requestedBy = dbTrack.RequestedBy.DisplayName;
+                requestedBy = (dbTrack.RequestedBy == null) ? "<#DELETED>" : dbTrack.RequestedBy.DisplayName;
             }
 
             string? thumbnail = null;
@@ -268,7 +268,6 @@ namespace CCTavern {
                 await deletePastStatusMessage(guild, outputChannel);
                 await db.SaveChangesAsync();
             }
-
 
             // Get the next track
             var dbTrack = await getNextTrackForGuild(conn.Guild);

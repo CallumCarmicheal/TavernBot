@@ -9,8 +9,11 @@ using System.Threading.Tasks;
 namespace CCTavern.Database {
     public class CachedUser {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.None)]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public ulong Id { get; set; }
+        
+        [Required]
+        public ulong UserId { get; set; }
 
         [Required]
         public string Username { get; set; }
@@ -21,5 +24,8 @@ namespace CCTavern.Database {
         [ForeignKey("Id")]
         public ulong GuildId { get; set; }
         public virtual Guild Guild { get; set; }
+
+
+        public ICollection<GuildQueueItem> RequestedSongs { get; set; }
     }
 }

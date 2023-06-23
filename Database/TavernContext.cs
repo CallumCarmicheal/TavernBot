@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 
 using DSharpPlus.Entities;
+using DSharpPlus.Net.Models;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,13 +30,17 @@ public partial class TavernContext : DbContext
         optionsBuilder.UseLoggerFactory(Program.LoggerFactory);
     }
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
+    protected override void OnModelCreating(ModelBuilder modelBuilder) {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.Entity<CachedUser>()
-            .ToTable("CachedUsers")
-            .HasKey(t => t.Id);
+        /* Cached User */ {
+            modelBuilder.Entity<CachedUser>()
+                .Property(t => t.Id)
+                .ValueGeneratedOnAdd();
+            modelBuilder.Entity<CachedUser>()
+                .ToTable("CachedUsers")
+                .HasKey(t => t.Id);
+        }
 
         modelBuilder.Entity<Guild>()
            .ToTable("Guilds")
@@ -44,9 +50,18 @@ public partial class TavernContext : DbContext
             modelBuilder.Entity<GuildQueueItem>()
                 .Property(t => t.Id)
                 .ValueGeneratedOnAdd();
+
+            modelBuilder.Entity<GuildQueueItem>()
+                .HasOne(qi => qi.RequestedBy)
+                .WithMany(usr => usr.RequestedSongs)
+                .HasForeignKey(p => p.RequestedById)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+
             modelBuilder.Entity<GuildQueueItem>()
                .ToTable("GuildQueueItems")
                .HasKey(t => t.Id);
+            
         }
 
         OnModelCreatingPartial(modelBuilder);
@@ -58,13 +73,14 @@ public partial class TavernContext : DbContext
     public async Task<CachedUser> GetOrCreateCachedUser(Guild guild, DiscordMember user) {
         CachedUser cachedUser;
 
-        var query = CachedUsers.Where(x => x.Id == user.Id);
+        var query = CachedUsers.Where(x => x.Id == user.Id && x.GuildId == guild.Id);
 
         if (await query.AnyAsync() == false) {
             cachedUser = new CachedUser() {
-                Id = user.Id,
+                UserId = user.Id,
                 DisplayName = user.DisplayName,
-                Username = user.Username
+                Username = user.Username,
+                GuildId = guild.Id
             };
 
             CachedUsers.Add(cachedUser);
