@@ -15,6 +15,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 using TimeSpanParserUtil;
@@ -369,6 +370,90 @@ namespace CCTavern.Commands {
                 return ts;
 
             return null;
+        }
+
+
+        [Command("random"), Aliases("rnd", "rj", "randomjump")]
+        [Description("Current playing track")]
+        public async Task RandomJump(CommandContext ctx, int startPosition = -1, int endPosition = -1) {
+            var lava = ctx.Client.GetLavalink();
+            var node = lava.ConnectedNodes.Values.First();
+            var conn = node?.GetGuildConnection(ctx.Member?.VoiceState.Guild);
+
+            if (node == null) {
+                await ctx.RespondAsync("I am not connected to any voice servers, I cannot play any music at this moment.");
+                return;
+            }
+
+            if (conn == null) {
+                // Check if we have a valid voice state
+                if (ctx.Member?.VoiceState == null || ctx.Member.VoiceState.Channel == null) {
+                    await ctx.RespondAsync("You are not in a voice channel.");
+                    return;
+                }
+
+                var voiceState = ctx.Member.VoiceState;
+                var channel = voiceState.Channel;
+                if (voiceState.Channel.GuildId != ctx.Guild.Id) {
+                    await ctx.RespondAsync("Not in voice channel of this guild.");
+                    return;
+                }
+                if (channel.Type != ChannelType.Voice) {
+                    await ctx.RespondAsync("Impossible error but I dunno we got here somehow, Not a valid voice channel.");
+                    return;
+                }
+
+                // Connect the bot
+                conn = await node.ConnectAsync(channel);
+                Music.announceJoin(channel);
+
+                await ctx.RespondAsync($"Connected to <#{channel.Id}>.");
+            }
+
+            var db = new TavernContext();
+            var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
+
+            // Check if we have tracks in the queue
+            var guildQueueQuery = db.GuildQueueItems
+                .Where  (x => x.GuildId == guild.Id && x.IsDeleted == false)
+                .OrderBy(x => x.Position);
+            if (await guildQueueQuery.AnyAsync() == false) {
+                await ctx.RespondAsync("Sorry bro, there ain't nothing te shuffle. Try adding some songs first.");
+                return;
+            }
+
+            var rand = new Random();
+            var dbTrack = await guildQueueQuery.Skip(rand.Next(guildQueueQuery.Count())).FirstAsync();
+
+            if (dbTrack == null) 
+                // attempt to do it one more time
+                dbTrack = await guildQueueQuery.Skip(rand.Next(guildQueueQuery.Count())).FirstAsync();
+
+            if (dbTrack == null) {
+                await ctx.RespondAsync("***Bot got hurt in the confusion***. For some reason or another (ᴾʳᵒᵇᵃᵇˡʸ ᶜᵃˡˡᵘᵐˢ ᵇᵃᵈ ᵖʳᵒᵍʳᵃᵐᵐᶦⁿᵍ)" 
+                    + " I cant find a track to play. Try again... maybe!?");
+                return;
+            }
+
+            guild.CurrentTrack = dbTrack.Position;
+            guild.NextTrack = dbTrack.Position + 1;
+            guild.IsPlaying = true;
+
+            var track = await node.Rest.DecodeTrackAsync(dbTrack.TrackString);
+
+            if (track == null) {
+                await ctx.RespondAsync($"Jumping error, Failed to parse next track `{dbTrack.Title}` at position `{dbTrack.Position}`.");
+                return;
+            }
+
+            track.TrackString = dbTrack.TrackString;
+
+            guild.CurrentTrack = dbTrack.Position;
+            guild.NextTrack = dbTrack.Position + 1;
+            await db.SaveChangesAsync();
+
+            await conn.PlayAsync(track);
+            await ctx.RespondAsync($"Jumped to track `{dbTrack.Title}` at position `{dbTrack.Position}`.");
         }
     }
 }

@@ -109,14 +109,18 @@ public partial class TavernContext : DbContext
         return cachedUser;
     }
 
-    public async Task<Guild> GetOrCreateDiscordGuild(DiscordGuild guild) {
+    public async Task<Guild> GetOrCreateDiscordGuild(DiscordGuild guild, bool includeTracks = false) {
         Guild dbGuild;
         
         var query = Guilds.Where(x => x.Id == guild.Id);
+        if (includeTracks) query = query.Include(x => x.Queue);
+
         if (await query.AnyAsync() == false) {
             dbGuild = new Guild() {
                 Id = guild.Id,
                 Name = guild.Name,
+                IsPlaying = false,
+                TrackCount = 0
             };
 
             Guilds.Add(dbGuild);
