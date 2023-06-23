@@ -1,0 +1,8 @@
+version: '3.4'
+
+services:
+  cctavern:
+    image: cctavern-image
+    restart: always
+    volumes:
+      - ./Configuration.json:/App/Configuration.json
