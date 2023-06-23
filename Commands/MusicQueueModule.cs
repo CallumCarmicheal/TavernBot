@@ -46,10 +46,16 @@ namespace CCTavern.Commands {
             var pages           = (int)Math.Ceiling(guildQueueCount / (double)ITEMS_PER_PAGE);
             targetPage          = Math.Clamp(targetPage, 0, pages);
 
+            if (guildQueueCount == 0) {
+                queueContent += $"Queue Page 0 / 0 (0 songs [index @ {guild.TrackCount}])\n\n";
+                queueContent += "  YAKNOB) The Queue is fucking empty, play something for fucks sake.";
+                await message.ModifyAsync($"```{queueContent}```");
+                return;
+            }
+
             queueContent += $"Queue Page {targetPage} / {pages} ({guildQueueCount} songs [index @ {guild.TrackCount}])\n\n";
 
             var pageContents = guildQueueQuery.Page(targetPage, ITEMS_PER_PAGE);
-
             foreach (var song in pageContents) {
                 queueContent += " " + ((song.Position == guild.CurrentTrack) ? "*" : " "); 
                 queueContent += $"{song.Position,4}) ";
