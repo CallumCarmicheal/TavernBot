@@ -28,8 +28,7 @@ namespace CCTavern.Commands {
 
         [Command("queue")]
         public async Task GetQueue(CommandContext ctx, int Page = -1) {
-            await ctx.RespondAsync("Lmao u thought, I'm too fucking lazy to add that shit right now.");
-
+            var message = await ctx.RespondAsync("Loading queue...");
             string queueContent = "";
 
             // Get the guild
@@ -47,14 +46,18 @@ namespace CCTavern.Commands {
             var pages           = (int)Math.Ceiling(guildQueueCount / (double)ITEMS_PER_PAGE);
             targetPage          = Math.Clamp(targetPage, 0, pages);
 
-            queueContent += $"Queue Page ${targetPage} / ${pages} (${guildQueueCount} songs [index @ {guild.TrackCount}])\n\n";
+            queueContent += $"Queue Page {targetPage} / {pages} ({guildQueueCount} songs [index @ {guild.TrackCount}])\n\n";
 
             var pageContents = guildQueueQuery.Page(targetPage, ITEMS_PER_PAGE);
 
             foreach (var song in pageContents) {
-                queueContent += $" {song.Position,-4})";
-                queueContent += $" {song.Title} - Requested by {song.RequestedBy.DisplayName}";
+                queueContent += " " + ((song.Position == guild.CurrentTrack) ? "*" : " "); 
+                queueContent += $"{song.Position,4}) ";
+                queueContent += $"{song.Title} - Requested by ";
+                queueContent += (song.RequestedBy == null) ? "<#DELETED>" : $"{song.RequestedBy.DisplayName}\n";
             }
+
+            await message.ModifyAsync($"```{queueContent}```");
         }
     }
 }
