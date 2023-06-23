@@ -37,7 +37,6 @@ namespace CCTavern.Commands {
             // Get the guild
             var db    = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
-
             var currentPosition = guild.CurrentTrack;
 
             var targetPage = (int)Math.Ceiling((currentPosition - 1) / (double)ITEMS_PER_PAGE);
@@ -46,8 +45,8 @@ namespace CCTavern.Commands {
 
             var guildQueueQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(x => x.GuildId == guild.Id && x.IsDeleted == false);
             var guildQueueCount = await guildQueueQuery.CountAsync();
-            var pages           = (int)Math.Ceiling(guildQueueCount / (double)ITEMS_PER_PAGE);
-            targetPage          = Math.Clamp(targetPage, 1, pages);
+            var pages = (int)Math.Ceiling(guildQueueCount / (double)ITEMS_PER_PAGE);
+            targetPage = pages == 0 ? 0 : Math.Clamp(targetPage, 1, pages);
 
             if (guildQueueCount == 0) {
                 queueContent += $"Queue Page 0 / 0 (0 songs [index @ {guild.TrackCount}])\n\n";
@@ -98,7 +97,6 @@ namespace CCTavern.Commands {
                 queueContent += (dbTrack.RequestedBy == null) ? "<#DELETED>" : $"{dbTrack.RequestedBy.DisplayName}\n";
             }
 
-            int test = 0;
             await message.ModifyAsync($"```{queueContent}```");
         }
 
