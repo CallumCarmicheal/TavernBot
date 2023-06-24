@@ -70,10 +70,12 @@ namespace CCTavern.Commands {
                 return;
             }
 
-            await node.ConnectAsync(channel);
+            var guildConnection = await node.ConnectAsync(channel);
             Music.announceJoin(channel);
 
             await ctx.RespondAsync($"Joined <#{channel.Id}>!");
+
+            await Music.HandleTimeoutFor(guildConnection);
         }
 
         [Command("leave"), Aliases("quit", "stop")]
