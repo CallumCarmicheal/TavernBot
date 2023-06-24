@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace CCTavern.Database {
-    public class GuildQueuePlaylist {
+    public class GuildQueuePlaylist : BaseDbEntity {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public ulong Id { get; set; }

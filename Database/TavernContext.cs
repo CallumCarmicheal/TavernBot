@@ -28,7 +28,9 @@ public partial class TavernContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) { 
         optionsBuilder.UseMySQL(Program.Settings.MySQLConnectionString);
-        //optionsBuilder.UseLoggerFactory(Program.LoggerFactory);
+
+        if (Program.Settings.LogDatabaseQueries)
+            optionsBuilder.UseLoggerFactory(Program.LoggerFactory);
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) {
@@ -80,9 +82,23 @@ public partial class TavernContext : DbContext
         OnModelCreatingPartial(modelBuilder);
     }
 
+    public override int SaveChanges() {
+        var entries = ChangeTracker
+            .Entries()
+            .Where(e => (e.Entity is BaseDbEntity)
+                     && (e.State == EntityState.Added || e.State == EntityState.Modified));
+
+        foreach (var entityEntry in entries) {
+            ((BaseDbEntity)entityEntry.Entity).UpdatedAt = DateTime.Now;
+
+            if (entityEntry.State == EntityState.Added)
+                ((BaseDbEntity)entityEntry.Entity).CreatedAt = DateTime.Now;
+        }
+
+        return base.SaveChanges();
+    }
+
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
-
-
 
     public async Task<CachedUser> GetOrCreateCachedUser(Guild guild, DiscordMember user) {
         CachedUser cachedUser;

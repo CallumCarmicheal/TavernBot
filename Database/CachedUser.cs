@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace CCTavern.Database {
-    public class CachedUser {
+    public class CachedUser : BaseDbEntity {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public ulong Id { get; set; }

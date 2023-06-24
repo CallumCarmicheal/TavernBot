@@ -24,6 +24,9 @@ namespace CCTavern {
 
         [Option(Alias = "mysqlConnectionString", DefaultValue = "")]
         public string MySQLConnectionString { get; set; }
+
+        [Option(Alias = "logDatabaseQueries", DefaultValue = false)]
+        public bool LogDatabaseQueries { get; set; }
     }
 
     // ll.hostname=127.0.0.1 ll.port=2800 ll.password=Password123

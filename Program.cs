@@ -60,6 +60,10 @@ namespace CCTavern
             logger = LoggerFactory.CreateLogger<Program>();
             logger.LogInformation(TLE.Startup, "Application starting");
 
+#if (ARCHIVAL_MODE)
+            logger.LogInformation("!!! ARCHIVE MODE ONLY !!!");
+#endif
+
             // Load our settings
             Settings = new ConfigurationBuilder<ITavernSettings>()
                 .UseAppConfig()
@@ -119,11 +123,17 @@ namespace CCTavern
 
             logger.LogInformation(TLE.Startup, "Registering commands");
 
+#if (ARCHIVAL_MODE)
+            // Archival import mode
+            commands.RegisterCommands<ArchiveImportModule>();
+            commands.RegisterCommands<BotCommandsModule>();
+#else
             commands.RegisterCommands<MusicCommandModule>();
             commands.RegisterCommands<MusicPlayModule>();
             commands.RegisterCommands<MusicQueueModule>();
             commands.RegisterCommands<GuildSettingsModule>();
             commands.RegisterCommands<BotCommandsModule>();
+#endif
 
             // Setup the lavalink connection
             await music.SetupLavalink();
@@ -154,6 +164,11 @@ namespace CCTavern
 #else
             gitHash = "[REL]#" + gitHash; 
 #endif
+
+#if ARCHIVAL_MODE
+            gitHash = "(ARCHIVAL):" + gitHash;
+#endif
+
             VERSION_Git_WithBuild = gitHash;
         }
 
@@ -161,13 +176,20 @@ namespace CCTavern
             //var c = msg.Content; var trimmed = c.Length > 4 ? c.Substring(0, 4) : c;
             //logger.LogInformation(TLE.CmdDbg, $"Discord Prefix Resolver, {msg.Author.Username} : {trimmed}");
 
-            const string debugPrefix = "cc?";
-            int mpos = msg.GetStringPrefixLength(debugPrefix, StringComparison.OrdinalIgnoreCase);
-
-#if (DEBUG)
-            // Get the prefix here, dont forget to have a default one.
+#if (ARCHIVAL_MODE)
+            const string archivalPrefix = "ccArchive?";
+            int mpos = msg.GetStringPrefixLength(archivalPrefix, StringComparison.OrdinalIgnoreCase);
             return Task.FromResult(mpos);
 #else
+            const string debugPrefix = "cc?";
+            int mpos = msg.GetStringPrefixLength(debugPrefix, StringComparison.OrdinalIgnoreCase);
+#endif
+
+#if (DEBUG && !ARCHIVAL_MODE)
+            // Get the prefix here, dont forget to have a default one.
+            return Task.FromResult(mpos);
+
+#elif (ARCHIVAL_MODE == false)
             // If we are using the debugging prefix then we want to ignore this message in prod.
             if (mpos != -1) 
                 return Task.FromResult(-1);

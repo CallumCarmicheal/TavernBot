@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace CCTavern.Database {
-    public class Guild {
+    public class Guild : BaseDbEntity {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.None)]
         public ulong Id { get; set; }

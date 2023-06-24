@@ -10,7 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace CCTavern.Database {
-    public class GuildQueueItem {
+    public class GuildQueueItem : BaseDbEntity {
         [Key]
         public ulong Id { get; set; }
 
@@ -24,6 +24,8 @@ namespace CCTavern.Database {
 
         public bool IsDeleted { get; set; } = false;
 
+        public DateTime DateDeleted { get; set; }
+
         [ForeignKey("Id")]
         public ulong? RequestedById { get; set; }
         public virtual CachedUser RequestedBy { get; set; }
@@ -36,5 +38,7 @@ namespace CCTavern.Database {
         [ForeignKey("Id")]
         public ulong? PlaylistId { get; set; }
         public virtual GuildQueuePlaylist Playlist { get; set; }
+
+
     }
 }
