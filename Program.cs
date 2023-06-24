@@ -134,7 +134,7 @@ namespace CCTavern
                 return Task.FromResult(0);
 
             var guildId = msg.Channel.Guild.Id;
-            List<string> prefixes = ServerPrefixes.ContainsKey(guildId)
+            IEnumerable<string> prefixes = ServerPrefixes.ContainsKey(guildId)
                 ? ServerPrefixes[guildId] : Settings.DefaultPrefixes;
 
             foreach (var pfix in prefixes)
