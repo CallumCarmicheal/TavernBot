@@ -20,6 +20,9 @@ using Microsoft.EntityFrameworkCore.Update;
 using System.Security.Policy;
 using System.Web;
 using CCTavern.Utility;
+using System.Reflection;
+using System.Diagnostics;
+using Org.BouncyCastle.Asn1.Cms;
 
 namespace CCTavern {
     public class MusicBot {
@@ -149,18 +152,19 @@ namespace CCTavern {
         }
 
         public async Task<bool> deletePastStatusMessage(Guild guild, DiscordChannel outputChannel) {
-            if (guild.LastMessageStatusId != null && outputChannel != null) {
-                ulong lastMessageStatusId = guild.LastMessageStatusId.Value;
-                try {
-                    var oldMessage = await outputChannel.GetMessageAsync(lastMessageStatusId);
-                    if (oldMessage != null) {
-                        guild.LastMessageStatusId = null;
+            try {
+                if (guild.LastMessageStatusId != null && outputChannel != null) {
+                    ulong lastMessageStatusId = guild.LastMessageStatusId.Value;
+                        var oldMessage = await outputChannel.GetMessageAsync(lastMessageStatusId, true);
+                        if (oldMessage != null) {
+                            guild.LastMessageStatusId = null;
 
-                        await oldMessage.DeleteAsync();
-                        return true;
-                    }
-                } catch { }
-            }
+                            await oldMessage.DeleteAsync();
+                            return true;
+                        }
+                }
+            } catch { }
+
             return false;
         }
 
@@ -241,7 +245,6 @@ namespace CCTavern {
                 logger.LogError(TLE.MBLava, "Failed to get music channel for lavalink connection.");
             } else {
                 await deletePastStatusMessage(guild, outputChannel);
-                await db.SaveChangesAsync();
             }
 
             GuildQueueItem? dbTrack = null;
@@ -276,16 +279,19 @@ namespace CCTavern {
             else embed.AddField("Position", dbTrack.Position.ToString(), true);
             embed.AddField("Duration", args.Track.Length.ToString(@"hh\:mm\:ss"), true);
             embed.AddField("Requested by", requestedBy, true);
-            embed.WithFooter("gb:callums-basement");
+            embed.WithFooter("gb:callums-basement@" + Program.VERSION_Full);
 
             var message = await client.SendMessageAsync(outputChannel, embed: embed);
             guild.LastMessageStatusId = message.Id;
             guild.IsPlaying = true;
-            db.SaveChanges();
+            await db.SaveChangesAsync();
+            logger.LogInformation(TLE.Misc, "LavalinkNode_PlaybackStarted <-- Done processing");
         }
 
         private async Task LavalinkNode_PlaybackFinished(LavalinkGuildConnection conn, DSharpPlus.Lavalink.EventArgs.TrackFinishEventArgs args) {
-            logger.LogInformation(TLE.Misc, "LavalinkNode_PlaybackFinished");
+            logger.LogInformation(TLE.Misc, "-------------PlaybackFinished : " + args.Reason.ToString());
+            if (args.Reason == DSharpPlus.Lavalink.EventArgs.TrackEndReason.Replaced) 
+                return;
 
             // Check if we have a channel for the guild
             var db = new TavernContext();
@@ -337,6 +343,7 @@ namespace CCTavern {
             // Play the next track.
             await Task.Delay(500);
             await conn.PlayAsync(track);
+            logger.LogInformation(TLE.Misc, "-------------PlaybackFinished ### Finished processing");
         }
     }
 }

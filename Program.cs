@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net.Http.Headers;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
@@ -42,9 +44,16 @@ namespace CCTavern
 
         private static ILogger logger;
 
+        public static string VERSION_Full { get; private set; }
+        public static string VERSION_Git { get; private set; } = "??";
+        public static string VERSION_Git_WithBuild { get; private set; } = "??";
+
+
         // Remember to make your main method async! You no longer need to have both a Main and MainAsync method in the same class.
         public static async Task Main() 
         {
+            loadVersionString();
+
             LoggerFactory = new CCTavern.Logger.TavernLoggerFactory();
             LoggerFactory.AddProvider(new CCTavern.Logger.TavernLoggerProvider());
 
@@ -104,7 +113,7 @@ namespace CCTavern
                 CaseSensitive = Settings.PrefixesCaseSensitive,
                 PrefixResolver = DiscordPrefixResolver,
                 EnableMentionPrefix = true,
-                DmHelp = true,
+                DmHelp = false,
                 Services = services.BuildServiceProvider()
             });
 
@@ -113,6 +122,8 @@ namespace CCTavern
             commands.RegisterCommands<MusicCommandModule>();
             commands.RegisterCommands<MusicPlayModule>();
             commands.RegisterCommands<MusicQueueModule>();
+            commands.RegisterCommands<GuildSettingsModule>();
+            commands.RegisterCommands<BotCommandsModule>();
 
             // Setup the lavalink connection
             await music.SetupLavalink();
@@ -120,8 +131,30 @@ namespace CCTavern
             status = new("Ready", ActivityType.Playing);
             await client.UpdateStatusAsync(status, UserStatus.Online);
 
+            logger.LogInformation(TLE.Startup, "Ready :)");
+
             // And now we wait infinitely so that our bot actually stays connected.
             await Task.Delay(-1);
+        }
+
+        private static void loadVersionString() {
+            Assembly assembly = Assembly.GetExecutingAssembly();
+            FileVersionInfo fileVersionInfo = FileVersionInfo.GetVersionInfo(assembly.Location);
+            string? version = fileVersionInfo.ProductVersion;
+            string gitHash = "??";
+
+            if (version != null)
+                gitHash = version?.Split("+")[1] ?? "";
+
+            VERSION_Git = gitHash;
+            VERSION_Full = version ?? "??";
+
+#if DEBUG
+            gitHash = "[DBG]#" + gitHash;
+#else
+            gitHash = "[REL]#" + gitHash; 
+#endif
+            VERSION_Git_WithBuild = gitHash;
         }
 
         private static Task<int> DiscordPrefixResolver(DiscordMessage msg) {

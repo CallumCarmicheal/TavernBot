@@ -33,7 +33,10 @@ namespace CCTavern.Commands {
         [Command("queue")]
         [Description("Lists all songs in the music queue")]
         [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
-        public async Task GetQueue(CommandContext ctx, int Page = -1) {
+        public async Task GetQueue(CommandContext ctx,
+            [Description("Page number to view, if blank then the page containing the current track is shown.")]
+            int Page = -1
+        ) {
             var message = await ctx.RespondAsync("Loading queue...");
             string queueContent = "";
 
@@ -107,7 +110,11 @@ namespace CCTavern.Commands {
 
         [Command("remove"), Aliases("delete")]
         [Description("Delete a song from the queue")]
-        public async Task DeleteSongFromQueue(CommandContext ctx, ulong songIndex) {
+        [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
+        public async Task DeleteSongFromQueue(CommandContext ctx,
+            [Description("Position of the song to be removed from the queue")]
+            ulong songIndex
+        ) {
             // Get the guild
             var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);

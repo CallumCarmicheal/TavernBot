@@ -16,7 +16,6 @@ using System.Threading.Tasks;
 
 namespace CCTavern.Commands {
     internal class GuildSettingsModule : BaseCommandModule {
-        public MusicBot Music { private get; set; }
 
         private ILogger _logger;
         private ILogger logger {

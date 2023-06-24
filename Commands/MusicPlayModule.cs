@@ -148,6 +148,7 @@ namespace CCTavern.Commands {
                             dbGuild.CurrentTrack = trackIdx;
                             await db.SaveChangesAsync();
                             await conn.PlayAsync(lt);
+                            logger.LogInformation("Loading playlist, Playing first track.");
                         }
 
                         // Every 5 tracks update the index
@@ -176,6 +177,7 @@ namespace CCTavern.Commands {
                 await db.SaveChangesAsync();
 
                 await conn.PlayAsync(track);
+                logger.LogInformation("Play Music: Playing song...");
             }
         }
 

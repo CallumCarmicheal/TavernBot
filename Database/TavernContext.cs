@@ -28,7 +28,7 @@ public partial class TavernContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) { 
         optionsBuilder.UseMySQL(Program.Settings.MySQLConnectionString);
-        optionsBuilder.UseLoggerFactory(Program.LoggerFactory);
+        //optionsBuilder.UseLoggerFactory(Program.LoggerFactory);
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) {
