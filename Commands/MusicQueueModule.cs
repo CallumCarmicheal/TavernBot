@@ -117,10 +117,14 @@ namespace CCTavern.Commands {
         ) {
             // Get the guild
             var db = new TavernContext();
-            var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
+            var dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
+
+            CachedUser? dbUser = null;
+            if (ctx.Member != null)
+                dbUser = await db.GetOrCreateCachedUser(dbGuild, ctx.Member);
 
             // Get the song
-            var guildQueueQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(x => x.GuildId == guild.Id && x.IsDeleted == false && x.Position == songIndex);
+            var guildQueueQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(x => x.GuildId == dbGuild.Id && x.IsDeleted == false && x.Position == songIndex);
             
             // Check if the song doesn't exist
             if (await guildQueueQuery.AnyAsync() == false) {
@@ -141,6 +145,7 @@ namespace CCTavern.Commands {
             await ctx.RespondAsync($"Successfully removed `{dbTrack.Title}` from the queue at position `{dbTrack.Position}`.");
 
             dbTrack.IsDeleted = true;
+            dbTrack.DeletedById = dbUser?.Id;
             await db.SaveChangesAsync();
         }
     }

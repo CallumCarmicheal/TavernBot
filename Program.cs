@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net.Http.Headers;
 using System.Reflection;
@@ -35,6 +36,9 @@ namespace CCTavern
     // We're sealing it because nothing will be inheriting this class
     public sealed class Program
     {
+        public static string DotNetConfigurationMode { get => get_VarDotNetConfigurationMode(); }
+
+
         internal static Logger.TavernLoggerFactory LoggerFactory { get; private set; } = new CCTavern.Logger.TavernLoggerFactory();
         
         internal static ITavernSettings Settings { get; private set; }
@@ -64,12 +68,7 @@ namespace CCTavern
             logger.LogInformation("!!! ARCHIVE MODE ONLY !!!");
 #endif
 
-            // Load our settings
-            Settings = new ConfigurationBuilder<ITavernSettings>()
-                .UseAppConfig()
-                .UseEnvironmentVariables()
-                .UseJsonFile("./Configuration.json")
-                .Build();
+            ReloadSettings();
 
             // For the sake of examples, we're going to load our Discord token from an environment variable.
             if (string.IsNullOrWhiteSpace(Settings.DiscordToken)) {
@@ -232,6 +231,65 @@ namespace CCTavern
                 var list = pfx.Prefixes.SplitWithTrim(Constants.PREFIX_SEPERATOR, '\\', true).ToList();
                 ServerPrefixes.Add(pfx.GuildId, list);
             }
+        }
+
+        public static void ReloadSettings() {
+            string jsonFile = "./Configuration.json";
+
+            // Check if the configuration file exists
+            if (System.IO.File.Exists("Configuration.json") == false) {
+                // Attempt to load it from the bin folder assuming we are in the root of the source.
+
+                var folder = "";
+                var dnConfiguration = DotNetConfigurationMode;
+                switch (dnConfiguration) {
+                    case "Debug|Archival_Mode":
+                        folder = "bin\\Archival_Debug\\net7.0\\";
+                        break;
+                    case "Release|Archival_Mode":
+                        folder = "bin\\Archival_Debug\\net7.0\\";
+                        break;
+                    case "Debug":
+                        folder = "bin\\Archival_Debug\\net7.0\\";
+                        break;
+                    case "Release":
+                        folder = "bin\\Archival_Debug\\net7.0\\";
+                        break;
+                }
+
+                jsonFile = Path.Join(Directory.GetCurrentDirectory(), folder, "Configuration.json");
+            }
+
+            Console.WriteLine("Configuration File: " + jsonFile);
+
+            // Load our settings
+            Settings = new ConfigurationBuilder<ITavernSettings>()
+                .UseAppConfig()
+                .UseEnvironmentVariables()
+                .UseJsonFile(jsonFile)
+                .Build();
+        }
+
+        private static string _dnMode = "";
+        private static string get_VarDotNetConfigurationMode() {
+            if (string.IsNullOrWhiteSpace(_dnMode) == false)
+                return _dnMode;
+
+#if (DEBUG && ARCHIVAL_MODE)
+            // Archival_Debug
+            _dnMode = "Debug|Archival_Mode";
+#elif (ARCHIVAL_MODE)
+            // Archival_Release
+            _dnbinarydir = "Release|Archival_Mode";
+#elif (DEBUG)
+            // Debug
+            _dnbinarydir = "Debug";
+#elif (RELEASE)
+            // Release / Other
+            _dnbinarydir = "Release";
+#endif
+
+            return _dnMode;
         }
     }
 }

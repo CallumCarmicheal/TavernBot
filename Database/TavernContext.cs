@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -10,6 +11,7 @@ using DSharpPlus.Net.Models;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Identity.Client;
 
 namespace CCTavern.Database;
 
@@ -27,8 +29,14 @@ public partial class TavernContext : DbContext
 
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) { 
-        optionsBuilder.UseMySQL(Program.Settings.MySQLConnectionString);
+        // This means we are being invoked by Migration nuget commands.
+        if (Program.Settings == null) 
+            Program.ReloadSettings();
 
+        // Ensure we have a configuration
+        System.Diagnostics.Debug.Assert(Program.Settings != null);
+
+        optionsBuilder.UseMySQL(Program.Settings.MySQLConnectionString);
         if (Program.Settings.LogDatabaseQueries)
             optionsBuilder.UseLoggerFactory(Program.LoggerFactory);
     }
@@ -63,6 +71,13 @@ public partial class TavernContext : DbContext
                 .HasOne(qi => qi.RequestedBy)
                 .WithMany(usr => usr.RequestedSongs)
                 .HasForeignKey(p => p.RequestedById)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<GuildQueueItem>()
+                .HasOne(qi => qi.DeletedBy)
+                .WithMany(usr => usr.DeletedSongs)
+                .HasForeignKey(p => p.DeletedById)
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.SetNull);
 

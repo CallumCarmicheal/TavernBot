@@ -27,5 +27,6 @@ namespace CCTavern.Database {
 
 
         public ICollection<GuildQueueItem> RequestedSongs { get; set; }
+        public ICollection<GuildQueueItem> DeletedSongs { get; set; }
     }
 }
