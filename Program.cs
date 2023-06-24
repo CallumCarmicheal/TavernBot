@@ -36,7 +36,7 @@ namespace CCTavern
 
         internal static Logger.TavernLoggerFactory LoggerFactory { get; private set; } = new CCTavern.Logger.TavernLoggerFactory();
 
-        public static Dictionary<ulong, List<string>> ServerPrefixes = new Dictionary<ulong, List<string>>();
+        public static Dictionary<ulong, IEnumerable<string>> ServerPrefixes = new Dictionary<ulong, IEnumerable<string>>();
 
         private static ILogger logger;
 
@@ -137,9 +137,14 @@ namespace CCTavern
             IEnumerable<string> prefixes = ServerPrefixes.ContainsKey(guildId)
                 ? ServerPrefixes[guildId] : Settings.DefaultPrefixes;
 
-            foreach (var pfix in prefixes)
-                if (mpos == -1 && !string.IsNullOrWhiteSpace(pfix))
+            foreach (var pfix in prefixes) {
+                if (mpos == -1 && !string.IsNullOrWhiteSpace(pfix)) {
                     mpos = msg.GetStringPrefixLength(pfix, Settings.PrefixesCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase);
+
+                    if (mpos != -1)
+                        break;
+                }
+            }
 
             return Task.FromResult(mpos);
 #endif

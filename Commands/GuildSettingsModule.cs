@@ -44,10 +44,12 @@ namespace CCTavern.Commands {
             dbGuild.Prefixes = joinedPrefixes;
             await db.SaveChangesAsync();
 
+            var prefixListEnumerable = prefixesList.AsEnumerable();
+
             if (Program.ServerPrefixes.ContainsKey(ctx.Guild.Id)) {
-                Program.ServerPrefixes[ctx.Guild.Id] = prefixesList;
+                Program.ServerPrefixes[ctx.Guild.Id] = prefixListEnumerable;
             } else {
-                Program.ServerPrefixes.Add(ctx.Guild.Id, prefixesList);
+                Program.ServerPrefixes.Add(ctx.Guild.Id, prefixListEnumerable);
             }
 
             await ctx.RespondAsync($"Updated prefixes to {joinedPrefixes}.");
