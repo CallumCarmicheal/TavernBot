@@ -280,13 +280,13 @@ namespace CCTavern
             _dnMode = "Debug|Archival_Mode";
 #elif (ARCHIVAL_MODE)
             // Archival_Release
-            _dnbinarydir = "Release|Archival_Mode";
+            _dnMode = "Release|Archival_Mode";
 #elif (DEBUG)
             // Debug
-            _dnbinarydir = "Debug";
+            _dnMode = "Debug";
 #elif (RELEASE)
             // Release / Other
-            _dnbinarydir = "Release";
+            _dnMode = "Release";
 #endif
 
             return _dnMode;
