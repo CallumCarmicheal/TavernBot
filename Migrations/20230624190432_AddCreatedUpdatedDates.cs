@@ -22,8 +22,22 @@ namespace CCTavern.Migrations
                 name: "UpdatedAt",
                 table: "Guilds",
                 type: "datetime(6)",
+                nullable: true,
+                defaultValue: null);
+
+            migrationBuilder.AddColumn<DateTime>(
+                name: "CreatedAt",
+                table: "CachedUsers",
+                type: "datetime(6)",
                 nullable: false,
                 defaultValue: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
+
+            migrationBuilder.AddColumn<DateTime>(
+                name: "UpdatedAt",
+                table: "CachedUsers",
+                type: "datetime(6)",
+                nullable: true,
+                defaultValue: null);
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "CreatedAt",
@@ -36,8 +50,8 @@ namespace CCTavern.Migrations
                 name: "UpdatedAt",
                 table: "GuildQueuePlaylists",
                 type: "datetime(6)",
-                nullable: false,
-                defaultValue: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
+                nullable: true,
+                defaultValue: null);
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "CreatedAt",
@@ -50,8 +64,8 @@ namespace CCTavern.Migrations
                 name: "UpdatedAt",
                 table: "GuildQueueItems",
                 type: "datetime(6)",
-                nullable: false,
-                defaultValue: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
+                nullable: true,
+                defaultValue: null);
         }
 
         /// <inheritdoc />
@@ -64,6 +78,14 @@ namespace CCTavern.Migrations
             migrationBuilder.DropColumn(
                 name: "UpdatedAt",
                 table: "Guilds");
+
+            migrationBuilder.DropColumn(
+                name: "CreatedAt",
+                table: "CachedUsers");
+
+            migrationBuilder.DropColumn(
+                name: "UpdatedAt",
+                table: "CachedUsers");
 
             migrationBuilder.DropColumn(
                 name: "CreatedAt",

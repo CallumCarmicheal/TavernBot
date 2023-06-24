@@ -118,7 +118,7 @@ public partial class TavernContext : DbContext
     public async Task<CachedUser> GetOrCreateCachedUser(Guild guild, DiscordMember user) {
         CachedUser cachedUser;
 
-        var query = CachedUsers.Where(x => x.Id == user.Id && x.GuildId == guild.Id);
+        var query = CachedUsers.Where(x => x.UserId == user.Id && x.GuildId == guild.Id);
 
         if (await query.AnyAsync() == false) {
             cachedUser = new CachedUser() {

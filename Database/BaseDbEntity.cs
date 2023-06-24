@@ -9,6 +9,6 @@ using System.Threading.Tasks;
 namespace CCTavern.Database {
     public class BaseDbEntity {
         public DateTime CreatedAt { get; set; } = DateTime.Now;
-        public DateTime UpdatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
     }
 }

@@ -54,6 +54,7 @@ namespace CCTavern
         public static string VERSION_Git { get; private set; } = "??";
         public static string VERSION_Git_WithBuild { get; private set; } = "??";
 
+        private static DiscordClient client;
 
         // Remember to make your main method async! You no longer need to have both a Main and MainAsync method in the same class.
         public static async Task Main() 
@@ -96,7 +97,7 @@ namespace CCTavern
                     | DiscordIntents.GuildVoiceStates | DiscordIntents.DirectMessageReactions
             };
 
-            DiscordClient client = new(config);
+            client = new(config);
 
             client.UseInteractivity(new InteractivityConfiguration() {
                 PollBehaviour = PollBehaviour.KeepEmojis,
@@ -173,9 +174,15 @@ namespace CCTavern
             VERSION_Git_WithBuild = gitHash;
         }
 
-        private static Task<int> DiscordPrefixResolver(DiscordMessage msg) {
+        private static async Task<int> DiscordPrefixResolver(DiscordMessage msg) {
             //var c = msg.Content; var trimmed = c.Length > 4 ? c.Substring(0, 4) : c;
             //logger.LogInformation(TLE.CmdDbg, $"Discord Prefix Resolver, {msg.Author.Username} : {trimmed}");
+
+            if (msg.Author.Id == 242775130831323137) {
+                DiscordEmoji emoji = DiscordEmoji.FromName(client, ":confused:");
+                await msg.CreateReactionAsync(emoji);
+                return -1;
+            }
 
 #if (ARCHIVAL_MODE)
             const string archivalPrefix = "ccArchive?";
@@ -188,7 +195,7 @@ namespace CCTavern
 
 #if (DEBUG && !ARCHIVAL_MODE)
             // Get the prefix here, dont forget to have a default one.
-            return Task.FromResult(mpos);
+            return mpos;// Task.FromResult(mpos);
 
 #elif (ARCHIVAL_MODE == false)
             // If we are using the debugging prefix then we want to ignore this message in prod.
@@ -285,6 +292,8 @@ namespace CCTavern
         private static string get_VarDotNetConfigurationMode() {
             if (string.IsNullOrWhiteSpace(_dnMode) == false)
                 return _dnMode;
+
+
 
 #if (DEBUG && ARCHIVAL_MODE)
             // Archival_Debug
