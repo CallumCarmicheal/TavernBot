@@ -7,7 +7,10 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace CCTavern.Logger {
-    public static class TavernLogEvents {
+    /// <summary>
+    /// Tavern Logger Events
+    /// </summary>
+    public static class TLE {
         /// <summary>
         /// Miscellaneous events, that do not fit in any other category.
         /// </summary>
@@ -17,6 +20,12 @@ namespace CCTavern.Logger {
         /// Events pertaining to startup tasks.
         /// </summary>
         public static EventId Startup { get; } = new EventId(201, "Startup");
+
+        /// <summary>
+        /// Command debug
+        /// </summary>
+        public static EventId CmdDbg { get; } = new EventId(202, "CmdDbg");
+
 
         /// <summary>
         /// Miscellaneous events for text commands

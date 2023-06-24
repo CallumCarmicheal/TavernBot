@@ -9,6 +9,7 @@ using CCTavern;
 using CCTavern.Commands;
 using CCTavern.Commands.Test;
 using CCTavern.Database;
+using CCTavern.Logger;
 
 using Config.Net;
 
@@ -32,11 +33,12 @@ namespace CCTavern
     // We're sealing it because nothing will be inheriting this class
     public sealed class Program
     {
+        internal static Logger.TavernLoggerFactory LoggerFactory { get; private set; } = new CCTavern.Logger.TavernLoggerFactory();
+        
         internal static ITavernSettings Settings { get; private set; }
 
-        internal static Logger.TavernLoggerFactory LoggerFactory { get; private set; } = new CCTavern.Logger.TavernLoggerFactory();
-
         public static Dictionary<ulong, IEnumerable<string>> ServerPrefixes = new Dictionary<ulong, IEnumerable<string>>();
+        private static IEnumerable<string> g_DefaultPrefixes;
 
         private static ILogger logger;
 
@@ -47,7 +49,7 @@ namespace CCTavern
             LoggerFactory.AddProvider(new CCTavern.Logger.TavernLoggerProvider());
 
             logger = LoggerFactory.CreateLogger<Program>();
-            logger.LogInformation(LoggerEvents.Startup, "Application starting");
+            logger.LogInformation(TLE.Startup, "Application starting");
 
             // Load our settings
             Settings = new ConfigurationBuilder<ITavernSettings>()
@@ -63,6 +65,11 @@ namespace CCTavern
                 return; // For the compiler's nullability, unreachable code.
             }
 
+            // Setup default server prefixes
+            var list = Settings.DefaultPrefixes.SplitWithTrim(Constants.PREFIX_SEPERATOR, '\\', true).ToList();
+            g_DefaultPrefixes = list;
+
+            // Setup database and load defaults
             setupDatabase();
 
             // Next, we instantiate our client.
@@ -101,7 +108,7 @@ namespace CCTavern
                 Services = services.BuildServiceProvider()
             });
 
-            logger.LogInformation(LoggerEvents.Startup, "Registering commands");
+            logger.LogInformation(TLE.Startup, "Registering commands");
 
             commands.RegisterCommands<MusicCommandModule>();
             commands.RegisterCommands<MusicPlayModule>();
@@ -118,6 +125,9 @@ namespace CCTavern
         }
 
         private static Task<int> DiscordPrefixResolver(DiscordMessage msg) {
+            //var c = msg.Content; var trimmed = c.Length > 4 ? c.Substring(0, 4) : c;
+            //logger.LogInformation(TLE.CmdDbg, $"Discord Prefix Resolver, {msg.Author.Username} : {trimmed}");
+
             const string debugPrefix = "cc?";
             int mpos = msg.GetStringPrefixLength(debugPrefix, StringComparison.OrdinalIgnoreCase);
 
@@ -135,7 +145,7 @@ namespace CCTavern
 
             var guildId = msg.Channel.Guild.Id;
             IEnumerable<string> prefixes = ServerPrefixes.ContainsKey(guildId)
-                ? ServerPrefixes[guildId] : Settings.DefaultPrefixes;
+                ? ServerPrefixes[guildId] : g_DefaultPrefixes;
 
             foreach (var pfix in prefixes) {
                 if (mpos == -1 && !string.IsNullOrWhiteSpace(pfix)) {

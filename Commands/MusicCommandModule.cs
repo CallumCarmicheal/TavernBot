@@ -43,7 +43,7 @@ namespace CCTavern.Commands {
         [Description("Join the current voice channel and do nothing.")]
         [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
         public async Task JoinVoice(CommandContext ctx) {
-            logger.LogInformation(TavernLogEvents.Misc, "Join voice");
+            logger.LogInformation(TLE.Misc, "Join voice");
 
             var lava = ctx.Client.GetLavalink();
             if (!lava.ConnectedNodes.Any()) {

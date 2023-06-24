@@ -38,7 +38,7 @@ namespace CCTavern {
         }
 
         public async Task SetupLavalink() {
-            logger.LogInformation(TavernLogEvents.MBSetup, "Setting up lavalink");
+            logger.LogInformation(TLE.MBSetup, "Setting up lavalink");
 
             var lavalinkSettings = Program.Settings.Lavalink;
 
@@ -62,7 +62,7 @@ namespace CCTavern {
             LavalinkNode.TrackException   += LavalinkNode_TrackException;
             LavalinkNode.TrackStuck       += LavalinkNode_TrackStuck;
             
-            logger.LogInformation(TavernLogEvents.MBSetup, "Lavalink successful");
+            logger.LogInformation(TLE.MBSetup, "Lavalink successful");
         }
 
 
@@ -106,7 +106,7 @@ namespace CCTavern {
             var trackPosition = dbGuild.TrackCount;
             await db.SaveChangesAsync();
 
-            logger.LogInformation(TavernLogEvents.Misc, $"Queue Music into {channel.Guild.Name}.{channel.Name} [{trackPosition}] from {requestedBy.Username}: {track.Title}, {track.Length.ToString(@"hh\:mm\:ss")}");
+            logger.LogInformation(TLE.Misc, $"Queue Music into {channel.Guild.Name}.{channel.Name} [{trackPosition}] from {requestedBy.Username}: {track.Title}, {track.Length.ToString(@"hh\:mm\:ss")}");
             
             var requestedUser = await db.GetOrCreateCachedUser(dbGuild, requestedBy);
             var qi = new GuildQueueItem() {
@@ -121,7 +121,7 @@ namespace CCTavern {
 
             if (updateNextTrack) {
                 dbGuild.NextTrack = trackPosition + 1;
-                logger.LogInformation(TavernLogEvents.Misc, $"Setting next track to current position.");
+                logger.LogInformation(TLE.Misc, $"Setting next track to current position.");
             }
 
             db.GuildQueueItems.Add(qi);
@@ -165,12 +165,12 @@ namespace CCTavern {
         }
 
         private async Task LavalinkNode_TrackStuck(LavalinkGuildConnection conn, DSharpPlus.Lavalink.EventArgs.TrackStuckEventArgs args) {
-            logger.LogInformation(TavernLogEvents.Misc, "LavalinkNode_TrackStuck");
+            logger.LogInformation(TLE.Misc, "LavalinkNode_TrackStuck");
 
             // Check if we have a channel for the guild
             var outputChannel = await GetMusicTextChannelFor(conn.Guild);
             if (outputChannel == null) {
-                logger.LogError(TavernLogEvents.MBLava, "Failed to get music channel for lavalink connection.");
+                logger.LogError(TLE.MBLava, "Failed to get music channel for lavalink connection.");
             }
 
             await client.SendMessageAsync(outputChannel, "Umm... This is embarrassing my music player seems to jammed. *WHAM* *wimpered whiring* " +
@@ -178,12 +178,12 @@ namespace CCTavern {
         }
 
         private async Task LavalinkNode_TrackException(LavalinkGuildConnection conn, DSharpPlus.Lavalink.EventArgs.TrackExceptionEventArgs args) {
-            logger.LogInformation(TavernLogEvents.Misc, "LavalinkNode_TrackException");
+            logger.LogInformation(TLE.Misc, "LavalinkNode_TrackException");
 
             // Check if we have a channel for the guild
             var outputChannel = await GetMusicTextChannelFor(conn.Guild);
             if (outputChannel == null) {
-                logger.LogError(TavernLogEvents.MBLava, "Failed to get music channel for lavalink connection.");
+                logger.LogError(TLE.MBLava, "Failed to get music channel for lavalink connection.");
             }
 
             await client.SendMessageAsync(outputChannel, "LavalinkNode_TrackException");
@@ -217,7 +217,7 @@ namespace CCTavern {
 
                     var outputChannel = await GetMusicTextChannelFor(conn.Guild);
                     if (outputChannel == null) {
-                        logger.LogError(TavernLogEvents.MBLava, "Failed to get music channel for lavalink connection.");
+                        logger.LogError(TLE.MBLava, "Failed to get music channel for lavalink connection.");
                     } else {
                         await client.SendMessageAsync(outputChannel, "Left the voice channel <#" + conn_voiceId + "> due to inactivity.");
                         await deletePastStatusMessage(dbGuild, outputChannel);
@@ -230,7 +230,7 @@ namespace CCTavern {
         }
 
         private async Task LavalinkNode_PlaybackStarted(LavalinkGuildConnection conn, DSharpPlus.Lavalink.EventArgs.TrackStartEventArgs args) {
-            logger.LogInformation(TavernLogEvents.Misc, "LavalinkNode_PlaybackStarted");
+            logger.LogInformation(TLE.Misc, "LavalinkNode_PlaybackStarted");
 
             // Check if we have a channel for the guild
             var db = new TavernContext();
@@ -238,7 +238,7 @@ namespace CCTavern {
             
             var outputChannel = await GetMusicTextChannelFor(conn.Guild);
             if (outputChannel == null) {
-                logger.LogError(TavernLogEvents.MBLava, "Failed to get music channel for lavalink connection.");
+                logger.LogError(TLE.MBLava, "Failed to get music channel for lavalink connection.");
             } else {
                 await deletePastStatusMessage(guild, outputChannel);
                 await db.SaveChangesAsync();
@@ -285,7 +285,7 @@ namespace CCTavern {
         }
 
         private async Task LavalinkNode_PlaybackFinished(LavalinkGuildConnection conn, DSharpPlus.Lavalink.EventArgs.TrackFinishEventArgs args) {
-            logger.LogInformation(TavernLogEvents.Misc, "LavalinkNode_PlaybackFinished");
+            logger.LogInformation(TLE.Misc, "LavalinkNode_PlaybackFinished");
 
             // Check if we have a channel for the guild
             var db = new TavernContext();
@@ -297,7 +297,7 @@ namespace CCTavern {
 
             var outputChannel = await GetMusicTextChannelFor(conn.Guild);
             if (outputChannel == null) {
-                logger.LogError(TavernLogEvents.MBLava, "Failed to get music channel for lavalink connection.");
+                logger.LogError(TLE.MBLava, "Failed to get music channel for lavalink connection.");
             } else {
                 await deletePastStatusMessage(guild, outputChannel);
             }
@@ -318,7 +318,7 @@ namespace CCTavern {
             // Get the next song
             var track = await conn.Node.Rest.DecodeTrackAsync(dbTrack.TrackString);
             if (track == null) {
-                logger.LogError(TavernLogEvents.MBLava, $"Error, Failed to parse next track `{dbTrack.Title}` at position `{dbTrack.Position}`.");
+                logger.LogError(TLE.MBLava, $"Error, Failed to parse next track `{dbTrack.Title}` at position `{dbTrack.Position}`.");
                 if (outputChannel != null) 
                     await outputChannel.SendMessageAsync($"Error, Failed to parse next track `{dbTrack.Title}` at position `{dbTrack.Position}`.");
                 

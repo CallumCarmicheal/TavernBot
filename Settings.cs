@@ -10,7 +10,7 @@ namespace CCTavern {
     public interface ITavernSettings {
 
         [Option(Alias = "defaultPrefixes", DefaultValue = "!!")]
-        public IEnumerable<string> DefaultPrefixes { get; }
+        public string DefaultPrefixes { get; }
 
         [Option(Alias = "prefixesCaseSensitive", DefaultValue = false)]
         public bool PrefixesCaseSensitive { get; }

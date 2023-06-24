@@ -33,7 +33,7 @@ namespace CCTavern.Commands.Test
         [Description("Play music")]
         public async Task Play(CommandContext ctx, [RemainingText] string search)
         {
-            logger.LogInformation(TavernLogEvents.MBPlay, "Play Music: " + search);
+            logger.LogInformation(TLE.MBPlay, "Play Music: " + search);
 
             // Check if we have a valid voice state
             if (ctx.Member?.VoiceState == null || ctx.Member.VoiceState.Channel == null) {

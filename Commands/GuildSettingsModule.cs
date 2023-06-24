@@ -32,7 +32,7 @@ namespace CCTavern.Commands {
             [Description("Prefixes (multiple supported) split by a \";\", if you want to use a semi-colon escape it with a backslash like \"\\;\".")]
             string prefixes
         ) {
-            logger.LogInformation(TavernLogEvents.MBPlay, "Setting server prefixes to " + prefixes);
+            logger.LogInformation(TLE.MBPlay, "Setting server prefixes to " + prefixes);
 
             // Split prefixes
             List<string> prefixesList = prefixes.SplitWithTrim(';', '\\', true).ToList();
@@ -61,7 +61,7 @@ namespace CCTavern.Commands {
             [Description("Discord channel to ouput default messages to.")]
             DiscordChannel channel
         ) {
-            logger.LogInformation(TavernLogEvents.MBPlay, "Setting default music channel for {0} to {1}", channel.Guild.Name, channel.Name);
+            logger.LogInformation(TLE.MBPlay, "Setting default music channel for {0} to {1}", channel.Guild.Name, channel.Name);
 
             var db = new TavernContext();
 
