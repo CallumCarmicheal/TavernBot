@@ -220,7 +220,6 @@ namespace CCTavern
             logger.LogInformation(LoggerEvents.Startup, "Setting up database");
 
             var ctx = new TavernContext();
-            await ctx.Database.EnsureCreatedAsync();
 
             var migrations = await ctx.Database.GetPendingMigrationsAsync();
             if (migrations.Any()) {
@@ -228,6 +227,9 @@ namespace CCTavern
                 await ctx.Database.MigrateAsync();
                 await ctx.SaveChangesAsync();
             }
+
+            ctx = new TavernContext();
+            await ctx.Database.EnsureCreatedAsync();
 
             // Load the server prefixes
             var prefixes = ctx.Guilds.Select(x => new { GuildId = x.Id, x.Prefixes }).ToList();
