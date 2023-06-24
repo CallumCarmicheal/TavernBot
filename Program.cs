@@ -27,6 +27,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
+using Microsoft.Identity.Client;
 
 using Org.BouncyCastle.Asn1.Pkcs;
 
@@ -220,7 +221,13 @@ namespace CCTavern
 
             var ctx = new TavernContext();
             await ctx.Database.EnsureCreatedAsync();
-            await ctx.Database.MigrateAsync();
+
+            var migrations = await ctx.Database.GetPendingMigrationsAsync();
+            if (migrations.Any()) {
+                logger.LogInformation(LoggerEvents.Startup, "Migrations required: " + string.Join(", ", migrations) + ".");
+                await ctx.Database.MigrateAsync();
+                await ctx.SaveChangesAsync();
+            }
 
             // Load the server prefixes
             var prefixes = ctx.Guilds.Select(x => new { GuildId = x.Id, x.Prefixes }).ToList();
