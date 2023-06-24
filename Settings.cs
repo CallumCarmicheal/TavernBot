@@ -8,6 +8,14 @@ using System.Threading.Tasks;
 
 namespace CCTavern {
     public interface ITavernSettings {
+
+        [Option(Alias = "defaultPrefixes", DefaultValue = "!!")]
+        public IEnumerable<string> DefaultPrefixes { get; }
+
+        [Option(Alias = "prefixesCaseSensitive", DefaultValue = false)]
+        public bool PrefixesCaseSensitive { get; }
+
+
         [Option(Alias = "discordToken", DefaultValue = "")]
         public string DiscordToken { get; }
 

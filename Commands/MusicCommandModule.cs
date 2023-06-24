@@ -39,22 +39,6 @@ namespace CCTavern.Commands {
             var member = ctx.Member;
         }
 
-        [Command("setMusicChannel"), Aliases("smc")]
-        [Description("Set music channel for outputting messages")]
-        public async Task SetMusicChannel(CommandContext ctx, DiscordChannel channel) {
-            logger.LogInformation(TavernLogEvents.MBPlay, "Setting default music channel for {0} to {1}", channel.Guild.Name, channel.Name);
-
-            var db = new TavernContext();
-
-            Guild dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
-
-            dbGuild.MusicChannelId = channel.Id;
-            dbGuild.MusicChannelName = channel.Name;
-            await db.SaveChangesAsync();
-
-            await ctx.RespondAsync($"Updated music output channel to <#{channel.Id}>.");
-        }
-
         [Command("join")]
         [Description("Join the current voice channel and do nothing.")]
         [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
@@ -94,6 +78,7 @@ namespace CCTavern.Commands {
 
         [Command("leave"), Aliases("quit", "stop")]
         [Description("Leaves the current voice channel")]
+        [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
         public async Task Leave(CommandContext ctx) {
             var lava = ctx.Client.GetLavalink();
             if (!lava.ConnectedNodes.Any()) {
@@ -127,6 +112,7 @@ namespace CCTavern.Commands {
 
         [Command("pause"), Aliases("-", "pp")]
         [Description("Pause currently playing track")]
+        [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
         public async Task Pause(CommandContext ctx) {
             if (ctx.Member?.VoiceState == null || ctx.Member?.VoiceState?.Channel == null) {
                 await ctx.RespondAsync("You are not in a voice channel.");
@@ -152,6 +138,7 @@ namespace CCTavern.Commands {
 
         [Command("resume"), Aliases("r", "pr", "+")]
         [Description("Resume currently playing track")]
+        [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
         public async Task Resume(CommandContext ctx) {
             if (ctx.Member?.VoiceState == null || ctx.Member.VoiceState.Channel == null) {
                 await ctx.RespondAsync("You are not in a voice channel.");
@@ -177,6 +164,7 @@ namespace CCTavern.Commands {
 
         [Command("skip"), Aliases("s")]
         [Description("Skip currently playing track")]
+        [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
         public async Task Skip(CommandContext ctx) {
             if (ctx.Member?.VoiceState == null || ctx.Member.VoiceState.Channel == null) {
                 await ctx.RespondAsync("You are not in a voice channel.");
@@ -231,7 +219,11 @@ namespace CCTavern.Commands {
 
         [Command("jump"), Aliases("j")]
         [Description("Jump to track position")]
-        public async Task Jump(CommandContext ctx, ulong nextTrackPosition) {
+        [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
+        public async Task Jump(CommandContext ctx,
+            [Description("Track poisiton to jump to")]
+            ulong nextTrackPosition
+        ) {
             if (ctx.Member?.VoiceState == null || ctx.Member.VoiceState.Channel == null) {
                 await ctx.RespondAsync("You are not in a voice channel.");
                 return;
@@ -279,6 +271,7 @@ namespace CCTavern.Commands {
 
         [Command("nowplaying"), Aliases("np")]
         [Description("Current playing track")]
+        [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
         public async Task NowPlaying(CommandContext ctx) {
             if (ctx.Member?.VoiceState == null || ctx.Member.VoiceState.Channel == null) {
                 await ctx.RespondAsync("You are not in a voice channel.");
@@ -313,7 +306,11 @@ namespace CCTavern.Commands {
 
         [Command("seek"), Aliases("fw", "sp", "ss")]
         [Description("Current playing track")]
-        public async Task SeekPlayer(CommandContext ctx, string unparsedTimespan) {
+        [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
+        public async Task SeekPlayer(CommandContext ctx,
+            [Description("Timespan to parse, examples \"1hr 30m 20s\", \"33 seconds\", \"minute:second\", \"hour:minute:second\"")]
+            string unparsedTimespan
+        ) {
             DiscordEmoji? emoji = null;
 
             if (ctx.Member?.VoiceState == null || ctx.Member.VoiceState.Channel == null) {
@@ -375,7 +372,15 @@ namespace CCTavern.Commands {
 
         [Command("random"), Aliases("rnd", "rj", "randomjump")]
         [Description("Current playing track")]
-        public async Task RandomJump(CommandContext ctx, int startPosition = -1, int endPosition = -1) {
+        [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
+        public async Task RandomJump(CommandContext ctx,
+            [Description("If the song should instantly be played or play after the current one")]
+            bool playInstant = true, 
+            [Description("Start position to use when generating a random number")]
+            int startPosition = -1, 
+            [Description("Last position to use when generating a random number")]
+            int endPosition = -1
+        ) {
             var lava = ctx.Client.GetLavalink();
             var node = lava.ConnectedNodes.Values.First();
             var conn = node?.GetGuildConnection(ctx.Member?.VoiceState.Guild);
@@ -447,8 +452,7 @@ namespace CCTavern.Commands {
             }
 
             track.TrackString = dbTrack.TrackString;
-
-            guild.CurrentTrack = dbTrack.Position;
+            if (playInstant) guild.CurrentTrack = dbTrack.Position;
             guild.NextTrack = dbTrack.Position + 1;
             await db.SaveChangesAsync();
 
