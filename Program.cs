@@ -23,6 +23,7 @@ using DSharpPlus.Interactivity;
 using DSharpPlus.Interactivity.Enums;
 using DSharpPlus.Interactivity.Extensions;
 
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
@@ -82,7 +83,7 @@ namespace CCTavern
             g_DefaultPrefixes = list;
 
             // Setup database and load defaults
-            setupDatabase();
+            await setupDatabase();
 
             // Next, we instantiate our client.
             DiscordConfiguration config = new()
@@ -214,11 +215,12 @@ namespace CCTavern
 #endif
         }
 
-        private static void setupDatabase() {
+        private static async Task setupDatabase() {
             logger.LogInformation(LoggerEvents.Startup, "Setting up database");
 
             var ctx = new TavernContext();
-            ctx.Database.EnsureCreated();
+            await ctx.Database.EnsureCreatedAsync();
+            await ctx.Database.MigrateAsync();
 
             // Load the server prefixes
             var prefixes = ctx.Guilds.Select(x => new { GuildId = x.Id, x.Prefixes }).ToList();
