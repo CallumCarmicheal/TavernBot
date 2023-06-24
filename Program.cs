@@ -200,11 +200,11 @@ namespace CCTavern
 #elif (ARCHIVAL_MODE == false)
             // If we are using the debugging prefix then we want to ignore this message in prod.
             if (mpos != -1) 
-                return Task.FromResult(-1);
+                return -1;
 
             // If direct message
             if (msg.Channel.IsPrivate) 
-                return Task.FromResult(0);
+                return 0;
 
             var guildId = msg.Channel.Guild.Id;
             IEnumerable<string> prefixes = ServerPrefixes.ContainsKey(guildId)
@@ -219,7 +219,7 @@ namespace CCTavern
                 }
             }
 
-            return Task.FromResult(mpos);
+            return mpos;
 #endif
         }
 
