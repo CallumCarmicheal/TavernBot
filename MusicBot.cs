@@ -19,6 +19,7 @@ using System.Xml.Linq;
 using Microsoft.EntityFrameworkCore.Update;
 using System.Security.Policy;
 using System.Web;
+using CCTavern.Utility;
 
 namespace CCTavern {
     public class MusicBot {
@@ -27,6 +28,8 @@ namespace CCTavern {
 
         public LavalinkExtension Lavalink { get; private set; }
         public LavalinkNodeConnection LavalinkNode { get; private set; }
+
+        private Dictionary<ulong, DelayedMethodCaller> musicTimeouts = new Dictionary<ulong, DelayedMethodCaller>();
 
         public MusicBot(DiscordClient client) {
             this.client = client;
@@ -53,15 +56,16 @@ namespace CCTavern {
             Lavalink = client.UseLavalink();
             LavalinkNode = await Lavalink.ConnectAsync(lavalinkConfig);
 
-            // LavalinkNode.PlayerUpdated += LavalinkNode_PlayerUpdated;
-            LavalinkNode.PlaybackStarted += LavalinkNode_PlaybackStarted;
+            LavalinkNode.PlayerUpdated    += LavalinkNode_PlayerUpdated;
+            LavalinkNode.PlaybackStarted  += LavalinkNode_PlaybackStarted;
             LavalinkNode.PlaybackFinished += LavalinkNode_PlaybackFinished;
-            LavalinkNode.TrackException += LavalinkNode_TrackException;
-            LavalinkNode.TrackStuck += LavalinkNode_TrackStuck;
+            LavalinkNode.TrackException   += LavalinkNode_TrackException;
+            LavalinkNode.TrackStuck       += LavalinkNode_TrackStuck;
             
             logger.LogInformation(TavernLogEvents.MBSetup, "Lavalink successful");
         }
-        
+
+
         private Dictionary<ulong, ulong> guildMusicChannelTempCached { get; set; } = new Dictionary<ulong, ulong>();
 
         public async Task<DiscordChannel?> GetMusicTextChannelFor(DiscordGuild guild) {
@@ -185,18 +189,44 @@ namespace CCTavern {
             await client.SendMessageAsync(outputChannel, "LavalinkNode_TrackException");
         }
 
-        private void LavalinkNode_PlayerUpdated(LavalinkGuildConnection conn, DSharpPlus.Lavalink.EventArgs.PlayerUpdateEventArgs args) {
-            logger.LogInformation(TavernLogEvents.Misc, "LavalinkNode_PlayerUpdated");
+        private async Task LavalinkNode_PlayerUpdated(LavalinkGuildConnection conn, DSharpPlus.Lavalink.EventArgs.PlayerUpdateEventArgs args) {
+            const int timeout = (3000); // (1000 * 60) * 5); // Wait 5 minutes.
 
-            /*
-            // TODO: Cache this statement
-            // Check if we have a channel for the guild
-            // var outputChannel = await GetMusicTextChannelFor(conn.Guild);
-            // if (outputChannel == null) {
-            //     logger.LogError(TavernLogEvents.MBLava, "Failed to get music channel for lavalink connection.");
-            // }
-            //await client.SendMessageAsync(outputChannel, "LavalinkNode_PlayerUpdated");
-            */
+            var conn_guild   = conn.Guild;
+            var conn_guildId = conn.Guild.Id;
+            var conn_voiceId = conn.Channel.Id;
+
+            DelayedMethodCaller delayed;
+
+            if (musicTimeouts.ContainsKey(conn_guildId) == false) {
+                delayed = new DelayedMethodCaller(timeout); 
+                musicTimeouts.Add(conn_guildId, delayed);
+            } else {
+                delayed = musicTimeouts[conn_guildId];
+            }
+
+            if (conn.CurrentState.CurrentTrack == null) {
+                var db = new TavernContext();
+                var dbGuild = await db.GetOrCreateDiscordGuild(conn_guild);
+                dbGuild.IsPlaying = false;
+                await db.SaveChangesAsync();
+
+                delayed.CallMethod(async () => {
+                    var db = new TavernContext();
+                    Guild dbGuild = await db.GetOrCreateDiscordGuild(conn_guild);
+
+                    var outputChannel = await GetMusicTextChannelFor(conn.Guild);
+                    if (outputChannel == null) {
+                        logger.LogError(TavernLogEvents.MBLava, "Failed to get music channel for lavalink connection.");
+                    } else {
+                        await client.SendMessageAsync(outputChannel, "Left the voice channel <#" + conn_voiceId + "> due to inactivity.");
+                        await deletePastStatusMessage(dbGuild, outputChannel);
+                    }
+                });
+            } else {
+                // We are playing music so stop the cancellation token.
+                delayed.Stop();
+            }
         }
 
         private async Task LavalinkNode_PlaybackStarted(LavalinkGuildConnection conn, DSharpPlus.Lavalink.EventArgs.TrackStartEventArgs args) {
@@ -281,18 +311,17 @@ namespace CCTavern {
                     await db.SaveChangesAsync();
                 }
 
+                await conn.DisconnectAsync();
                 return;
             }
 
             // Get the next song
             var track = await conn.Node.Rest.DecodeTrackAsync(dbTrack.TrackString);
-
             if (track == null) {
                 logger.LogError(TavernLogEvents.MBLava, $"Error, Failed to parse next track `{dbTrack.Title}` at position `{dbTrack.Position}`.");
-
                 if (outputChannel != null) 
                     await outputChannel.SendMessageAsync($"Error, Failed to parse next track `{dbTrack.Title}` at position `{dbTrack.Position}`.");
-
+                
                 return;
             }
 

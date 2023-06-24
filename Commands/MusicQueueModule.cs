@@ -1,5 +1,6 @@
 ﻿using CCTavern.Database;
 
+using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
@@ -30,6 +31,8 @@ namespace CCTavern.Commands {
         }
 
         [Command("queue")]
+        [Description("Lists all songs in the music queue")]
+        [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
         public async Task GetQueue(CommandContext ctx, int Page = -1) {
             var message = await ctx.RespondAsync("Loading queue...");
             string queueContent = "";

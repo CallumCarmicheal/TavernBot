@@ -14,6 +14,7 @@ namespace CCTavern.Database {
         public ulong Id { get; set; }
         
         public string Name { get; set; }
+        public string? Prefixes { get; set; } = null;
 
         public ulong? MusicChannelId { get; set; }
         public string? MusicChannelName { get; set; }
@@ -27,6 +28,7 @@ namespace CCTavern.Database {
         public ulong CurrentTrack { get; set; }
 
         public bool IsPlaying { get; set; } = false;
+
 
         public ICollection<GuildQueueItem> Queue { get; set; }
     }
