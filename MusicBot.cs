@@ -170,6 +170,7 @@ namespace CCTavern {
         }
 
         internal async Task HandleTimeoutFor(LavalinkGuildConnection conn) {
+#if (ARCHIVAL_MODE == false)
             const int timeout = (1000 * 60) * 5; // Wait 5 minutes.
             DelayedMethodCaller delayed;
 
@@ -217,6 +218,7 @@ namespace CCTavern {
                 // We are playing music so stop the cancellation token.
                 delayed.Stop();
             }
+#endif
         }
 
         private async Task LavalinkNode_TrackStuck(LavalinkGuildConnection conn, DSharpPlus.Lavalink.EventArgs.TrackStuckEventArgs args) {

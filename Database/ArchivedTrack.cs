@@ -12,7 +12,9 @@ namespace CCTavern.Database {
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public ulong Id { get; set; }
 
-        public DateTime DateMessageCreated { get; set; }
+        public ulong MessageId { get; set; }
+
+        public DateTime DateMessageCreated { get; set; } 
 
         #region GuildQueueItem
 

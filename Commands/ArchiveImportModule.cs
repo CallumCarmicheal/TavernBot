@@ -7,6 +7,8 @@ using DSharpPlus.Entities;
 using DSharpPlus.Interactivity.Extensions;
 using DSharpPlus.Lavalink;
 
+using K4os.Hash.xxHash;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -23,9 +25,22 @@ namespace CCTavern.Commands {
             "<<!play", "_play", "+play", ";;play"
         };
 
+        private ILogger _logger;
+        private ILogger logger {
+            get {
+                if (_logger == null) _logger = Program.LoggerFactory.CreateLogger<MusicCommandModule>();
+                return _logger;
+            }
+        }
+
+        [Command("archive:d")]
+        public async Task DeleteMessage(CommandContext ctx, DiscordMessage message) {
+            if (message != null) 
+                await message.DeleteAsync("Clearing bot commands");
+        }
 
         [Command("archive:import")]
-        public async Task StartImporting(CommandContext ctx) {
+        public async Task StartImporting(CommandContext ctx, ulong firstMessageId) {
             // Are you sure? 
 
             long ticks = DateTime.Now.Ticks;
@@ -57,92 +72,165 @@ namespace CCTavern.Commands {
                 await buttonMessage.DeleteAsync();
                 await ctx.RespondAsync("Sadly at this time I am unable to verify what decision you made.");
                 return;
-            } 
+            }
+
+            var dtStart = DateTime.Now;
 
             // btnYes was selected, start the import
             await buttonMessage.DeleteAsync();
-            await ctx.RespondAsync("IMPORTER GOES BRRRRRRRRR...");
+            // await ctx.RespondAsync("IMPORTER GOES BRRRRRRRRR...");
 
-            var importStatus = await ctx.RespondAsync($"Importer Status: `Warming up`.");
+            //var importStatus = await ctx.RespondAsync($"Importer Status: `Warming up`.");
+
+            var db = new TavernContext();
+            //await db.Database.ExecuteSqlAsync($"TRUNCATE TABLE ArchivedTracks");
+
+            var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
             // Get all the messages in the server
             int amountOfMessages = 100;
 
-            IReadOnlyList<DiscordMessage>? discordMessages;
-            DiscordMessage? last, first;
-            ulong currentMessageId = 628641259770347541;
-            int count = 0;
-
+            List<DiscordMessage> discordMessages;
+            DiscordMessage? first, last;
+            ulong lastMessageId = firstMessageId; // ccArchive?archive:import 628641259770347541
+            int count = 1;
+            
             ulong processedTracks = 0;
-            await importStatus.ModifyAsync($"Importer Status: `Processing message`.");
-
-            var db = new TavernContext();
-            await db.Database.ExecuteSqlAsync($"TRUNCATE TABLE ArchivedTracks");
-
-            var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
+            int   processedUniqueUsers = 0;
+            //await importStatus.ModifyAsync($"Importer Status: `Processing message`.");
 
             Dictionary<ulong, ulong> cachedUserIds = new Dictionary<ulong, ulong>();
 
-        loadMessages:
-            discordMessages = await ctx.Channel.GetMessagesAfterAsync(currentMessageId, amountOfMessages);
-            count = discordMessages.Count();
-            first = discordMessages.FirstOrDefault();
-            last  = discordMessages.LastOrDefault();
+            for ( ; ; ) {
+                var messages = (await ctx.Channel.GetMessagesAfterAsync(lastMessageId, amountOfMessages)).ToList();
 
-            if (count == 0 || first == null) {
-                await importStatus.ModifyAsync($"Importer Status: `Finished`, no more messages after https://discordapp.com/channels/{ctx.Guild.Id}/{ctx.Channel.Id}/{currentMessageId}.");
-                return;
-            }
+                last = messages.Last();
+                lastMessageId = last.Id;
 
-            await importStatus.ModifyAsync($"Importer Status: `Processing` [1/{amountOfMessages}] (`{processedTracks}` processed), Current batch of {amountOfMessages}, Date = `{first.CreationTimestamp.ToString()}` " 
-                + $"by `{first.Author.Username}`\n"
-                + $"https://discordapp.com/channels/{ctx.Guild.Id}/{ctx.Channel.Id}/{first.Id}");
+                int x = 0;
+                foreach (var msg in messages) {
+                    var contents = msg.Content.Trim();
 
-            for (int x = 0; x < count; x++) {
-                var msg = discordMessages[x];
-                var contents = msg.Content.Trim();
+                    foreach (var pfx in messagePrefixes) {
+                        if (contents.StartsWith(pfx)) {
+                            var split = contents.Split(pfx);
 
-                if (string.IsNullOrWhiteSpace(contents))
-                    continue;
+                            if (split.Length > 1) {
+                                ulong dbUserId = 0;
+                                if (cachedUserIds.ContainsKey(msg.Author.Id) == false) {
+                                    var member = await ctx.Guild.GetMemberAsync(msg.Author.Id);
+                                    var dbUser = await db.GetOrCreateCachedUser(guild, member);
+                                    cachedUserIds.Add(msg.Author.Id, dbUser.Id);
+                                    dbUserId = dbUser.Id;
+                                    processedUniqueUsers = cachedUserIds.Count;
+                                } else {
+                                    dbUserId = cachedUserIds[msg.Author.Id];
+                                }
 
-                foreach (var pfx in messagePrefixes) {
-                    if (contents.StartsWith(pfx)) {
-                        var split = contents.Split(pfx);
+                                // If we have processed the track
+                                if (await processMessage(ctx, db, msg, dbUserId, split[1]))
+                                    processedTracks++;
 
-                        if (split.Length > 1) {
-                            ulong dbUserId = 0;
-                            if (cachedUserIds.ContainsKey(msg.Author.Id) == false) {
-                                var member = await ctx.Guild.GetMemberAsync(msg.Author.Id);
-                                var dbUser = await db.GetOrCreateCachedUser(guild, member);
-                                cachedUserIds.Add(msg.Author.Id, dbUser.Id);
-                                dbUserId = dbUser.Id;
-                            } else {
-                                dbUserId = cachedUserIds[msg.Author.Id];
+                                break;
                             }
-
-                            // If we have processed the track
-                            if (await processMessage(ctx, db, msg, dbUserId, split[1])) 
-                                processedTracks++;
-                            
-                            break;
                         }
                     }
+
+                    // if (x % 10 == 0) {
+                    //     logger.LogInformation($"Importer Status: `Processing` [{x,2}/{amountOfMessages}] (`{processedTracks}` processed, from `{processedUniqueUsers}` users), B:{amountOfMessages}, "
+                    //          + $"id: {msg.Id}, "
+                    //          + $"by `{msg.Author.Username}` "
+                    //          + $"at {msg.CreationTimestamp} | {msg.Content}");
+                    // }
+
+                    x++;
                 }
 
-                // Check if we are the last message
-                if (discordMessages.Equals(last)) 
-                    // Set the next iteration
-                    currentMessageId = msg.Id;
 
-                if (x % 25 == 0) {
-                    await importStatus.ModifyAsync($"Importer Status: `Processing` [{x+1}/{amountOfMessages}] (`{processedTracks}` processed), Current batch of {amountOfMessages}, Date = `{first.CreationTimestamp.ToString()}` "
-                       + $"by `{first.Author.Username}`\n"
-                       + $"https://discordapp.com/channels/{ctx.Guild.Id}/{ctx.Channel.Id}/{first.Id}");
-                }
+                Console.WriteLine($"{processedTracks,4} {processedUniqueUsers,2} | {last.Id}: {last.Author.Username}, {last.CreationTimestamp}, {last.Content}");
+                //await Task.Delay(500);
+                await db.SaveChangesAsync();
             }
 
-            await db.SaveChangesAsync();
-            goto loadMessages;
+            return; 
+
+            while (count != 0) {
+                discordMessages = (await ctx.Channel.GetMessagesAfterAsync(lastMessageId, amountOfMessages)).ToList();
+                count = discordMessages.Count();
+
+                if (count == 0) {
+                    var dtEnd = DateTime.Now;
+                    var diff = dtStart - dtEnd;
+
+                    //await importStatus.ModifyAsync($"Importer Status: `Finished`, no more messages after https://discordapp.com/channels/{ctx.Guild.Id}/{ctx.Channel.Id}/{currentMessageId}.  Time taken: " + diff.ToString());
+                    return;
+                }
+
+                first = discordMessages.First();
+                last = discordMessages.Last();
+
+                if (first.Id != last?.Id) 
+                    lastMessageId = last.Id;
+
+                //await importStatus.ModifyAsync($"Importer Status: `Processing.f` [1/{amountOfMessages}] (`{processedTracks}` processed, from `{processedUniqueUsers}` users), Current batch of {amountOfMessages}, " 
+                //    + $"by `{first.Author.Username}` "
+                //    + $"at {Formatter.Timestamp(first.CreationTimestamp)} @ {Formatter.Timestamp(first.CreationTimestamp, TimestampFormat.ShortDateTime)}\n"
+                //    + $"https://discordapp.com/channels/{ctx.Guild.Id}/{ctx.Channel.Id}/{first.Id}");
+
+                for (int x = 0; x < count; x++) {
+                    var msg = discordMessages[x];
+                    var contents = msg.Content.Trim();
+
+                    if (string.IsNullOrWhiteSpace(contents))
+                        continue;
+
+                    foreach (var pfx in messagePrefixes) {
+                        if (contents.StartsWith(pfx)) {
+                            var split = contents.Split(pfx);
+
+                            if (split.Length > 1) {
+                                ulong dbUserId = 0;
+                                if (cachedUserIds.ContainsKey(msg.Author.Id) == false) {
+                                    var member = await ctx.Guild.GetMemberAsync(msg.Author.Id);
+                                    var dbUser = await db.GetOrCreateCachedUser(guild, member);
+                                    cachedUserIds.Add(msg.Author.Id, dbUser.Id);
+                                    dbUserId = dbUser.Id;
+                                    processedUniqueUsers = cachedUserIds.Count;
+                                } else {
+                                    dbUserId = cachedUserIds[msg.Author.Id];
+                                }
+
+                                // If we have processed the track
+                                if (await processMessage(ctx, db, msg, dbUserId, split[1]))
+                                    processedTracks++;
+
+                                break;
+                            }
+                        }
+                    }
+
+                    if (x % 10 == 0) {
+                        logger.LogInformation($"Importer Status: `Processing` [{x,2}/{amountOfMessages}] (`{processedTracks}` processed, from `{processedUniqueUsers}` users), B:{amountOfMessages}, "
+                             + $"id: {msg.Id}, "
+                             + $"by `{msg.Author.Username}` "
+                             + $"at {msg.CreationTimestamp} | {msg.Content}");
+                    }
+
+                    // if (x == 99) {
+                    //     await importStatus.ModifyAsync($"Importer Status: `Processing` [{x+1}/{amountOfMessages}] (`{processedTracks}` processed, from `{processedUniqueUsers}` users), Current batch of {amountOfMessages}, " 
+                    //         + $"by `{msg.Author.Username}` "
+                    //         + $"at {Formatter.Timestamp(msg.CreationTimestamp)} @ {Formatter.Timestamp(msg.CreationTimestamp, TimestampFormat.ShortDateTime)}\n"
+                    //         + $"https://discordapp.com/channels/{ctx.Guild.Id}/{ctx.Channel.Id}/{msg.Id}");
+                    // }
+
+                    //// Check if we are the last message
+                    //if (x >= (count - 1))
+                    //    // Set the next iteration
+                    //    lastMessageId = msg.Id;
+                }
+
+                await db.SaveChangesAsync();
+            }
         }
 
         private async Task<bool> processMessage(CommandContext ctx, TavernContext db, DiscordMessage msg, ulong dbUserId, string search) {
@@ -183,7 +271,8 @@ namespace CCTavern.Commands {
             // If something went wrong on Lavalink's end                          
             if (loadResult.LoadResultType == LavalinkLoadResultType.LoadFailed
                     //or it just couldn't find anything.
-                    || loadResult.LoadResultType == LavalinkLoadResultType.NoMatches) {
+                    || loadResult.LoadResultType == LavalinkLoadResultType.NoMatches
+                    || loadResult.PlaylistInfo.SelectedTrack == -1) {
                 //await ctx.RespondAsync($"Track search failed for {search}.");
                 return true;
             }
@@ -205,6 +294,8 @@ namespace CCTavern.Commands {
                 RequestedById = dbUserId,
                 Title = track.Title,
                 TrackString = track.TrackString,
+
+                MessageId = msg.Id
             };
 
             db.ArchivedTracks.Add(archive);
