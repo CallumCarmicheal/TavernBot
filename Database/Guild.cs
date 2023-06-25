@@ -31,5 +31,6 @@ namespace CCTavern.Database {
 
 
         public ICollection<GuildQueueItem> Queue { get; set; }
+        public ICollection<ArchivedTrack> ArchivedTracks { get; set; }
     }
 }

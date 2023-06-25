@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "CCTavern": {
+      "commandName": "Project",
+      "hotReloadEnabled": true
+    }
+  }
+}
