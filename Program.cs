@@ -178,7 +178,6 @@ namespace CCTavern
             //var c = msg.Content; var trimmed = c.Length > 4 ? c.Substring(0, 4) : c;
             //logger.LogInformation(TLE.CmdDbg, $"Discord Prefix Resolver, {msg.Author.Username} : {trimmed}");
 
-
 #if (ARCHIVAL_MODE)
             const string archivalPrefix = "ccArchive?";
             int mpos = msg.GetStringPrefixLength(archivalPrefix, StringComparison.OrdinalIgnoreCase);
