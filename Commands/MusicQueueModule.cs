@@ -56,7 +56,7 @@ namespace CCTavern.Commands {
 
             if (guildQueueCount == 0) {
                 queueContent += $"Queue Page 0 / 0 (0 songs [index @ {guild.TrackCount}])\n\n";
-                queueContent += "  YAKNOB) The Queue is fucking empty, play something for fucks sake.";
+                queueContent += "  --- Queue is empty, enlist some songs or force a draft!";
                 await message.ModifyAsync($"```{queueContent}```");
                 return;
             }
