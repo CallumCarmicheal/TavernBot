@@ -29,6 +29,13 @@ namespace CCTavern.Database {
 
         public bool IsPlaying { get; set; } = false;
 
+        /// <summary>
+        /// Leave once finished, 
+        /// if true the bot will disconnect when done playing. 
+        /// if false the bot will wait 5 minutes of inactivity then disconnect.
+        /// </summary>
+        public bool LeaveAfterPlaylist { get; set; } = false;
+
 
         public ICollection<GuildQueueItem> Queue { get; set; }
         public ICollection<ArchivedTrack> ArchivedTracks { get; set; }

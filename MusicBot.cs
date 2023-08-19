@@ -329,12 +329,18 @@ namespace CCTavern {
             var dbTrack = await getNextTrackForGuild(conn.Guild);
             if (dbTrack == null) {
                 if (outputChannel != null) {
-                    var message = await outputChannel.SendMessageAsync("Finished queue.");
+                    string messageText = "Finished queue.";
+
+                    if (guild.LeaveAfterPlaylist) {
+                        messageText = "Disconnected after finished queue.";
+                        await conn.DisconnectAsync();
+                    }
+
+                    var message = await outputChannel.SendMessageAsync(messageText);
                     guild.LastMessageStatusId = message.Id;
                     await db.SaveChangesAsync();
                 }
 
-                await conn.DisconnectAsync();
                 return;
             }
 

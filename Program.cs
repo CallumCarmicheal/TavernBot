@@ -88,8 +88,7 @@ namespace CCTavern
             await setupDatabase();
 
             // Next, we instantiate our client.
-            DiscordConfiguration config = new()
-            {
+            DiscordConfiguration config = new() {
                 Token = Settings.DiscordToken,
                 TokenType = TokenType.Bot,
 
@@ -178,11 +177,6 @@ namespace CCTavern
             //var c = msg.Content; var trimmed = c.Length > 4 ? c.Substring(0, 4) : c;
             //logger.LogInformation(TLE.CmdDbg, $"Discord Prefix Resolver, {msg.Author.Username} : {trimmed}");
 
-            if (msg.Author.Id == 242775130831323137) {
-                DiscordEmoji emoji = DiscordEmoji.FromName(client, ":confused:");
-                await msg.CreateReactionAsync(emoji);
-                return -1;
-            }
 
 #if (ARCHIVAL_MODE)
             const string archivalPrefix = "ccArchive?";

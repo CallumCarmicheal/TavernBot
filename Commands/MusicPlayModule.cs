@@ -181,5 +181,12 @@ namespace CCTavern.Commands {
             }
         }
 
+
+        [Command("playonce"), Aliases("p")]
+        [Description("Play a song once using a search")]
+        [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
+        public async Task PlayOnce(CommandContext ctx, [RemainingText] string search) {
+
+        }
     }
 }

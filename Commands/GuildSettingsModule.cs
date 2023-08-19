@@ -73,5 +73,25 @@ namespace CCTavern.Commands {
             await ctx.RespondAsync($"Updated music output channel to <#{channel.Id}>.");
         }
 
+        [Command("setLeaveAfterPlaylist"), Aliases("smc")]
+        [Description("If true the bot will leave once playlist is finished.")]
+        public async Task SetLeaveAfterPlaylist(CommandContext ctx,
+            [Description("If the bot will leave after finished playing music / current playlist.")]
+            bool leaveAfterPlaylist
+        ) {
+            logger.LogInformation(TLE.MBPlay, "Setting LeaveAfterPlaylist for {0} to {1}", ctx.Guild.Name, leaveAfterPlaylist);
+
+            var db = new TavernContext();
+
+            Guild dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
+
+            dbGuild.LeaveAfterPlaylist = leaveAfterPlaylist;
+            await db.SaveChangesAsync();
+
+            await ctx.RespondAsync($"Updated leave after playlist to " + (leaveAfterPlaylist
+                ? "disconnect after finished playing music."
+                : "disconnect after some time of inactivity."));
+        }
+
     }
 }
