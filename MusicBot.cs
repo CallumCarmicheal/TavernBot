@@ -34,7 +34,7 @@ namespace CCTavern {
         public LavalinkNodeConnection LavalinkNode { get; private set; }
 
         private Dictionary<ulong, DelayedMethodCaller>  musicTimeouts = new Dictionary<ulong, DelayedMethodCaller>();
-        private Dictionary<ulong, List<GuildQueueItem>> tempTracks    = new Dictionary<ulong, List<GuildQueueItem>>();
+        public Dictionary<ulong, TemporaryQueue>        TemporaryTracks = new Dictionary<ulong, TemporaryQueue>();
 
         public MusicBot(DiscordClient client) {
             this.client = client;
@@ -102,16 +102,10 @@ namespace CCTavern {
                 guildMusicChannelTempCached.Remove(channel.Guild.Id);
         }
 
-        public async Task<ulong> enqueueMusicTrack(LavalinkTrack track, DiscordChannel channel, DiscordMember requestedBy, GuildQueuePlaylist? playlist, bool updateNextTrack) {
-            var db = new TavernContext();
-            var dbGuild = await db.GetOrCreateDiscordGuild(channel.Guild);
+        public static async Task<GuildQueueItem> CreateGuildQueueItem(
+                TavernContext db, Guild dbGuild,
+                LavalinkTrack track, DiscordChannel channel, DiscordMember requestedBy, GuildQueuePlaylist? playlist, ulong trackPosition) {
 
-            dbGuild.TrackCount = dbGuild.TrackCount + 1;
-            var trackPosition = dbGuild.TrackCount;
-            await db.SaveChangesAsync();
-
-            logger.LogInformation(TLE.Misc, $"Queue Music into {channel.Guild.Name}.{channel.Name} [{trackPosition}] from {requestedBy.Username}: {track.Title}, {track.Length.ToString(@"hh\:mm\:ss")}");
-            
             var requestedUser = await db.GetOrCreateCachedUser(dbGuild, requestedBy);
             var qi = new GuildQueueItem() {
                 GuildId = channel.Guild.Id,
@@ -122,6 +116,21 @@ namespace CCTavern {
                 TrackString = track.TrackString,
                 PlaylistId = playlist?.Id
             };
+
+            return qi;
+        }
+
+        public async Task<ulong> enqueueMusicTrack(LavalinkTrack track, DiscordChannel channel, DiscordMember requestedBy, GuildQueuePlaylist? playlist, bool updateNextTrack) {
+            var db = new TavernContext();
+            var dbGuild = await db.GetOrCreateDiscordGuild(channel.Guild);
+
+            dbGuild.TrackCount = dbGuild.TrackCount + 1;
+            var trackPosition = dbGuild.TrackCount;
+            await db.SaveChangesAsync();
+
+            logger.LogInformation(TLE.Misc, $"Queue Music into {channel.Guild.Name}.{channel.Name} [{trackPosition}] from {requestedBy.Username}: {track.Title}, {track.Length.ToString(@"hh\:mm\:ss")}");
+
+            var qi = await CreateGuildQueueItem(db, dbGuild, track, channel, requestedBy, playlist, trackPosition);
 
             if (updateNextTrack) {
                 dbGuild.NextTrack = trackPosition + 1;
@@ -333,8 +342,8 @@ namespace CCTavern {
 
                     if (guild.LeaveAfterQueue) {
                         // Remove temporary playlist
-                        if (tempTracks.ContainsKey(guild.Id)) 
-                            tempTracks.Remove(guild.Id);
+                        if (TemporaryTracks.ContainsKey(guild.Id)) 
+                            TemporaryTracks.Remove(guild.Id);
 
                         messageText = "Disconnected after finished queue.";
                         await conn.DisconnectAsync();

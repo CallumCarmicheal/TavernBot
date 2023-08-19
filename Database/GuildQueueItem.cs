@@ -43,8 +43,5 @@ namespace CCTavern.Database {
         public ulong? PlaylistId { get; set; }
         public virtual GuildQueuePlaylist Playlist { get; set; }
 
-
-
-
     }
 }
