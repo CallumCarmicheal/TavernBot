@@ -85,7 +85,7 @@ namespace CCTavern.Commands {
 
             Guild dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
-            dbGuild.LeaveAfterPlaylist = leaveAfterPlaylist;
+            dbGuild.LeaveAfterQueue = leaveAfterPlaylist;
             await db.SaveChangesAsync();
 
             await ctx.RespondAsync($"Updated leave after playlist to " + (leaveAfterPlaylist

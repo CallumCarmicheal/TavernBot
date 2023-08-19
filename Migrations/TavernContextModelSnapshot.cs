@@ -116,7 +116,7 @@ namespace CCTavern.Migrations
                     b.Property<ulong?>("LastMessageStatusId")
                         .HasColumnType("bigint unsigned");
 
-                    b.Property<bool>("LeaveAfterPlaylist")
+                    b.Property<bool>("LeaveAfterQueue")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<ulong?>("MusicChannelId")

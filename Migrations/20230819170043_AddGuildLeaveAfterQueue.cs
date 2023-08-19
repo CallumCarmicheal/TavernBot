@@ -5,13 +5,13 @@
 namespace CCTavern.Migrations
 {
     /// <inheritdoc />
-    public partial class AddGuildLeaveAfterPlaylist : Migration
+    public partial class AddGuildLeaveAfterQueue : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<bool>(
-                name: "LeaveAfterPlaylist",
+                name: "LeaveAfterQueue",
                 table: "Guilds",
                 type: "tinyint(1)",
                 nullable: false,
@@ -22,7 +22,7 @@ namespace CCTavern.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "LeaveAfterPlaylist",
+                name: "LeaveAfterQueue",
                 table: "Guilds");
         }
     }

@@ -173,6 +173,7 @@ namespace CCTavern
             VERSION_Git_WithBuild = gitHash;
         }
 
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
         private static async Task<int> DiscordPrefixResolver(DiscordMessage msg) {
             //var c = msg.Content; var trimmed = c.Length > 4 ? c.Substring(0, 4) : c;
             //logger.LogInformation(TLE.CmdDbg, $"Discord Prefix Resolver, {msg.Author.Username} : {trimmed}");
@@ -216,6 +217,7 @@ namespace CCTavern
             return mpos;
 #endif
         }
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
 
         private static async Task setupDatabase() {
             logger.LogInformation(LoggerEvents.Startup, "Setting up database");

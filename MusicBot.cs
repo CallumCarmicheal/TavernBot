@@ -33,11 +33,11 @@ namespace CCTavern {
         public LavalinkExtension Lavalink { get; private set; }
         public LavalinkNodeConnection LavalinkNode { get; private set; }
 
-        private Dictionary<ulong, DelayedMethodCaller> musicTimeouts = new Dictionary<ulong, DelayedMethodCaller>();
+        private Dictionary<ulong, DelayedMethodCaller>  musicTimeouts = new Dictionary<ulong, DelayedMethodCaller>();
+        private Dictionary<ulong, List<GuildQueueItem>> tempTracks    = new Dictionary<ulong, List<GuildQueueItem>>();
 
         public MusicBot(DiscordClient client) {
             this.client = client;
-
             this.logger = Program.LoggerFactory.CreateLogger("MusicBot");
         }
 
@@ -331,7 +331,11 @@ namespace CCTavern {
                 if (outputChannel != null) {
                     string messageText = "Finished queue.";
 
-                    if (guild.LeaveAfterPlaylist) {
+                    if (guild.LeaveAfterQueue) {
+                        // Remove temporary playlist
+                        if (tempTracks.ContainsKey(guild.Id)) 
+                            tempTracks.Remove(guild.Id);
+
                         messageText = "Disconnected after finished queue.";
                         await conn.DisconnectAsync();
                     }

@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CCTavern.Migrations
 {
     [DbContext(typeof(TavernContext))]
-    [Migration("20230819170043_AddGuildLeaveAfterPlaylist")]
-    partial class AddGuildLeaveAfterPlaylist
+    [Migration("20230819170043_AddGuildLeaveAfterQueue")]
+    partial class AddGuildLeaveAfterQueue 
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -119,7 +119,7 @@ namespace CCTavern.Migrations
                     b.Property<ulong?>("LastMessageStatusId")
                         .HasColumnType("bigint unsigned");
 
-                    b.Property<bool>("LeaveAfterPlaylist")
+                    b.Property<bool>("LeaveAfterQueue")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<ulong?>("MusicChannelId")
