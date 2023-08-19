@@ -25,7 +25,7 @@ namespace CCTavern.Commands {
             }
         }
 
-        [Command("setPrefixes"), Aliases("spfx")]
+        [Command("setPrefixes"), Aliases("sspfx")]
         [Description("Set bot prefixes, split prefixes by semi-colon. Escape semi-colon with a backslash.")]
         public async Task SetServerPrefixes(CommandContext ctx,
             [Description("Prefixes (multiple supported) split by a \";\", if you want to use a semi-colon escape it with a backslash like \"\\;\".")]
@@ -54,7 +54,7 @@ namespace CCTavern.Commands {
             await ctx.RespondAsync($"Updated prefixes to {joinedPrefixes}.");
         }
 
-        [Command("setMusicChannel"), Aliases("smc")]
+        [Command("setMusicChannel"), Aliases("ssmc")]
         [Description("Set music channel for outputting messages")]
         public async Task SetMusicChannel(CommandContext ctx,
             [Description("Discord channel to ouput default messages to.")]
@@ -73,7 +73,7 @@ namespace CCTavern.Commands {
             await ctx.RespondAsync($"Updated music output channel to <#{channel.Id}>.");
         }
 
-        [Command("setLeaveAfterPlaylist"), Aliases("smc")]
+        [Command("setLeaveAfterPlaylist"), Aliases("sslap")]
         [Description("If true the bot will leave once playlist is finished.")]
         public async Task SetLeaveAfterPlaylist(CommandContext ctx,
             [Description("If the bot will leave after finished playing music / current playlist.")]

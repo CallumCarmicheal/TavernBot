@@ -273,12 +273,45 @@ namespace CCTavern {
                 await deletePastStatusMessage(guild, outputChannel);
             }
 
+            bool isTempTrack = false;
             GuildQueueItem? dbTrack = null;
+
+            // Check if we have any temporary tracks and remove empty playlist if needed
+            if (TemporaryTracks.ContainsKey(guild.Id)) {
+                var tempTracks = TemporaryTracks[guild.Id];
+                tempTracks.SongItems.FirstOrDefault()?.FinishedPlaying(tempTracks);
+
+                // Remove empty queue
+                if (tempTracks.SongItems.Any() == false || tempTracks.SongItems.FirstOrDefault() == null) {
+                    TemporaryTracks.Remove(guild.Id);
+                }
+
+                // Get the track
+                else {
+                    dbTrack = tempTracks.SongItems.First()?.GetQueueItem();
+                    isTempTrack = dbTrack != null;
+
+                    if (isTempTrack)
+                        tempTracks.IsPlaying = true;
+                }
+            }
+
             var requestedBy = "<ERROR>";
-            var currentTrackQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(x => x.GuildId == guild.Id && x.Position == guild.CurrentTrack);
-            if (currentTrackQuery.Any()) {
-                dbTrack = await currentTrackQuery.FirstAsync();
-                requestedBy = (dbTrack.RequestedBy == null) ? "<#DELETED>" : dbTrack.RequestedBy.DisplayName;
+            if (dbTrack == null) {
+                var currentTrackQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(x => x.GuildId == guild.Id && x.Position == guild.CurrentTrack);
+                if (currentTrackQuery.Any()) {
+                    dbTrack = await currentTrackQuery.FirstAsync();
+                }
+            }
+
+            if (dbTrack?.RequestedById != null) {
+                var query = db.CachedUsers.Where(x => x.UserId == dbTrack.RequestedById && x.GuildId == guild.Id);
+                CachedUser? requestedByUser = null;
+
+                if (await query.AnyAsync())
+                    requestedByUser = await query.FirstAsync();
+
+                requestedBy = (requestedByUser == null) ? "<#DELETED>" : requestedByUser.DisplayName;
             }
 
             string? thumbnail = null;
@@ -290,7 +323,7 @@ namespace CCTavern {
             }
 
             DiscordEmbedBuilder embed = new DiscordEmbedBuilder() {
-                Url = $"https://youtube.com/watch?v={args.Track.Identifier}",
+                Url   = $"https://youtube.com/watch?v={args.Track.Identifier}",
                 Color = DiscordColor.SpringGreen,
                 Title = args.Track.Title,
             };
@@ -334,8 +367,33 @@ namespace CCTavern {
                 await deletePastStatusMessage(guild, outputChannel);
             }
 
+            bool isTempTrack = false;
+            GuildQueueItem? dbTrack = null;
+
+            // Check if we have any temporary tracks and remove empty playlist if needed
+            if (TemporaryTracks.ContainsKey(guild.Id)) {
+                var tempTracks = TemporaryTracks[guild.Id];
+                tempTracks.SongItems.FirstOrDefault()?.FinishedPlaying(tempTracks);
+
+                // Remove empty queue
+                if (tempTracks.SongItems.Any() == false || tempTracks.SongItems.FirstOrDefault() == null) {
+                    TemporaryTracks.Remove(guild.Id);
+                } 
+                
+                // Get the track
+                else {
+                    dbTrack = tempTracks.SongItems.First()?.GetQueueItem();
+                    isTempTrack = dbTrack != null;
+
+                    if (isTempTrack) 
+                        tempTracks.IsPlaying = true;
+                }
+            }
+                       
             // Get the next track
-            var dbTrack = await getNextTrackForGuild(conn.Guild);
+            if (dbTrack == null)
+                dbTrack = await getNextTrackForGuild(conn.Guild);
+
             if (dbTrack == null) {
                 if (outputChannel != null) {
                     string messageText = "Finished queue.";
@@ -372,8 +430,12 @@ namespace CCTavern {
 
             // Update guild in database
             guild.IsPlaying = true;
-            guild.CurrentTrack = dbTrack.Position;
-            guild.NextTrack = dbTrack.Position + 1;
+
+            if (isTempTrack == false) {
+                guild.CurrentTrack = dbTrack.Position;
+                guild.NextTrack = dbTrack.Position + 1;
+            }
+
             await db.SaveChangesAsync();
 
             // Play the next track.

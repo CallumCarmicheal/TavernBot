@@ -183,12 +183,10 @@ namespace CCTavern.Commands {
         }
 
 
-        [Command("playonce"), Aliases("p")]
+        [Command("playonce"), Aliases("po")]
         [Description("Play a song once using a search (**Disabled during development**)")]
         [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
         public async Task PlayOnce(CommandContext ctx, [RemainingText] string search) {
-            return;
-
             logger.LogInformation(TLE.MBPlay, "Play Music Once: " + search);
 
             // Check if we have a valid voice state
@@ -303,7 +301,8 @@ namespace CCTavern.Commands {
                             tempQueue.SongItems.Add(playlist);
 
                             Music.TemporaryTracks.Add(dbGuild.Id, tempQueue);
-                            
+                            tempQueue.IsPlaying = true;
+
                             await conn.PlayAsync(lt);
                             logger.LogInformation("Loading playlist, Playing first track.");
                         }
@@ -376,6 +375,7 @@ namespace CCTavern.Commands {
             await ctx.RespondAsync($"Enqueued `{track.Title}` in *temporary* queue.");
 
             if (isPlayEvent) {
+                Music.TemporaryTracks[dbGuild.Id].IsPlaying = true;
                 await conn.PlayAsync(track);
                 logger.LogInformation("Play Once Music: Playing song...");
             }

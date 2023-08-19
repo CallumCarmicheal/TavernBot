@@ -15,13 +15,16 @@ namespace CCTavern {
             this.GuildId = guildId;
         }
 
+        public ulong SongCount { get; set; } = 0;
+        public bool  IsPlaying { get; set; } = false;
+
         public List<TemporarySongQueueItem> SongItems = new List<TemporarySongQueueItem>();
 
         #region Classes
 
         public abstract class TemporarySongQueueItem {
             public abstract GuildQueueItem GetQueueItem();
-            public abstract void FinishedPlaying(List<TemporarySongQueueItem> songItems);
+            public abstract void FinishedPlaying(TemporaryQueue tempQueue);
         }
 
         public class TemporarySong : TemporarySongQueueItem {
@@ -35,11 +38,17 @@ namespace CCTavern {
                 return QueueItem;
             }
 
-            public override void FinishedPlaying(List<TemporarySongQueueItem> songItems) {
-                if (songItems == null)
+            public override void FinishedPlaying(TemporaryQueue tempQueue) {
+                if (tempQueue.SongItems == null) {
+                    tempQueue.SongCount = 0;
                     return;
+                }
 
-                songItems.Remove(this);
+                tempQueue.SongCount--;
+                tempQueue.SongItems.Remove(this);
+
+                if (tempQueue.SongCount < 0)
+                    tempQueue.SongCount = 0;
             }
         }
 
@@ -58,19 +67,29 @@ namespace CCTavern {
                 Songs = songs;
             }
 
-            public override void FinishedPlaying(List<TemporarySongQueueItem> songItems) {
+            public override void FinishedPlaying(TemporaryQueue tempQueue) {
                 if (Songs.Count == 0) {
-                    if (songItems == null) return;
+                    if (tempQueue.SongItems == null) {
+                        tempQueue.SongCount = 0;
+                        return;
+                    }
 
-                    songItems.Remove(this);
+                    tempQueue.SongItems.Remove(this);
                 }
 
+                tempQueue.SongCount--;
                 Songs.RemoveAt(0);
 
-                if (Songs.Count == 0) {
-                    if (songItems == null) return;
+                if (tempQueue.SongCount < 0) 
+                    tempQueue.SongCount = 0;
 
-                    songItems.Remove(this);
+                if (Songs.Count == 0) {
+                    if (tempQueue.SongItems == null) {
+                        tempQueue.SongCount = 0;
+                        return;
+                    }
+
+                    tempQueue.SongItems.Remove(this);
                 }
             }
 
