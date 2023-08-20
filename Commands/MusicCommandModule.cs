@@ -75,7 +75,7 @@ namespace CCTavern.Commands {
 
             await ctx.RespondAsync($"Joined <#{channel.Id}>!");
 
-            await Music.HandleTimeoutFor(guildConnection);
+            Music.HandleTimeoutFor(guildConnection);
         }
 
         [Command("leave"), Aliases("quit", "stop")]

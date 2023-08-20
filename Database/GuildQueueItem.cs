@@ -25,7 +25,7 @@ namespace CCTavern.Database {
 
         public bool IsDeleted { get; set; } = false;
 
-        public DateTime DateDeleted { get; set; }
+        public DateTime? DateDeleted { get; set; }
 
         [ForeignKey("Id")]
         public ulong? DeletedById { get; set; }

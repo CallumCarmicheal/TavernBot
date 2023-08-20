@@ -178,7 +178,7 @@ namespace CCTavern {
             return false;
         }
 
-        internal async Task HandleTimeoutFor(LavalinkGuildConnection conn) {
+        internal async void HandleTimeoutFor(LavalinkGuildConnection conn) {
 #if (ARCHIVAL_MODE == false)
             const int timeout = (1000 * 60) * 5; // Wait 5 minutes.
             DelayedMethodCaller delayed;
@@ -256,7 +256,7 @@ namespace CCTavern {
         }
 
         private async Task LavalinkNode_PlayerUpdated(LavalinkGuildConnection conn, DSharpPlus.Lavalink.EventArgs.PlayerUpdateEventArgs args) {
-            await HandleTimeoutFor(conn);
+            HandleTimeoutFor(conn);
         }
 
         private async Task LavalinkNode_PlaybackStarted(LavalinkGuildConnection conn, DSharpPlus.Lavalink.EventArgs.TrackStartEventArgs args) {

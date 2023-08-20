@@ -33,10 +33,14 @@ namespace CCTavern.Commands {
 
         [Command("queue"), Aliases("q")]
         [Description("Lists all songs in the music queue")]
-        [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
+        [RequireGuild]
         public async Task GetQueue(CommandContext ctx,
             [Description("Page number to view, if blank then the page containing the current track is shown.")]
-            int Page = -1
+            int Page = -1,
+            [Description("Show date")]
+            bool showDate = false,
+            [Description("Show time")]
+            bool showTime = false
         ) {
             var message = await ctx.RespondAsync("Loading queue...");
             string queueContent = "";
@@ -75,6 +79,13 @@ namespace CCTavern.Commands {
                 .ToList();
             ulong? currentPlaylist = null;
 
+            string?[] dateFormatArr = new string?[] { null, null }; // "dd/MM/yy";
+            if (showDate) dateFormatArr[0] = "dd/MM/yy";
+            if (showTime) dateFormatArr[1] = "hh:mm:ss";
+
+            string? dateFormat = string.Join(" ", dateFormatArr.Where(x => !string.IsNullOrWhiteSpace(x)));
+            if (string.IsNullOrWhiteSpace(dateFormat)) dateFormat = null;
+
             for (int x = 0; x < pageContents.Count(); x++) {
                 var dbTrack = pageContents[x];
 
@@ -104,12 +115,45 @@ namespace CCTavern.Commands {
                 currentPlaylist = dbTrack.PlaylistId;
 
                 queueContent += " " + ((dbTrack.Position == guild.CurrentTrack && guild.IsPlaying) ? "*" : " ");
-                queueContent += $"{dbTrack.Position,3}) ";
-                queueContent += $"{dbTrack.Title} - Requested by ";
-                queueContent += (dbTrack.RequestedBy == null) ? "<#DELETED>" : $"{dbTrack.RequestedBy.Username}\n";
+                queueContent += $"{dbTrack.Position,3}";
+                queueContent += dateFormat == null ? "" : ", " + dbTrack.CreatedAt.ToString(dateFormat);
+                queueContent += $") {dbTrack.Title} - Requested by ";
+                queueContent += (dbTrack.RequestedBy == null) ? "<#DELETED>" : $"{dbTrack.RequestedBy.Username}";
+                queueContent += "\n";
             }
 
             await message.ModifyAsync($"```{queueContent}```");
+        }
+
+
+        [Command("queued"), Aliases("qd")]
+        [Description("Lists all songs in the music queue with date")]
+        [RequireGuild]
+        public async Task GetQueueDate(CommandContext ctx,
+            [Description("Page number to view, if blank then the page containing the current track is shown.")]
+            int Page = -1
+        ) {
+            await GetQueue(ctx, Page, true, false);
+        }
+
+        [Command("queuedt"), Aliases("qdt")]
+        [Description("Lists all songs in the music queue with date")]
+        [RequireGuild]
+        public async Task GetQueueDateTime(CommandContext ctx,
+            [Description("Page number to view, if blank then the page containing the current track is shown.")]
+            int Page = -1
+        ) {
+            await GetQueue(ctx, Page, true, true);
+        }
+
+        [Command("queuet"), Aliases("qt")]
+        [Description("Lists all songs in the music queue with date")]
+        [RequireGuild]
+        public async Task GetQueueTime(CommandContext ctx,
+            [Description("Page number to view, if blank then the page containing the current track is shown.")]
+            int Page = -1
+        ) {
+            await GetQueue(ctx, Page, false, true);
         }
 
         [Command("remove"), Aliases("delete")]
@@ -154,7 +198,7 @@ namespace CCTavern.Commands {
         }
 
 
-        [Command("queuetemp"), Aliases("qt")]
+        [Command("queuetemp"), Aliases("qtmp")]
         [Description("Lists all songs in the temporary queue")]
         [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
         public async Task GetQueueTemporary(CommandContext ctx,

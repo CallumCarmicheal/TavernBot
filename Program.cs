@@ -128,10 +128,10 @@ namespace CCTavern
             // Archival import mode
             commands.RegisterCommands<ArchiveImportModule>();
             commands.RegisterCommands<BotCommandsModule>();
+            commands.RegisterCommands<MusicQueueModule>();
 #else
             commands.RegisterCommands<MusicCommandModule>();
             commands.RegisterCommands<MusicPlayModule>();
-            commands.RegisterCommands<MusicQueueModule>();
             commands.RegisterCommands<GuildSettingsModule>();
             commands.RegisterCommands<BotCommandsModule>();
 #endif

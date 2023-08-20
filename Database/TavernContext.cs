@@ -22,6 +22,7 @@ public partial class TavernContext : DbContext
     public DbSet<CachedUser> CachedUsers { get; set; }
     public DbSet<GuildQueuePlaylist> GuildQueuePlaylists { get; set; }
     public DbSet<ArchivedTrack> ArchivedTracks { get; set; }
+    public DbSet<ArchivedMessage> ArchivedMessages { get; set; }
 
 
     public TavernContext() { }
