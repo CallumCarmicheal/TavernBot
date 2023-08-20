@@ -42,7 +42,11 @@ namespace CCTavern.Commands {
         [Command("join")]
         [Description("Join the current voice channel and do nothing.")]
         [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
-        public async Task JoinVoice(CommandContext ctx) {
+        public async Task JoinVoice(CommandContext ctx, 
+            [Description("Automatically play next song on the queue from where it stopped")] 
+            bool continuePlaying = false
+        ) 
+        {
             logger.LogInformation(TLE.Misc, "Join voice");
 
             var lava = ctx.Client.GetLavalink();
@@ -74,6 +78,14 @@ namespace CCTavern.Commands {
             Music.announceJoin(channel);
 
             await ctx.RespondAsync($"Joined <#{channel.Id}>!");
+
+            if (continuePlaying) {
+                var db = new TavernContext();
+                var guild = db.GetOrCreateDiscordGuild(ctx.Guild, true);
+                var nextTrack = await Music.getNextTrackForGuild(ctx.Guild);
+
+
+            }
 
             Music.HandleTimeoutFor(guildConnection);
         }

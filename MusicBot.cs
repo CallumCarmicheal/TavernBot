@@ -389,10 +389,14 @@ namespace CCTavern {
                         tempTracks.IsPlaying = true;
                 }
             }
-                       
-            // Get the next track
-            if (dbTrack == null)
-                dbTrack = await getNextTrackForGuild(conn.Guild);
+
+            // Get the next track (attempt it 3 times)
+            int attempts = 0;
+            int MAX_ATTEMPTS = 3;
+            var nextTrackNumber = guild.NextTrack;
+
+            while (dbTrack == null && attempts++ < MAX_ATTEMPTS) 
+                dbTrack = await getNextTrackForGuild(conn.Guild, nextTrackNumber++);
 
             if (dbTrack == null) {
                 if (outputChannel != null) {
@@ -400,7 +404,7 @@ namespace CCTavern {
 
                     if (guild.LeaveAfterQueue) {
                         // Remove temporary playlist
-                        if (TemporaryTracks.ContainsKey(guild.Id)) 
+                        if (TemporaryTracks.ContainsKey(guild.Id))
                             TemporaryTracks.Remove(guild.Id);
 
                         messageText = "Disconnected after finished queue.";
