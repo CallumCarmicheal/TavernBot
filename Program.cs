@@ -134,6 +134,7 @@ namespace CCTavern
             commands.RegisterCommands<MusicPlayModule>();
             commands.RegisterCommands<GuildSettingsModule>();
             commands.RegisterCommands<BotCommandsModule>();
+            commands.RegisterCommands<MusicQueueModule>();
 #endif
 
             // Setup the lavalink connection
@@ -187,7 +188,7 @@ namespace CCTavern
             int mpos = msg.GetStringPrefixLength(debugPrefix, StringComparison.OrdinalIgnoreCase);
 #endif
 
-#if (DEBUG && !ARCHIVAL_MODE)
+#if (false && DEBUG && !ARCHIVAL_MODE)
             // Get the prefix here, dont forget to have a default one.
             return mpos;// Task.FromResult(mpos);
 
