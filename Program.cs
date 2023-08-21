@@ -188,7 +188,7 @@ namespace CCTavern
             int mpos = msg.GetStringPrefixLength(debugPrefix, StringComparison.OrdinalIgnoreCase);
 #endif
 
-#if (false && DEBUG && !ARCHIVAL_MODE)
+#if (DEBUG && !ARCHIVAL_MODE)
             // Get the prefix here, dont forget to have a default one.
             return mpos;// Task.FromResult(mpos);
 

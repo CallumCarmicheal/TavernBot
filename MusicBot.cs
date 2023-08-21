@@ -24,6 +24,7 @@ using System.Reflection;
 using System.Diagnostics;
 using Org.BouncyCastle.Asn1.Cms;
 using System.Threading;
+using System.Data.Common;
 
 namespace CCTavern {
     public class MusicBot {
@@ -390,14 +391,6 @@ namespace CCTavern {
                 }
             }
 
-            // Get the next track (attempt it 3 times)
-            int attempts = 0;
-            int MAX_ATTEMPTS = 3;
-            var nextTrackNumber = guild.NextTrack;
-
-            while (dbTrack == null && attempts++ < MAX_ATTEMPTS) 
-                dbTrack = await getNextTrackForGuild(conn.Guild, nextTrackNumber++);
-
             if (dbTrack == null) {
                 if (outputChannel != null) {
                     string messageText = "Finished queue.";
@@ -420,12 +413,58 @@ namespace CCTavern {
             }
 
             // Get the next song
-            var track = await conn.Node.Rest.DecodeTrackAsync(dbTrack.TrackString);
-            if (track == null) {
+            LavalinkTrack? track = await conn.Node.Rest.DecodeTrackAsync(dbTrack.TrackString);
+
+            // Get the next track (attempt it 10 times)
+            int attempts = 0;
+            int MAX_ATTEMPTS = 10;
+            var nextTrackNumber = guild.NextTrack;
+
+            while (track == null && attempts++ < MAX_ATTEMPTS) {
+
                 logger.LogError(TLE.MBLava, $"Error, Failed to parse next track `{dbTrack.Title}` at position `{dbTrack.Position}`.");
-                if (outputChannel != null) 
+                if (outputChannel != null)
                     await outputChannel.SendMessageAsync($"Error, Failed to parse next track `{dbTrack.Title}` at position `{dbTrack.Position}`.");
+
+                // Get the next track
+                dbTrack = await getNextTrackForGuild(conn.Guild, nextTrackNumber++);
+
+                // If we have a null track we have reached the end of the queue
+                if (dbTrack == null) {
+                    if (outputChannel != null) {
+                        string messageText = "Finished queue.";
+
+                        if (guild.LeaveAfterQueue) {
+                            // Remove temporary playlist
+                            if (TemporaryTracks.ContainsKey(guild.Id))
+                                TemporaryTracks.Remove(guild.Id);
+
+                            messageText = "Disconnected after finished queue.";
+                            await conn.DisconnectAsync();
+                        }
+
+                        await outputChannel.SendMessageAsync(messageText);
+                        await db.SaveChangesAsync();
+                    }
+
+                    return;
+                }
                 
+                track = await conn.Node.Rest.DecodeTrackAsync(dbTrack.TrackString);
+            }
+
+            // If we cannot still resolve a track leave the channel (if setting provides)
+            if (track == null) {
+                logger.LogError(TLE.MBLava, $"Fatal error, Failed to parse {MAX_ATTEMPTS} track(s) in a row. Please manually set next queue index above {dbTrack.Position} with jump or queue a new song!");
+
+                if (guild.LeaveAfterQueue) {
+                    // Remove temporary playlist
+                    if (TemporaryTracks.ContainsKey(guild.Id))
+                        TemporaryTracks.Remove(guild.Id);
+
+                    await conn.DisconnectAsync();
+                }
+
                 return;
             }
 
