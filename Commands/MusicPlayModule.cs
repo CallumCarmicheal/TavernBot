@@ -182,5 +182,63 @@ namespace CCTavern.Commands {
             }
         }
 
+
+        [Command("join")]
+        [Description("Join the current voice channel and do nothing.")]
+        [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
+        public async Task JoinVoice(CommandContext ctx,
+                [Description("Automatically play next song on the queue from where it stopped")]
+            bool continuePlaying = false
+            ) {
+            logger.LogInformation(TLE.Misc, "Join voice");
+
+            var lava = ctx.Client.GetLavalink();
+            if (!lava.ConnectedNodes.Any()) {
+                await ctx.RespondAsync("The Lavalink connection is not established");
+                return;
+            }
+
+            var voiceState = ctx.Member?.VoiceState;
+            if (voiceState == null) {
+                await ctx.RespondAsync("Not a valid voice channel.");
+                return;
+            }
+
+            if (voiceState.Channel.GuildId != ctx.Guild.Id) {
+                await ctx.RespondAsync("Not in voice channel of this guild.");
+                return;
+            }
+
+            var channel = voiceState.Channel;
+            var conn = lava.GetGuildConnection(ctx.Member?.VoiceState.Guild);
+            var node = lava.ConnectedNodes.Values.First();
+
+            if (channel.Type != ChannelType.Voice) {
+                await ctx.RespondAsync("Not a valid voice channel.");
+                return;
+            }
+
+            if (conn == null) {
+                // Connect the bot
+                conn = await node.ConnectAsync(channel);
+                Music.announceJoin(channel);
+                await ctx.RespondAsync($"Joined <#{channel.Id}>!");
+
+                if (continuePlaying) {
+                    var db = new TavernContext();
+                    var guild = db.GetOrCreateDiscordGuild(ctx.Guild, true);
+                    var nextTrack = await Music.getNextTrackForGuild(ctx.Guild);
+
+                    if (nextTrack != null) {
+                        LavalinkTrack? track = await conn.Node.Rest.DecodeTrackAsync(nextTrack.TrackString);
+                        track.TrackString = nextTrack.TrackString;
+
+                        await conn.PlayAsync(track);
+                    }
+                }
+            }
+
+            Music.HandleTimeoutFor(conn);
+        }
     }
 }
