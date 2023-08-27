@@ -27,6 +27,9 @@ namespace CCTavern {
 
         [Option(Alias = "logDatabaseQueries", DefaultValue = false)]
         public bool LogDatabaseQueries { get; set; }
+
+        [Option(Alias = "loggingVerbose", DefaultValue = false)]
+        public bool LoggingVerbose { get; set; }
     }
 
     // ll.hostname=127.0.0.1 ll.port=2800 ll.password=Password123

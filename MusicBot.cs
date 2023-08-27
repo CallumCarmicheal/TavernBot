@@ -162,6 +162,38 @@ namespace CCTavern {
             return await query.FirstAsync();
         }
 
+        public async Task<(bool isTempTrack, GuildQueueItem? dbTrack)> getNextTemporaryTrackForGuild(Guild guild) {
+            bool isTempTrack = false;
+            GuildQueueItem? dbTrack = null;
+
+            if (TemporaryTracks.ContainsKey(guild.Id)) {
+                if (Program.Settings.LoggingVerbose) logger.LogError(TLE.MBFin, "Temporary tarcks discovered");
+
+                var tempTracks = TemporaryTracks[guild.Id];
+                tempTracks.SongItems.FirstOrDefault()?.FinishedPlaying(tempTracks);
+
+                // Remove empty queue
+                if (tempTracks.SongItems.Any() == false || tempTracks.SongItems.FirstOrDefault() == null) {
+                    if (Program.Settings.LoggingVerbose) logger.LogError(TLE.MBFin, "Removing empty temporary track queue.");
+
+                    TemporaryTracks.Remove(guild.Id);
+                }
+
+                // Get the track
+                else {
+                    dbTrack = tempTracks.SongItems.First()?.GetQueueItem();
+                    isTempTrack = dbTrack != null;
+
+                    if (Program.Settings.LoggingVerbose) logger.LogError(TLE.MBFin, "Loading temporary track from queue: {trackTitle}", dbTrack?.Title ?? "<NULL>");
+
+                    if (isTempTrack)
+                        tempTracks.IsPlaying = true;
+                }
+            }
+
+            return (isTempTrack, dbTrack);
+        }
+
         public async Task<bool> deletePastStatusMessage(Guild guild, DiscordChannel outputChannel) {
             try {
                 if (guild.LastMessageStatusId != null && outputChannel != null) {
@@ -274,45 +306,13 @@ namespace CCTavern {
                 await deletePastStatusMessage(guild, outputChannel);
             }
 
-            bool isTempTrack = false;
             GuildQueueItem? dbTrack = null;
 
-            // Check if we have any temporary tracks and remove empty playlist if needed
-            if (TemporaryTracks.ContainsKey(guild.Id)) {
-                var tempTracks = TemporaryTracks[guild.Id];
-                tempTracks.SongItems.FirstOrDefault()?.FinishedPlaying(tempTracks);
-
-                // Remove empty queue
-                if (tempTracks.SongItems.Any() == false || tempTracks.SongItems.FirstOrDefault() == null) {
-                    TemporaryTracks.Remove(guild.Id);
-                }
-
-                // Get the track
-                else {
-                    dbTrack = tempTracks.SongItems.First()?.GetQueueItem();
-                    isTempTrack = dbTrack != null;
-
-                    if (isTempTrack)
-                        tempTracks.IsPlaying = true;
-                }
-            }
-
-            var requestedBy = "<ERROR>";
-            if (dbTrack == null) {
-                var currentTrackQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(x => x.GuildId == guild.Id && x.Position == guild.CurrentTrack);
-                if (currentTrackQuery.Any()) {
-                    dbTrack = await currentTrackQuery.FirstAsync();
-                }
-            }
-
-            if (dbTrack?.RequestedById != null) {
-                var query = db.CachedUsers.Where(x => x.UserId == dbTrack.RequestedById && x.GuildId == guild.Id);
-                CachedUser? requestedByUser = null;
-
-                if (await query.AnyAsync())
-                    requestedByUser = await query.FirstAsync();
-
-                requestedBy = (requestedByUser == null) ? "<#DELETED>" : requestedByUser.DisplayName;
+            var requestedBy = "<#ERROR>";
+            var currentTrackQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(x => x.GuildId == guild.Id && x.Position == guild.CurrentTrack);
+            if (currentTrackQuery.Any()) {
+                dbTrack = await currentTrackQuery.FirstAsync();
+                requestedBy = (dbTrack?.RequestedBy == null) ? "<#DELETED>" : dbTrack?.RequestedBy.DisplayName;
             }
 
             string? thumbnail = null;
@@ -335,7 +335,7 @@ namespace CCTavern {
             embed.WithAuthor(args.Track.Author);
             embed.AddField("Player Panel", "[Manage bot through web panel (not added)](https://callumcarmicheal.com/#)", false);
             if (dbTrack == null)
-                 embed.AddField("Position", "<ERR>", true);
+                 embed.AddField("Position", "<TRX Nil>", true);
             else embed.AddField("Position", dbTrack.Position.ToString(), true);
             embed.AddField("Duration", args.Track.Length.ToString(@"hh\:mm\:ss"), true);
             embed.AddField("Requested by", requestedBy, true);
@@ -349,9 +349,11 @@ namespace CCTavern {
         }
 
         private async Task LavalinkNode_PlaybackFinished(LavalinkGuildConnection conn, DSharpPlus.Lavalink.EventArgs.TrackFinishEventArgs args) {
-            logger.LogInformation(TLE.Misc, "-------------PlaybackFinished : " + args.Reason.ToString());
-            if (args.Reason == DSharpPlus.Lavalink.EventArgs.TrackEndReason.Replaced) 
+            logger.LogInformation(TLE.MBFin, "-------------PlaybackFinished : {reason}", args.Reason.ToString());
+            if (args.Reason == DSharpPlus.Lavalink.EventArgs.TrackEndReason.Replaced) {
+                logger.LogInformation(TLE.MBFin, "Finished current track because the music was replaced.");
                 return;
+            }
 
             // Check if we have a channel for the guild
             var db = new TavernContext();
@@ -363,57 +365,29 @@ namespace CCTavern {
 
             var outputChannel = await GetMusicTextChannelFor(conn.Guild);
             if (outputChannel == null) {
-                logger.LogError(TLE.MBLava, "Failed to get music channel for lavalink connection.");
+                logger.LogError(TLE.MBFin, "Failed to get music channel for lavalink connection.");
             } else {
                 await deletePastStatusMessage(guild, outputChannel);
             }
 
-            bool isTempTrack = false;
+            bool        isTempTrack = false;
             GuildQueueItem? dbTrack = null;
 
             // Check if we have any temporary tracks and remove empty playlist if needed
-            if (TemporaryTracks.ContainsKey(guild.Id)) {
-                var tempTracks = TemporaryTracks[guild.Id];
-                tempTracks.SongItems.FirstOrDefault()?.FinishedPlaying(tempTracks);
+            //(isTempTrack, dbTrack) = await this.getNextTemporaryTrackForGuild(guild);
 
-                // Remove empty queue
-                if (tempTracks.SongItems.Any() == false || tempTracks.SongItems.FirstOrDefault() == null) {
-                    TemporaryTracks.Remove(guild.Id);
-                } 
-                
-                // Get the track
-                else {
-                    dbTrack = tempTracks.SongItems.First()?.GetQueueItem();
-                    isTempTrack = dbTrack != null;
-
-                    if (isTempTrack) 
-                        tempTracks.IsPlaying = true;
-                }
+            if (isTempTrack && Program.Settings.LoggingVerbose) {
+                logger.LogInformation(TLE.MBFin, "Playing temporary track: {Title}.", dbTrack?.Title ?? "<NULL>");
             }
 
-            if (dbTrack == null) {
-                if (outputChannel != null) {
-                    string messageText = "Finished queue.";
+            // Get the next available track
+            dbTrack = await getNextTrackForGuild(conn.Guild);
 
-                    if (guild.LeaveAfterQueue) {
-                        // Remove temporary playlist
-                        if (TemporaryTracks.ContainsKey(guild.Id))
-                            TemporaryTracks.Remove(guild.Id);
-
-                        messageText = "Disconnected after finished queue.";
-                        await conn.DisconnectAsync();
-                    }
-
-                    var message = await outputChannel.SendMessageAsync(messageText);
-                    guild.LastMessageStatusId = message.Id;
-                    await db.SaveChangesAsync();
-                }
-
-                return;
-            }
-
-            // Get the next song
-            LavalinkTrack? track = await conn.Node.Rest.DecodeTrackAsync(dbTrack.TrackString);
+            // Get the track
+            LavalinkTrack? track = null;
+            
+            if (dbTrack != null) 
+                track = await conn.Node.Rest.DecodeTrackAsync(dbTrack.TrackString);
 
             // Get the next track (attempt it 10 times)
             int attempts = 0;
@@ -421,16 +395,19 @@ namespace CCTavern {
             var nextTrackNumber = guild.NextTrack;
 
             while (track == null && attempts++ < MAX_ATTEMPTS) {
-
-                logger.LogError(TLE.MBLava, $"Error, Failed to parse next track `{dbTrack.Title}` at position `{dbTrack.Position}`.");
+                logger.LogInformation(TLE.MBFin, "Error, Failed to parse next track `{Title}` at position `{Position}`.", dbTrack?.Title, dbTrack?.Position);
                 if (outputChannel != null)
-                    await outputChannel.SendMessageAsync($"Error, Failed to parse next track `{dbTrack.Title}` at position `{dbTrack.Position}`.");
+                    await outputChannel.SendMessageAsync($"Error, Failed to parse next track `{dbTrack?.Title}` at position `{dbTrack?.Position}`.");
 
                 // Get the next track
-                dbTrack = await getNextTrackForGuild(conn.Guild, nextTrackNumber++);
+                nextTrackNumber++;
+                
+                // If we have reached the max count disconnect
+                if (nextTrackNumber > guild.TrackCount) {
+                    if (Program.Settings.LoggingVerbose) {
+                        logger.LogInformation(TLE.MBFin, "Reached end of playlist count {attempts} attempts, {trackCount} tracks.", attempts, guild.TrackCount);
+                    }
 
-                // If we have a null track we have reached the end of the queue
-                if (dbTrack == null) {
                     if (outputChannel != null) {
                         string messageText = "Finished queue.";
 
@@ -449,37 +426,51 @@ namespace CCTavern {
 
                     return;
                 }
-                
-                track = await conn.Node.Rest.DecodeTrackAsync(dbTrack.TrackString);
+
+                dbTrack = await getNextTrackForGuild(conn.Guild, nextTrackNumber++);
+                track   = dbTrack == null ? null : await conn.Node.Rest.DecodeTrackAsync(dbTrack?.TrackString);
             }
 
             // If we cannot still resolve a track leave the channel (if setting provides)
-            if (track == null) {
-                logger.LogError(TLE.MBLava, $"Fatal error, Failed to parse {MAX_ATTEMPTS} track(s) in a row. Please manually set next queue index above {dbTrack.Position} with jump or queue a new song!");
+            if (dbTrack == null || track == null) {
+                logger.LogInformation(TLE.MBLava, "Fatal error, Failed to parse {MaxAttempts} track(s) in a row at position {Position}. dbTrack == null: {dbTrackIsNull}, track == null: {trackIsNull}"
+                    , MAX_ATTEMPTS, dbTrack?.Position, dbTrack == null ? "True" : "False", track == null ? "True" : "False");
+
+                if (outputChannel != null)
+                    await outputChannel.SendMessageAsync($"Error, Failed to parse next track `{dbTrack?.Title}` at position `{dbTrack?.Position}`.\n" 
+                        + "Please manually set next queue index above {dbTrack?.Position} with jump or queue a new song!");
 
                 if (guild.LeaveAfterQueue) {
                     // Remove temporary playlist
                     if (TemporaryTracks.ContainsKey(guild.Id))
                         TemporaryTracks.Remove(guild.Id);
 
+                    // Disconnecting
                     await conn.DisconnectAsync();
+                    if (outputChannel != null)
+                        await outputChannel.SendMessageAsync("Disconnected after finished queue.");
                 }
 
                 return;
             }
 
             // Fix the missing track string
-            track.TrackString = dbTrack.TrackString;
+            track.TrackString = dbTrack?.TrackString;
 
             // Update guild in database
             guild.IsPlaying = true;
 
             if (isTempTrack == false) {
                 guild.CurrentTrack = dbTrack.Position;
-                guild.NextTrack = dbTrack.Position + 1;
+                guild.NextTrack    = dbTrack.Position + 1;
             }
 
             await db.SaveChangesAsync();
+
+            if (track == null || track.TrackString == null) {
+                logger.LogError(TLE.MBLava, "Fatal error, track is null or track string is null!");
+                return;
+            }
 
             // Play the next track.
             await Task.Delay(500);
