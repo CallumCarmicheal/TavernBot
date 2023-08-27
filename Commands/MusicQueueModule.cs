@@ -54,9 +54,9 @@ namespace CCTavern.Commands {
             // Get the guild
             var db    = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
-            var currentPosition = guild.CurrentTrack;
+            var currentPosition = await db.GuildQueueItems.Where(qi => qi.Position <= guild.CurrentTrack).CountAsync(); 
 
-            var targetPage = (int)Math.Ceiling((currentPosition - 1) / (double)ITEMS_PER_PAGE);
+            var targetPage = (int)Math.Ceiling((decimal)currentPosition / ITEMS_PER_PAGE);
             if (targetPage < 1) targetPage = 1;
             if (Page != -1)     targetPage = Page;
 
@@ -117,7 +117,7 @@ namespace CCTavern.Commands {
                 currentPlaylist = dbTrack.PlaylistId;
 
                 queueContent += " " + ((dbTrack.Position == guild.CurrentTrack && guild.IsPlaying) ? "*" : " ");
-                queueContent += $"{dbTrack.Position,3}";
+                queueContent += $" {dbTrack.Position,4}";
                 queueContent += dateFormat == null ? "" : ", " + dbTrack.CreatedAt.ToString(dateFormat);
                 queueContent += $") {dbTrack.Title} - Requested by ";
                 queueContent += (dbTrack.RequestedBy == null) ? "<#DELETED>" : $"{dbTrack.RequestedBy.Username}";
@@ -245,10 +245,10 @@ namespace CCTavern.Commands {
                     searchSplit[x] = searchSplit[x].Trim();
 
 
-
+                // TODO: Finish user search queue functionality
                 switch (field) {
                     case "user":
-                        predicate.Or(p => p.RequestedBy.DisplayName == 
+                        predicate.Or(p => p.RequestedBy.DisplayName == "");
                         break;
                     case "title":
                         break;
