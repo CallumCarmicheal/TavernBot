@@ -5,6 +5,8 @@ using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
 
+using LinqKit;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using Microsoft.EntityFrameworkCore.Update;
@@ -197,6 +199,64 @@ namespace CCTavern.Commands {
             await db.SaveChangesAsync();
         }
 
+        [Command("setnext"), Aliases("sn", "jumpnext", "jn")]
+        [Description("Set the next track index to play after the current song funishes")]
+        [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
+        public async Task SetNextPlaylistTrackIndex(CommandContext ctx,
+            [Description("Next song index to play")]
+            ulong songIndex
+        ) {
+            // Clamp to 1
+            if (songIndex <= 0) songIndex = 1;
 
+            var db = new TavernContext();
+            var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
+
+            if (songIndex > guild.TrackCount) {
+                await ctx.Message.RespondAsync($"Unable to set next song to `{songIndex}`, Maximum available track number is `{guild.TrackCount}`.");
+                return;
+            }
+
+            guild.NextTrack = songIndex;
+            await db.SaveChangesAsync();
+        }
+
+
+        //[Command("searchQueue"), Aliases("sq")]
+        [Description("Search queue for ")]
+        [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
+        public async Task SearchQueue(CommandContext ctx,
+            [Description("Fields to search")]
+            [RemainingText]
+            string searchFields
+        ) {
+            var db = new TavernContext();
+            var guild = await db.GetOrCreateDiscordGuild(ctx.Guild, false);
+
+            var predicate = PredicateBuilder.New<GuildQueueItem>();
+
+            var searchFieldsSplit = searchFields.Split("(?<!\\\\),");
+            bool hasSearch = false;
+
+            foreach (var field in searchFieldsSplit) {
+                var searchSplit = field.Split("(?<!\\\\)=");
+
+                for (int x = 0; x < searchSplit.Length; x++)
+                    searchSplit[x] = searchSplit[x].Trim();
+
+
+
+                switch (field) {
+                    case "user":
+                        predicate.Or(p => p.RequestedBy.DisplayName == 
+                        break;
+                    case "title":
+                        break;
+                    case "author":
+
+                        break;
+                }
+            }
+        }
     }
 }
