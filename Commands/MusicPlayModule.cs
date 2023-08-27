@@ -226,12 +226,18 @@ namespace CCTavern.Commands {
 
                 if (continuePlaying) {
                     var db = new TavernContext();
-                    var guild = db.GetOrCreateDiscordGuild(ctx.Guild, true);
+                    var guild = await db.GetOrCreateDiscordGuild(ctx.Guild, true);
                     var nextTrack = await Music.getNextTrackForGuild(ctx.Guild);
 
                     if (nextTrack != null) {
                         LavalinkTrack? track = await conn.Node.Rest.DecodeTrackAsync(nextTrack.TrackString);
                         track.TrackString = nextTrack.TrackString;
+
+                        if (track != null) {
+                            guild.CurrentTrack = nextTrack.Position;
+                            guild.NextTrack    = nextTrack.Position + 1;
+                            await db.SaveChangesAsync();
+                        }
 
                         await conn.PlayAsync(track);
                     }
