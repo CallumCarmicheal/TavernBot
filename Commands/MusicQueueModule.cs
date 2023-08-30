@@ -192,7 +192,7 @@ namespace CCTavern.Commands {
 
             // Get the song
             var dbTrack = await guildQueueQuery.FirstAsync();
-            await ctx.RespondAsync($"Successfully removed `{dbTrack.Title}` from the queue at position `{dbTrack.Position}`.");
+            await ctx.RespondAsync($"Successfully removed {await dbTrack.GetTagline(db, true)}.");
 
             dbTrack.IsDeleted = true;
             dbTrack.DeletedById = dbUser?.Id;

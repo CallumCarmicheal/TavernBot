@@ -1,4 +1,7 @@
-﻿using DSharpPlus.Lavalink;
+﻿using DSharpPlus;
+using DSharpPlus.Lavalink;
+
+using Microsoft.EntityFrameworkCore;
 
 using System;
 using System.Collections.Generic;
@@ -43,5 +46,28 @@ namespace CCTavern.Database {
         public ulong? PlaylistId { get; set; }
         public virtual GuildQueuePlaylist Playlist { get; set; }
 
+
+
+        public async Task<string> GetTagline(TavernContext? ctx = null, bool fetchUserIfNotPresent = false) {
+
+            if (ctx == null && RequestedBy == null) {
+                return ($"`{Title}` at position `{Position}`, requested at "
+                    + $"`{CreatedAt:dd/MM/yyyy HH:mm:ss}` ({Formatter.Timestamp(CreatedAt, TimestampFormat.RelativeTime)})");
+            }
+
+            if (fetchUserIfNotPresent && RequestedBy == null) {
+                var userQuery = ctx.CachedUsers.Where(x => x.UserId == RequestedById);
+                if (userQuery.Any()) 
+                    RequestedBy = await userQuery.FirstAsync();
+            }
+
+            if (RequestedBy == null) {
+                return ($"`{Title}` at position `{Position}`, requested at "
+                    + $"`{CreatedAt:dd/MM/yyyy HH:mm:ss}` ({Formatter.Timestamp(CreatedAt, TimestampFormat.RelativeTime)})");
+            }
+
+            return $"`{Title}` at position `{Position}`, requested by `{RequestedBy.Username}` at "
+                +  $"`{CreatedAt:dd/MM/yyyy HH:mm:ss}` ({Formatter.Timestamp(CreatedAt, TimestampFormat.RelativeTime)})";
+        }
     }
 }

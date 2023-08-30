@@ -163,7 +163,7 @@ namespace CCTavern.Commands {
             
             var track = await node.Rest.DecodeTrackAsync(dbTrack.TrackString);
             if (track == null) {
-                await ctx.RespondAsync($"Skipping... Error, Failed to parse next track `{dbTrack.Title}` at position `{dbTrack.Position}`.");
+                await ctx.RespondAsync($"Skipping... Error, Failed to parse next track {dbTrack.GetTagline(db, true)}.");
                 return;
             }
 
@@ -218,7 +218,7 @@ namespace CCTavern.Commands {
             var track = await node.Rest.DecodeTrackAsync(dbTrack.TrackString);
 
             if (track == null) {
-                await ctx.RespondAsync($"Jumping error, Failed to parse next track `{dbTrack.Title}` at position `{dbTrack.Position}`.");
+                await ctx.RespondAsync($"Jumping error, Failed to parse next track {await dbTrack.GetTagline(db, true)}.");
                 return;
             }
 
@@ -229,7 +229,7 @@ namespace CCTavern.Commands {
             await db.SaveChangesAsync();
             
             await conn.PlayAsync(track);
-            await ctx.RespondAsync($"Jumped to track `{dbTrack.Title}` at position `{dbTrack.Position}`.");
+            await ctx.RespondAsync($"Jumped to track {await dbTrack.GetTagline(db, true)}.");
         }
 
         [Command("nowplaying"), Aliases("np")]
@@ -264,7 +264,7 @@ namespace CCTavern.Commands {
 
             // Get the current song
             var dbTrack = await query.FirstAsync();
-            await ctx.RespondAsync($"Currently playing `{dbTrack.Title}` at position `{dbTrack.Position}`.");
+            await ctx.RespondAsync($"Currently playing {await dbTrack.GetTagline(db, true)}.");
         }
 
         [Command("seek"), Aliases("fw", "sp", "ss")]
@@ -383,6 +383,7 @@ namespace CCTavern.Commands {
 
             // Check if we have tracks in the queue
             var guildQueueQuery = db.GuildQueueItems
+                .Include(x => x.RequestedBy)
                 .Where  (x => x.GuildId == guild.Id && x.IsDeleted == false)
                 .OrderBy(x => x.Position);
             if (await guildQueueQuery.AnyAsync() == false) {
@@ -410,7 +411,7 @@ namespace CCTavern.Commands {
             var track = await node.Rest.DecodeTrackAsync(dbTrack.TrackString);
 
             if (track == null) {
-                await ctx.RespondAsync($"Jumping error, Failed to parse next track `{dbTrack.Title}` at position `{dbTrack.Position}`.");
+                await ctx.RespondAsync($"Jumping error, Failed to parse next track {dbTrack.GetTagline(db, true)}");
                 return;
             }
 
@@ -420,7 +421,7 @@ namespace CCTavern.Commands {
             await db.SaveChangesAsync();
 
             await conn.PlayAsync(track);
-            await ctx.RespondAsync($"Jumped to track `{dbTrack.Title}` at position `{dbTrack.Position}`.");
+            await ctx.RespondAsync($"Jumped to track {dbTrack.GetTagline(db, true)}.");
         }
     }
 }

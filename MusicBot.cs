@@ -312,7 +312,7 @@ namespace CCTavern {
             var currentTrackQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(x => x.GuildId == guild.Id && x.Position == guild.CurrentTrack);
             if (currentTrackQuery.Any()) {
                 dbTrack = await currentTrackQuery.FirstAsync();
-                requestedBy = (dbTrack?.RequestedBy == null) ? "<#DELETED>" : dbTrack?.RequestedBy.DisplayName;
+                requestedBy = (dbTrack?.RequestedBy == null) ? "<#NULL>" : dbTrack?.RequestedBy.DisplayName;
             }
 
             string? thumbnail = null;
@@ -339,6 +339,8 @@ namespace CCTavern {
             else embed.AddField("Position", dbTrack.Position.ToString(), true);
             embed.AddField("Duration", args.Track.Length.ToString(@"hh\:mm\:ss"), true);
             embed.AddField("Requested by", requestedBy, true);
+            if (dbTrack != null)
+                embed.AddField("Date", Formatter.Timestamp(dbTrack.CreatedAt, TimestampFormat.LongDateTime), true);
             embed.WithFooter("gb:callums-basement@" + Program.VERSION_Full);
 
             var message = await client.SendMessageAsync(outputChannel, embed: embed);
@@ -437,7 +439,7 @@ namespace CCTavern {
                     , MAX_ATTEMPTS, dbTrack?.Position, dbTrack == null ? "True" : "False", track == null ? "True" : "False");
 
                 if (outputChannel != null)
-                    await outputChannel.SendMessageAsync($"Error, Failed to parse next track `{dbTrack?.Title}` at position `{dbTrack?.Position}`.\n" 
+                    await outputChannel.SendMessageAsync($"Error, Failed to parse next track {await dbTrack.GetTagline(db, true)}.\n" 
                         + "Please manually set next queue index above {dbTrack?.Position} with jump or queue a new song!");
 
                 if (guild.LeaveAfterQueue) {
