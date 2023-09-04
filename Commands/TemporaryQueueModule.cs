@@ -66,7 +66,7 @@ namespace CCTavern.Commands {
             if (conn == null) {
                 // Connect the bot
                 conn = await node.ConnectAsync(channel);
-                Music.announceJoin(channel);
+                MusicBot.AnnounceJoin(channel);
 
                 await ctx.RespondAsync($"Connected to <#{channel.Id}>.");
                 isPlayEvent = true;

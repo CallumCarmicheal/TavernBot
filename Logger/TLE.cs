@@ -17,7 +17,7 @@ namespace CCTavern.Logger {
         public static EventId Misc { get; } = new EventId(200, "CCTavern");
 
         /// <summary>
-        /// Miscellaneous events, that do not fit in any other category.
+        /// Debug category for misc debugging log.
         /// </summary>
         public static EventId Debug { get; } = new EventId(201, "Debug");
 
@@ -25,6 +25,8 @@ namespace CCTavern.Logger {
         /// Events pertaining to startup tasks.
         /// </summary>
         public static EventId Startup { get; } = new EventId(202, "Startup");
+
+  
 
         /// <summary>
         /// Command debug
@@ -65,5 +67,10 @@ namespace CCTavern.Logger {
         /// </summary>
         public static EventId MBLava { get; } = new EventId(234, "MB:Lava");
 
+
+        /// <summary>
+        /// Events pertaining to MusicBot handling timeouts
+        /// </summary>
+        public static EventId MBTimeout { get; } = new EventId(235, "MB:Timeout");
     }
 }

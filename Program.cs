@@ -54,7 +54,7 @@ namespace CCTavern
         public static string VERSION_Git { get; private set; } = "??";
         public static string VERSION_Git_WithBuild { get; private set; } = "??";
 
-        private static DiscordClient client;
+        internal static DiscordClient Client { get; private set; }
 
         // Remember to make your main method async! You no longer need to have both a Main and MainAsync method in the same class.
         public static async Task Main() 
@@ -96,9 +96,9 @@ namespace CCTavern
                     | DiscordIntents.GuildVoiceStates | DiscordIntents.DirectMessageReactions
             };
 
-            client = new(config);
+            Client = new(config);
 
-            client.UseInteractivity(new InteractivityConfiguration() {
+            Client.UseInteractivity(new InteractivityConfiguration() {
                 PollBehaviour = PollBehaviour.KeepEmojis,
                 Timeout = TimeSpan.FromSeconds(30)
             });
@@ -107,14 +107,14 @@ namespace CCTavern
             DiscordActivity status = new("Loading :)", ActivityType.Playing);
 
             // Now we connect and log in.
-            await client.ConnectAsync(status, UserStatus.DoNotDisturb);
+            await Client.ConnectAsync(status, UserStatus.DoNotDisturb);
 
-            MusicBot music = new MusicBot(client);
+            MusicBot music = new MusicBot(Client);
 
             var services = new ServiceCollection();
             services.AddSingleton(music);
 
-            var commands = client.UseCommandsNext(new CommandsNextConfiguration() {
+            var commands = Client.UseCommandsNext(new CommandsNextConfiguration() {
                 CaseSensitive = Settings.PrefixesCaseSensitive,
                 PrefixResolver = DiscordPrefixResolver,
                 EnableMentionPrefix = true,
@@ -141,7 +141,7 @@ namespace CCTavern
             await music.SetupLavalink();
 
             status = new("Ready", ActivityType.Playing);
-            await client.UpdateStatusAsync(status, UserStatus.Online);
+            await Client.UpdateStatusAsync(status, UserStatus.Online);
 
             logger.LogInformation(TLE.Startup, "Ready :)");
 

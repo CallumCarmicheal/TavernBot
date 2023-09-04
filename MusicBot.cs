@@ -71,9 +71,9 @@ namespace CCTavern {
         }
 
 
-        private Dictionary<ulong, ulong> guildMusicChannelTempCached { get; set; } = new Dictionary<ulong, ulong>();
+        private static Dictionary<ulong, ulong> guildMusicChannelTempCached { get; set; } = new Dictionary<ulong, ulong>();
 
-        public async Task<DiscordChannel?> GetMusicTextChannelFor(DiscordGuild guild) {
+        public static async Task<DiscordChannel?> GetMusicTextChannelFor(DiscordGuild guild) {
             var db = new TavernContext();
             Guild dbGuild = await db.GetOrCreateDiscordGuild(guild);
 
@@ -86,17 +86,17 @@ namespace CCTavern {
             } else discordChannelId = dbGuild.MusicChannelId;
 
             if (discordChannelId == null) return null;
-            return await client.GetChannelAsync(discordChannelId.Value);
+            return await Program.Client.GetChannelAsync(discordChannelId.Value);
         }
 
-        public void announceJoin(DiscordChannel channel) {
+        public static void AnnounceJoin(DiscordChannel channel) {
             if (channel == null) return;
 
             if (!guildMusicChannelTempCached.ContainsKey(channel.Guild.Id))
                 guildMusicChannelTempCached[channel.Guild.Id] = channel.Id;
         }
 
-        public void announceLeave(DiscordChannel channel) {
+        public static void AnnounceLeave(DiscordChannel channel) {
             if (channel == null) return;
 
             if (guildMusicChannelTempCached.ContainsKey(channel.Guild.Id))
@@ -194,7 +194,7 @@ namespace CCTavern {
             return (isTempTrack, dbTrack);
         }
 
-        public async Task<bool> deletePastStatusMessage(Guild guild, DiscordChannel outputChannel) {
+        public static async Task<bool> DeletePastStatusMessage(Guild guild, DiscordChannel outputChannel) {
             try {
                 if (guild.LastMessageStatusId != null && outputChannel != null) {
                     ulong lastMessageStatusId = guild.LastMessageStatusId.Value;
@@ -209,60 +209,6 @@ namespace CCTavern {
             } catch { }
 
             return false;
-        }
-
-        internal async void HandleTimeoutFor(LavalinkGuildConnection conn) {
-#if (ARCHIVAL_MODE == false)
-            const int timeout = (1000 * 60) * 5; // Wait 5 minutes.
-            DelayedMethodCaller delayed;
-
-            ulong guildId = conn.Guild.Id;
-
-            if (musicTimeouts.ContainsKey(conn.Guild.Id) == false) {
-                delayed = new DelayedMethodCaller(timeout);
-                musicTimeouts.Add(conn.Guild.Id, delayed);
-            } else {
-                delayed = musicTimeouts[conn.Guild.Id];
-            }
-
-            if (conn.CurrentState.CurrentTrack == null) {
-                var guild = conn.Guild;
-                var voiceChannel = conn.Channel;
-
-                var db = new TavernContext();
-                var dbGuild = await db.GetOrCreateDiscordGuild(guild);
-                dbGuild.IsPlaying = false;
-                await db.SaveChangesAsync();
-                
-                delayed.CallMethod(async () => {
-                    var db = new TavernContext();
-                    Guild dbGuild = await db.GetOrCreateDiscordGuild(guild);
-
-                    var outputChannel = await GetMusicTextChannelFor(guild);
-                    if (outputChannel == null) {
-                        logger.LogError(TLE.MBLava, "Failed to get music channel for lavalink connection.");
-                    } else {
-                        await client.SendMessageAsync(outputChannel, "Left the voice channel <#" + voiceChannel.Id + "> due to inactivity.");
-                        await deletePastStatusMessage(dbGuild, outputChannel);
-                    }
-
-                    var lava = client.GetLavalink();
-                    if (!lava.ConnectedNodes.Any()) 
-                        return;
-
-                    var node = lava.ConnectedNodes.Values.First();
-                    var conn = node?.GetGuildConnection(guild);
-                    if (conn == null) 
-                        return;
-
-                    await conn.DisconnectAsync();
-                    announceLeave(voiceChannel);
-                });
-            } else {
-                // We are playing music so stop the cancellation token.
-                delayed.Stop();
-            }
-#endif
         }
 
         private async Task LavalinkNode_TrackStuck(LavalinkGuildConnection conn, DSharpPlus.Lavalink.EventArgs.TrackStuckEventArgs args) {
@@ -291,7 +237,7 @@ namespace CCTavern {
         }
 
         private async Task LavalinkNode_PlayerUpdated(LavalinkGuildConnection conn, DSharpPlus.Lavalink.EventArgs.PlayerUpdateEventArgs args) {
-            HandleTimeoutFor(conn);
+            await BotTimeoutHandler.Instance.UpdateMusicLastActivity(conn);
         }
 
         private async Task LavalinkNode_PlaybackStarted(LavalinkGuildConnection conn, DSharpPlus.Lavalink.EventArgs.TrackStartEventArgs args) {
@@ -305,7 +251,7 @@ namespace CCTavern {
             if (outputChannel == null) {
                 logger.LogError(TLE.MBLava, "Failed to get music channel for lavalink connection.");
             } else {
-                await deletePastStatusMessage(guild, outputChannel);
+                await DeletePastStatusMessage(guild, outputChannel);
             }
 
             GuildQueueItem? dbTrack = null;
@@ -371,7 +317,7 @@ namespace CCTavern {
             if (outputChannel == null) {
                 logger.LogError(TLE.MBFin, "Failed to get music channel for lavalink connection.");
             } else {
-                await deletePastStatusMessage(guild, outputChannel);
+                await DeletePastStatusMessage(guild, outputChannel);
             }
 
             bool        isTempTrack = false;

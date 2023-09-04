@@ -68,7 +68,7 @@ namespace CCTavern.Commands.Test
             }
 
             await node.ConnectAsync(channel);
-            Music.announceJoin(channel);
+            MusicBot.AnnounceJoin(channel);
 
             await ctx.RespondAsync($"Joined {channel.Name}!");
         }
@@ -101,7 +101,7 @@ namespace CCTavern.Commands.Test
             }
 
             await conn.DisconnectAsync();
-            Music.announceLeave(channel);
+            MusicBot.AnnounceLeave(channel);
 
             await ctx.RespondAsync($"Left {channel.Name}!");
         }
