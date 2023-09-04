@@ -17,48 +17,53 @@ namespace CCTavern.Logger {
         public static EventId Misc { get; } = new EventId(200, "CCTavern");
 
         /// <summary>
+        /// Miscellaneous events, that do not fit in any other category.
+        /// </summary>
+        public static EventId Debug { get; } = new EventId(201, "Debug");
+
+        /// <summary>
         /// Events pertaining to startup tasks.
         /// </summary>
-        public static EventId Startup { get; } = new EventId(201, "Startup");
+        public static EventId Startup { get; } = new EventId(202, "Startup");
 
         /// <summary>
         /// Command debug
         /// </summary>
-        public static EventId CmdDbg { get; } = new EventId(202, "CmdDbg");
+        public static EventId CmdDbg { get; } = new EventId(221, "CmdDbg");
 
 
         /// <summary>
         /// Miscellaneous events for text commands
         /// </summary>
-        public static EventId MiscCommand { get; } = new EventId(202, "MiscCmd");
+        public static EventId MiscCommand { get; } = new EventId(220, "MiscCmd");
 
 
 
         /// <summary>
         /// Events pertaining to MusicBot Setup
         /// </summary>
-        public static EventId MBSetup { get; } = new EventId(210, "MB:Setup");
+        public static EventId MBSetup { get; } = new EventId(230, "MB:Setup");
 
 
         /// <summary>
         /// Events pertaining to MusicBot Joining a voice channel
         /// </summary>
-        public static EventId MBJoin { get; } = new EventId(211, "MB:Join");
+        public static EventId MBJoin { get; } = new EventId(231, "MB:Join");
 
         /// <summary>
         /// Events pertaining to MusicBot Playing
         /// </summary>
-        public static EventId MBPlay { get; } = new EventId(212, "MB:Play");
+        public static EventId MBPlay { get; } = new EventId(232, "MB:Play");
 
         /// <summary>
         /// Events pertaining to MusicBot Playing
         /// </summary>
-        public static EventId MBFin { get; } = new EventId(212, "MB:Finish");
+        public static EventId MBFin { get; } = new EventId(233, "MB:Finish");
 
         /// <summary>
         /// Events pertaining to MusicBot Lavasink events
         /// </summary>
-        public static EventId MBLava { get; } = new EventId(213, "MB:Lava");
+        public static EventId MBLava { get; } = new EventId(234, "MB:Lava");
 
     }
 }
