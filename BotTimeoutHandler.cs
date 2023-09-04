@@ -51,7 +51,7 @@ namespace CCTavern {
             logger = Program.LoggerFactory.CreateLogger<BotTimeoutHandler>();
             logger.LogInformation(TLE.MBTimeout, "Timeout handler starting.");
 
-            _ = PeriodicAsync(handleBotTimeouts, TimeSpan.FromSeconds(30), cancelToken.Token);
+            _ = PeriodicAsync(handleBotTimeouts, TimeSpan.FromMinutes(1), cancelToken.Token);
         }
 
         ~BotTimeoutHandler() {
