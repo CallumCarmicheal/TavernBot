@@ -216,6 +216,8 @@ namespace CCTavern {
             const int timeout = (1000 * 60) * 5; // Wait 5 minutes.
             DelayedMethodCaller delayed;
 
+            ulong guildId = conn.Guild.Id;
+
             if (musicTimeouts.ContainsKey(conn.Guild.Id) == false) {
                 delayed = new DelayedMethodCaller(timeout);
                 musicTimeouts.Add(conn.Guild.Id, delayed);
@@ -398,17 +400,16 @@ namespace CCTavern {
 
             while (track == null && attempts++ < MAX_ATTEMPTS) {
                 logger.LogInformation(TLE.MBFin, "Error, Failed to parse next track `{Title}` at position `{Position}`.", dbTrack?.Title, dbTrack?.Position);
-                if (outputChannel != null)
-                    await outputChannel.SendMessageAsync($"Error, Failed to parse next track `{dbTrack?.Title}` at position `{dbTrack?.Position}`.");
+                if (outputChannel != null && nextTrackNumber <= guild.TrackCount)
+                    await outputChannel.SendMessageAsync($"Error (1), Failed to parse next track `{dbTrack?.Title}` at position `{nextTrackNumber}`.");
 
                 // Get the next track
                 nextTrackNumber++;
-                
+
                 // If we have reached the max count disconnect
                 if (nextTrackNumber > guild.TrackCount) {
-                    if (Program.Settings.LoggingVerbose) {
+                    if (Program.Settings.LoggingVerbose) 
                         logger.LogInformation(TLE.MBFin, "Reached end of playlist count {attempts} attempts, {trackCount} tracks.", attempts, guild.TrackCount);
-                    }
 
                     if (outputChannel != null) {
                         string messageText = "Finished queue.";
@@ -439,8 +440,8 @@ namespace CCTavern {
                     , MAX_ATTEMPTS, dbTrack?.Position, dbTrack == null ? "True" : "False", track == null ? "True" : "False");
 
                 if (outputChannel != null)
-                    await outputChannel.SendMessageAsync($"Error, Failed to parse next track {await dbTrack.GetTagline(db, true)}.\n" 
-                        + "Please manually set next queue index above {dbTrack?.Position} with jump or queue a new song!");
+                    await outputChannel.SendMessageAsync($"Error (2), Failed to parse next track at position `{nextTrackNumber}`.\n" 
+                        + $"Please manually set next queue index above `{nextTrackNumber}` with jump or queue a new song!");
 
                 if (guild.LeaveAfterQueue) {
                     // Remove temporary playlist
