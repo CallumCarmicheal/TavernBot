@@ -37,8 +37,8 @@ namespace CCTavern.Commands {
         [Description("Lists all songs in the music queue")]
         [RequireGuild]
         public async Task GetQueue(CommandContext ctx,
-            [Description("Page number to view, if blank then the page containing the current track is shown.")]
-            int Page = -1,
+            [Description("Page number to view, if blank then the page containing the current track is shown. (Supports relative +1, -12) ")]
+            string TargetPageString = null!,
             [Description("Show date")]
             bool showDate = false,
             [Description("Show time")]
@@ -57,8 +57,30 @@ namespace CCTavern.Commands {
             var currentPosition = await db.GuildQueueItems.Where(qi => qi.Position <= guild.CurrentTrack).CountAsync(); 
 
             var targetPage = (int)Math.Ceiling((decimal)currentPosition / ITEMS_PER_PAGE);
+
+            // Parse user's target page
+            if (TargetPageString != null) {
+                TargetPageString = TargetPageString.Trim();
+                int output;
+
+                try {
+                    if (TargetPageString.StartsWith("+")) {
+                        string strToConvert = TargetPageString[1..];
+                        if (int.TryParse(strToConvert, out output)) {
+                            targetPage += output;
+                        }
+                    } else if (TargetPageString.StartsWith("-")) {
+                        string strToConvert = TargetPageString[1..];
+                        if (int.TryParse(strToConvert, out output)) {
+                            targetPage -= output;
+                        }
+                    } else if (int.TryParse(TargetPageString, out output)) {
+                        targetPage = output;
+                    }
+                } catch { }
+            }
+
             if (targetPage < 1) targetPage = 1;
-            if (Page != -1)     targetPage = Page;
 
             var guildQueueQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(x => x.GuildId == guild.Id && x.IsDeleted == false);
             var guildQueueCount = await guildQueueQuery.CountAsync();
@@ -133,9 +155,9 @@ namespace CCTavern.Commands {
         [RequireGuild]
         public async Task GetQueueDate(CommandContext ctx,
             [Description("Page number to view, if blank then the page containing the current track is shown.")]
-            int Page = -1
+            string TargetPageString = null!
         ) {
-            await GetQueue(ctx, Page, true, false);
+            await GetQueue(ctx, TargetPageString, true, false);
         }
 
         [Command("queuedt"), Aliases("qdt")]
@@ -143,9 +165,9 @@ namespace CCTavern.Commands {
         [RequireGuild]
         public async Task GetQueueDateTime(CommandContext ctx,
             [Description("Page number to view, if blank then the page containing the current track is shown.")]
-            int Page = -1
+            string TargetPageString = null!
         ) {
-            await GetQueue(ctx, Page, true, true);
+            await GetQueue(ctx, TargetPageString, true, true);
         }
 
         [Command("queuet"), Aliases("qt")]
@@ -153,9 +175,9 @@ namespace CCTavern.Commands {
         [RequireGuild]
         public async Task GetQueueTime(CommandContext ctx,
             [Description("Page number to view, if blank then the page containing the current track is shown.")]
-            int Page = -1
+            string TargetPageString = null!
         ) {
-            await GetQueue(ctx, Page, false, true);
+            await GetQueue(ctx, TargetPageString, false, true);
         }
 
         [Command("remove"), Aliases("delete")]
