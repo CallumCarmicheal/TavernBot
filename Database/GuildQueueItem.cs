@@ -34,6 +34,8 @@ namespace CCTavern.Database {
         public ulong? DeletedById { get; set; }
         public virtual CachedUser DeletedBy { get; set; }
 
+        public string? DeletedReason { get; set; }
+
         [ForeignKey("Id")]
         public ulong? RequestedById { get; set; }
         public virtual CachedUser RequestedBy { get; set; }
