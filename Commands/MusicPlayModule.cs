@@ -10,6 +10,7 @@ using DSharpPlus.Entities;
 using DSharpPlus.Interactivity.Extensions;
 using DSharpPlus.Lavalink;
 
+using Microsoft.EntityFrameworkCore.Update;
 using Microsoft.Extensions.Logging;
 
 using System;
@@ -187,11 +188,20 @@ namespace CCTavern.Commands {
         [Description("Join the current voice channel and do nothing.")]
         [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
         public async Task JoinVoice(CommandContext ctx,
-                [Description("Automatically play next song on the queue from where it stopped (triggered if= yes, 1, true, resume)")]
+                [Description("Automatically play next song on the queue from where it stopped (triggered if= yes, 1, true, resume, start)")]
                 string continuePlaying_str = "f"
         ) {
             var continuePlaying_str_lwr = continuePlaying_str.ToLower();
-            bool continuePlaying = continuePlaying_str_lwr[0] == 'y' || continuePlaying_str_lwr[0] == '1' || continuePlaying_str_lwr[0] == 't' || continuePlaying_str_lwr[0] == 'r';
+            bool continuePlaying = continuePlaying_str_lwr[0] == 'y' || continuePlaying_str_lwr[0] == '1' 
+                || continuePlaying_str_lwr[0] == 't' || continuePlaying_str_lwr[0] == 'r';
+
+            if (continuePlaying_str_lwr[0] == 's') {
+                if (continuePlaying_str_lwr == "stop")
+                    continuePlaying = false;
+
+                if (continuePlaying_str_lwr == "start")
+                    continuePlaying = true;
+            }
 
             logger.LogInformation(TLE.Misc, "Join voice: Continue = {continuePlaying}", continuePlaying);
 
