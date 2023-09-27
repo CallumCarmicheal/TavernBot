@@ -33,6 +33,50 @@ namespace CCTavern.Commands {
             }
         }
 
+        [Command("shuffle"), Aliases("sh")]
+        [Description("Lists all songs in the music queue")]
+        [RequireGuild]
+        public async Task ToggleGuildShuffle(CommandContext ctx, 
+            [Description("Automatically play next song on the queue from where it stopped (triggered if= yes, 1, true, resume, ?)")]
+            string shuffleEnabled_str = ""
+        ) {
+            var shuffleEnabled_str_lwr = shuffleEnabled_str.Trim().ToLower();
+            bool shuffleEnabled = string.IsNullOrWhiteSpace(shuffleEnabled_str_lwr) ? false : 
+                ( shuffleEnabled_str_lwr[0] == 'y' || shuffleEnabled_str_lwr[0] == '1' 
+                    || shuffleEnabled_str_lwr[0] == 't' || shuffleEnabled_str_lwr[0] == 'r' );
+
+           
+
+            // Get the guild
+            var db    = new TavernContext();
+            var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
+
+            if (string.IsNullOrWhiteSpace(shuffleEnabled_str_lwr) || shuffleEnabled_str_lwr[0] == '?') {
+                if (MusicBot.GuildStates.ContainsKey(guild.Id) == false) {
+                    await ctx.RespondAsync("Shuffle disabled.");
+                    return;
+                }
+
+                await ctx.RespondAsync(MusicBot.GuildStates[guild.Id].ShuffleEnabled ? "Shuffle enabled." : "Shuffle disabled.");
+                return;
+            }
+
+            var guildQueueQuery = db.GuildQueueItems.Where(x => x.GuildId == guild.Id && x.IsDeleted == false);
+            var queueCount = await guildQueueQuery.CountAsync();
+
+            if (queueCount < 10) {
+                await ctx.RespondAsync("Shuffle cannot be enabled without 10 tracks in the queue.");
+                return;
+            }
+
+            if (MusicBot.GuildStates.ContainsKey(guild.Id) == false) 
+                MusicBot.GuildStates[guild.Id] = new GuildState(guild.Id);
+
+            MusicBot.GuildStates[guild.Id].ShuffleEnabled = shuffleEnabled;
+            
+            await ctx.RespondAsync(shuffleEnabled ? "Shuffle enabled." : "Shuffle disabled.");
+        }
+
         [Command("queue"), Aliases("q")]
         [Description("Lists all songs in the music queue")]
         [RequireGuild]
@@ -148,7 +192,6 @@ namespace CCTavern.Commands {
 
             await message.ModifyAsync($"```{queueContent}```");
         }
-
 
         [Command("queued"), Aliases("qd")]
         [Description("Lists all songs in the music queue with date")]

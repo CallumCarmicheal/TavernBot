@@ -187,10 +187,13 @@ namespace CCTavern.Commands {
         [Description("Join the current voice channel and do nothing.")]
         [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
         public async Task JoinVoice(CommandContext ctx,
-                [Description("Automatically play next song on the queue from where it stopped")]
-            bool continuePlaying = false
-            ) {
-            logger.LogInformation(TLE.Misc, "Join voice");
+                [Description("Automatically play next song on the queue from where it stopped (triggered if= yes, 1, true, resume)")]
+                string continuePlaying_str = "f"
+        ) {
+            var continuePlaying_str_lwr = continuePlaying_str.ToLower();
+            bool continuePlaying = continuePlaying_str_lwr[0] == 'y' || continuePlaying_str_lwr[0] == '1' || continuePlaying_str_lwr[0] == 't' || continuePlaying_str_lwr[0] == 'r';
+
+            logger.LogInformation(TLE.Misc, "Join voice: Continue = {continuePlaying}", continuePlaying);
 
             var lava = ctx.Client.GetLavalink();
             if (!lava.ConnectedNodes.Any()) {

@@ -121,15 +121,13 @@ namespace CCTavern.Commands.Test
             var node = lava.ConnectedNodes.Values.First();
             var conn = node.GetGuildConnection(ctx.Member.VoiceState.Guild);
 
-            if (conn == null)
-            {
+            if (conn == null) {
                 await ctx.RespondAsync("Lavalink is not connected.");
                 return;
             }
 
-            if (conn.CurrentState.CurrentTrack == null)
-            {
-                await ctx.RespondAsync("There are no tracks loaded.");
+            if (conn.CurrentState.CurrentTrack == null) {
+                await ctx.RespondAsync("There are no tracks playing.");
                 return;
             }
 

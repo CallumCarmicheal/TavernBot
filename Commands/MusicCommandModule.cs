@@ -11,6 +11,8 @@ using DSharpPlus.Lavalink;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
+using Org.BouncyCastle.Asn1.Utilities;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -92,7 +94,7 @@ namespace CCTavern.Commands {
             }
 
             if (conn.CurrentState.CurrentTrack == null) {
-                await ctx.RespondAsync("There are no tracks loaded.");
+                await ctx.RespondAsync("There are no tracks playing.");
                 return;
             }
 
@@ -118,11 +120,47 @@ namespace CCTavern.Commands {
             }
 
             if (conn.CurrentState.CurrentTrack == null) {
-                await ctx.RespondAsync("There are no tracks loaded.");
+                await ctx.RespondAsync("There are no tracks playing.");
                 return;
             }
 
             await conn.ResumeAsync();
+        }
+
+        [Command("continue"), Aliases("c")]
+        [Description("Continue currently playing playing")]
+        [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
+        public async Task Continue(CommandContext ctx) {
+            if (ctx.Member?.VoiceState == null || ctx.Member.VoiceState.Channel == null) {
+                await ctx.RespondAsync("You are not in a voice channel.");
+                return;
+            }
+
+            var lava = ctx.Client.GetLavalink();
+            var node = lava.ConnectedNodes.Values.First();
+            var conn = node?.GetGuildConnection(ctx.Member.VoiceState.Guild);
+
+            if (conn == null) {
+                await ctx.RespondAsync("Lavalink is not connected.");
+                return;
+            }
+
+            if (conn.CurrentState.CurrentTrack == null) {
+                // Get the next track
+                var db = new TavernContext();
+                var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
+
+                // Get the next song
+                var dbTrack = await Music.getNextTrackForGuild(ctx.Guild);
+                if (dbTrack != null) {
+                    await _jump_internal(ctx, dbTrack.Position, "Resumed playlist, playing track");
+                    return;
+                }
+
+                await ctx.RespondAsync("Unable retrieve next track, maybe you are at the end of the playlist?");
+            } else {
+                await ctx.RespondAsync("There is already music playing.");
+            }
         }
 
         [Command("skip"), Aliases("s")]
@@ -144,7 +182,7 @@ namespace CCTavern.Commands {
             }
 
             if (conn.CurrentState.CurrentTrack == null) {
-                await ctx.RespondAsync("There are no tracks loaded.");
+                await ctx.RespondAsync("There are no tracks playing.");
                 return;
             }
 
@@ -187,6 +225,13 @@ namespace CCTavern.Commands {
             [Description("Track poisiton to jump to")]
             ulong nextTrackPosition
         ) {
+            await _jump_internal(ctx, nextTrackPosition);
+        }
+
+        private async Task _jump_internal(CommandContext ctx,
+            ulong nextTrackPosition,
+            string jumpedPrefixTitle = "Jumped to track"
+        ) {
             if (ctx.Member?.VoiceState == null || ctx.Member.VoiceState.Channel == null) {
                 await ctx.RespondAsync("You are not in a voice channel.");
                 return;
@@ -227,9 +272,9 @@ namespace CCTavern.Commands {
             guild.CurrentTrack = dbTrack.Position;
             guild.NextTrack = dbTrack.Position + 1;
             await db.SaveChangesAsync();
-            
+
             await conn.PlayAsync(track);
-            await ctx.RespondAsync($"Jumped to track {await dbTrack.GetTagline(db, true)}.");
+            await ctx.RespondAsync($"{jumpedPrefixTitle} {await dbTrack.GetTagline(db, true)}.");
         }
 
         [Command("nowplaying"), Aliases("np")]

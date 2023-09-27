@@ -34,8 +34,8 @@ namespace CCTavern {
         public LavalinkExtension Lavalink { get; private set; }
         public LavalinkNodeConnection LavalinkNode { get; private set; }
 
-        private Dictionary<ulong, DelayedMethodCaller>  musicTimeouts = new Dictionary<ulong, DelayedMethodCaller>();
-        public Dictionary<ulong, TemporaryQueue>        TemporaryTracks = new Dictionary<ulong, TemporaryQueue>();
+        internal Dictionary<ulong, TemporaryQueue> TemporaryTracks = new Dictionary<ulong, TemporaryQueue>();
+        internal static Dictionary<ulong, GuildState> GuildStates { get; set; } = new Dictionary<ulong, GuildState>();
 
         public MusicBot(DiscordClient client) {
             this.client = client;
@@ -71,7 +71,6 @@ namespace CCTavern {
         }
 
 
-        private static Dictionary<ulong, ulong> guildMusicChannelTempCached { get; set; } = new Dictionary<ulong, ulong>();
 
         public static async Task<DiscordChannel?> GetMusicTextChannelFor(DiscordGuild guild) {
             var db = new TavernContext();
@@ -81,8 +80,8 @@ namespace CCTavern {
             ulong? discordChannelId = null;
             
             if (dbGuild.MusicChannelId == null) {
-                if (guildMusicChannelTempCached.ContainsKey(guild.Id)) 
-                    discordChannelId = guildMusicChannelTempCached[guild.Id];
+                if (GuildStates.ContainsKey(guild.Id) && GuildStates[guild.Id].TemporaryMusicChannelId != null) 
+                    discordChannelId = GuildStates[guild.Id].TemporaryMusicChannelId;
             } else discordChannelId = dbGuild.MusicChannelId;
 
             if (discordChannelId == null) return null;
@@ -92,15 +91,18 @@ namespace CCTavern {
         public static void AnnounceJoin(DiscordChannel channel) {
             if (channel == null) return;
 
-            if (!guildMusicChannelTempCached.ContainsKey(channel.Guild.Id))
-                guildMusicChannelTempCached[channel.Guild.Id] = channel.Id;
+            if (!GuildStates.ContainsKey(channel.Guild.Id)) 
+                GuildStates[channel.Guild.Id] = new GuildState(channel.Guild.Id);
+
+            if (GuildStates[channel.Guild.Id].TemporaryMusicChannelId == null)
+                GuildStates[channel.Guild.Id].TemporaryMusicChannelId = channel.Id;
         }
 
         public static void AnnounceLeave(DiscordChannel channel) {
             if (channel == null) return;
 
-            if (guildMusicChannelTempCached.ContainsKey(channel.Guild.Id))
-                guildMusicChannelTempCached.Remove(channel.Guild.Id);
+            if (GuildStates.ContainsKey(channel.Guild.Id))
+                GuildStates.Remove(channel.Guild.Id);
         }
 
         public static async Task<GuildQueueItem> CreateGuildQueueItem(
@@ -148,8 +150,24 @@ namespace CCTavern {
             var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(discordGuild);
 
-            if (targetTrackId == null)
-                targetTrackId = guild.NextTrack;
+            if (GuildStates.ContainsKey(discordGuild.Id)) {
+                var guildState = GuildStates[discordGuild.Id];
+
+                if (guildState != null && guildState.ShuffleEnabled) {
+                    var guildQueueQuery = db.GuildQueueItems.Where(x => x.GuildId == guild.Id && x.IsDeleted == false).OrderByDescending(x => x.Position);
+
+                    if (await guildQueueQuery.CountAsync() >= 10) {
+                        var rnd = new Random();
+
+                        var largestTrackNumber = await guildQueueQuery.Select(x => x.Position).FirstOrDefaultAsync();
+                        targetTrackId = Convert.ToUInt64(rnd.ULongNext(0, largestTrackNumber));
+                    } else {
+                        if (guildState != null) guildState.ShuffleEnabled = false;
+                    }
+                }
+            }
+
+            targetTrackId ??= guild.NextTrack;
 
             var query = db.GuildQueueItems.Where(
                 x => x.GuildId   == guild.Id 
@@ -246,7 +264,8 @@ namespace CCTavern {
             // Check if we have a channel for the guild
             var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(conn.Guild);
-            
+            var guildState = GuildStates[guild.Id];
+
             var outputChannel = await GetMusicTextChannelFor(conn.Guild);
             if (outputChannel == null) {
                 logger.LogError(TLE.MBLava, "Failed to get music channel for lavalink connection.");
@@ -289,6 +308,10 @@ namespace CCTavern {
 
             embed.AddField("Duration", args.Track.Length.ToString(@"hh\:mm\:ss"), true);
             embed.AddField("Requested by", requestedBy, true);
+
+            if (guildState != null && guildState.ShuffleEnabled)
+                embed.AddField("Shuffle", "Enabled", true);
+
             if (dbTrack != null)
                 embed.AddField("Date", Formatter.Timestamp(dbTrack.CreatedAt, TimestampFormat.LongDateTime), true);
             embed.WithFooter("gb:callums-basement@" + Program.VERSION_Full);
@@ -310,6 +333,8 @@ namespace CCTavern {
             // Check if we have a channel for the guild
             var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(conn.Guild);
+            var guildState = GuildStates[guild.Id];
+            var shuffleEnabled = guildState != null && guildState.ShuffleEnabled;
 
             // Set IsPlaying to false.
             guild.IsPlaying = false;
@@ -344,7 +369,8 @@ namespace CCTavern {
             // Get the next track (attempt it 10 times)
             int attempts = 0;
             int MAX_ATTEMPTS = 10;
-            var nextTrackNumber = guild.NextTrack;
+
+            ulong nextTrackNumber = guild.NextTrack;
 
             while (track == null && attempts++ < MAX_ATTEMPTS) {
                 logger.LogInformation(TLE.MBFin, "Error, Failed to parse next track `{Title}` at position `{Position}`.", dbTrack?.Title, dbTrack?.Position);
@@ -355,7 +381,7 @@ namespace CCTavern {
                 nextTrackNumber++;
 
                 // If we have reached the max count disconnect
-                if (nextTrackNumber > guild.TrackCount) {
+                if (!shuffleEnabled && nextTrackNumber > guild.TrackCount) {
                     if (Program.Settings.LoggingVerbose) 
                         logger.LogInformation(TLE.MBFin, "Reached end of playlist count {attempts} attempts, {trackCount} tracks.", attempts, guild.TrackCount);
 
