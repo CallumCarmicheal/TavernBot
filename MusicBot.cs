@@ -282,9 +282,11 @@ namespace CCTavern {
 
             embed.WithAuthor(args.Track.Author);
             embed.AddField("Player Panel", "[Manage bot through web panel (not added)](https://callumcarmicheal.com/#)", false);
+
             if (dbTrack == null)
                  embed.AddField("Position", "<TRX Nil>", true);
             else embed.AddField("Position", dbTrack.Position.ToString(), true);
+
             embed.AddField("Duration", args.Track.Length.ToString(@"hh\:mm\:ss"), true);
             embed.AddField("Requested by", requestedBy, true);
             if (dbTrack != null)
@@ -320,7 +322,7 @@ namespace CCTavern {
                 await DeletePastStatusMessage(guild, outputChannel);
             }
 
-            bool        isTempTrack = false;
+            bool            isTempTrack = false;
             GuildQueueItem? dbTrack = null;
 
             // Check if we have any temporary tracks and remove empty playlist if needed
@@ -376,7 +378,7 @@ namespace CCTavern {
                     return;
                 }
 
-                dbTrack = await getNextTrackForGuild(conn.Guild, nextTrackNumber++);
+                dbTrack = await getNextTrackForGuild(conn.Guild, nextTrackNumber);
                 track   = dbTrack == null ? null : await conn.Node.Rest.DecodeTrackAsync(dbTrack?.TrackString);
             }
 
