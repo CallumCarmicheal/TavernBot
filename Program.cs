@@ -65,7 +65,7 @@ namespace CCTavern
             LoggerFactory.AddProvider(new CCTavern.Logger.TavernLoggerProvider());
 
             logger = LoggerFactory.CreateLogger<Program>();
-            logger.LogInformation(TLE.Startup, "Application starting");
+            logger.LogInformation(TLE.Startup, "Application starting, Version = {version}", VERSION_Full);
 
 #if (ARCHIVAL_MODE)
             logger.LogInformation("!!! ARCHIVE MODE ONLY !!!");

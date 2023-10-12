@@ -22,14 +22,22 @@ namespace CCTavern {
         [Option(Alias = "lavalink")]
         public ILavalinkSettings Lavalink { get; set; }
 
-        [Option(Alias = "mysqlConnectionString", DefaultValue = "")]
-        public string MySQLConnectionString { get; set; }
+
+        
 
         [Option(Alias = "logDatabaseQueries", DefaultValue = false)]
         public bool LogDatabaseQueries { get; set; }
 
         [Option(Alias = "loggingVerbose", DefaultValue = false)]
         public bool LoggingVerbose { get; set; }
+
+
+
+        [Option(Alias = "dbEngine", DefaultValue = "mysql")]
+        public string DatabaseEngine { get; set; }
+
+        [Option(Alias = "dbConnectionString", DefaultValue = "")]
+        public string DatabaseConnectionString { get; set; }
     }
 
     // ll.hostname=127.0.0.1 ll.port=2800 ll.password=Password123

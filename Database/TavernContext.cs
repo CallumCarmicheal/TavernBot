@@ -38,7 +38,13 @@ public partial class TavernContext : DbContext
         // Ensure we have a configuration
         System.Diagnostics.Debug.Assert(Program.Settings != null);
 
-        optionsBuilder.UseMySQL(Program.Settings.MySQLConnectionString);
+        // Choose database engine
+        if (Program.Settings.DatabaseEngine == "mssql") 
+            optionsBuilder.UseSqlServer(Program.Settings.DatabaseConnectionString);
+        else 
+            optionsBuilder.UseMySQL(Program.Settings.DatabaseConnectionString);
+
+        // Enable logging
         if (Program.Settings.LogDatabaseQueries)
             optionsBuilder.UseLoggerFactory(Program.LoggerFactory);
     }
