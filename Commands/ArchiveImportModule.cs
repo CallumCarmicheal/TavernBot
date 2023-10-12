@@ -12,6 +12,7 @@ using K4os.Hash.xxHash;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
+using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Pkcs;
 
 using System;
@@ -87,8 +88,8 @@ namespace CCTavern.Commands {
             // Get all the messages in the server
             int amountOfMessages = 100;
 
-            List<DiscordMessage> discordMessages;
-            DiscordMessage? first = null, last = null;
+            // List<DiscordMessage> discordMessages;
+            DiscordMessage? last = null;
 
             ulong lastMessageId;
 
@@ -232,12 +233,17 @@ namespace CCTavern.Commands {
                 archivedMessagesToAdd.Clear();
             }
 
+            string lastMessageText = "";
+
+            if (last != null) {
+                lastMessageText =
+                    $"by `{last.Author.Username}` "
+                    + $"at {Formatter.Timestamp(last.CreationTimestamp)} @ {Formatter.Timestamp(last.CreationTimestamp, TimestampFormat.ShortDateTime)}\n"
+                    + $"https://discordapp.com/channels/{ctx.Guild.Id}/{ctx.Channel.Id}/{last.Id}";
+            }
+
             await importStatus.ModifyAsync($"Importer Status: `Finished`, Processed `{processedTracks}` tracks, from `{processedUniqueUsers}` users, Last procssed message: "
-                           + $"by `{last.Author.Username}` "
-                           + $"at {Formatter.Timestamp(last.CreationTimestamp)} @ {Formatter.Timestamp(last.CreationTimestamp, TimestampFormat.ShortDateTime)}\n"
-                           + $"https://discordapp.com/channels/{ctx.Guild.Id}/{ctx.Channel.Id}/{last.Id}");
-
-
+                + lastMessageText);
         }
 
         [Command("archive:import")]
@@ -283,14 +289,15 @@ namespace CCTavern.Commands {
             var importStatus = await ctx.RespondAsync($"Importer Status: `Warming up`.");
 
             //var db = new TavernContext();
-            //   // //await db.Database.ExecuteSqlAsync($"TRUNCATE TABLE ArchivedTracks");
+            //    //await db.Database.ExecuteSqlAsync($"TRUNCATE TABLE ArchivedTracks");
             //var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
             // Get all the messages in the server
             int amountOfMessages = 100;
 
-            List<DiscordMessage> discordMessages;
-            DiscordMessage? first = null, last = null;
+            // List<DiscordMessage> discordMessages;
+            // DiscordMessage? first = null;
+            DiscordMessage? last = null;
 
             ulong lastMessageId;
 
@@ -408,11 +415,16 @@ namespace CCTavern.Commands {
                 archivedTracksToAdd.Clear();
             }
 
-            await importStatus.ModifyAsync($"Importer Status: `Finished`, Processed `{processedTracks}` tracks, from `{processedUniqueUsers}` users, Last procssed message: "
-                           + $"by `{last.Author.Username}` "
-                           + $"at {Formatter.Timestamp(last.CreationTimestamp)} @ {Formatter.Timestamp(last.CreationTimestamp, TimestampFormat.ShortDateTime)}\n"
-                           + $"https://discordapp.com/channels/{ctx.Guild.Id}/{ctx.Channel.Id}/{last.Id}");
+            string lastArchiveTrackMessage = "";
+            if (last != null) {
+                lastArchiveTrackMessage =
+                    $"Last procssed message by `{last.Author.Username}` "
+                    + $"at {Formatter.Timestamp(last.CreationTimestamp)} @ {Formatter.Timestamp(last.CreationTimestamp, TimestampFormat.ShortDateTime)}\n"
+                    + $"https://discordapp.com/channels/{ctx.Guild.Id}/{ctx.Channel.Id}/{last.Id}";
+            }
 
+            await importStatus.ModifyAsync($"Importer Status: `Finished`, Processed `{processedTracks}` tracks, "
+                + $"from `{processedUniqueUsers}` users, {lastArchiveTrackMessage}");
 
             /*
             while (count != 0) {

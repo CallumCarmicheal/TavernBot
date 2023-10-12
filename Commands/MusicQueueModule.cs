@@ -287,7 +287,7 @@ namespace CCTavern.Commands {
         }
 
 
-        //[Command("searchQueue"), Aliases("sq")]
+        /*/[Command("searchQueue"), Aliases("sq")]
         [Description("Search queue for ")]
         [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
         public async Task SearchQueue(CommandContext ctx,
@@ -295,6 +295,7 @@ namespace CCTavern.Commands {
             [RemainingText]
             string searchFields
         ) {
+            
             var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild, false);
 
@@ -321,7 +322,7 @@ namespace CCTavern.Commands {
 
                         break;
                 }
-            }
-        }
+            } 
+        } //*/
     }
 }

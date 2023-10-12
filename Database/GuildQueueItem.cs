@@ -58,8 +58,8 @@ namespace CCTavern.Database {
             }
 
             if (fetchUserIfNotPresent && RequestedBy == null) {
-                var userQuery = ctx.CachedUsers.Where(x => x.UserId == RequestedById);
-                if (userQuery.Any()) 
+                var userQuery = ctx?.CachedUsers.Where(x => x.UserId == RequestedById);
+                if (userQuery != null && await userQuery.AnyAsync()) 
                     RequestedBy = await userQuery.FirstAsync();
             }
 

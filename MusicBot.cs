@@ -180,7 +180,7 @@ namespace CCTavern {
             return await query.FirstAsync();
         }
 
-        public async Task<(bool isTempTrack, GuildQueueItem? dbTrack)> getNextTemporaryTrackForGuild(Guild guild) {
+        public (bool isTempTrack, GuildQueueItem? dbTrack) GetNextTemporaryTrackForGuild(Guild guild) {
             bool isTempTrack = false;
             GuildQueueItem? dbTrack = null;
 
@@ -351,7 +351,7 @@ namespace CCTavern {
             GuildQueueItem? dbTrack = null;
 
             // Check if we have any temporary tracks and remove empty playlist if needed
-            //(isTempTrack, dbTrack) = await this.getNextTemporaryTrackForGuild(guild);
+            //(isTempTrack, dbTrack) = this.GetNextTemporaryTrackForGuild(guild);
 
             if (isTempTrack && Program.Settings.LoggingVerbose) {
                 logger.LogInformation(TLE.MBFin, "Playing temporary track: {Title}.", dbTrack?.Title ?? "<NULL>");
@@ -437,7 +437,7 @@ namespace CCTavern {
             // Update guild in database
             guild.IsPlaying = true;
 
-            if (isTempTrack == false) {
+            if (isTempTrack == false && dbTrack != null) {
                 guild.CurrentTrack = dbTrack.Position;
                 guild.NextTrack    = dbTrack.Position + 1;
             }
