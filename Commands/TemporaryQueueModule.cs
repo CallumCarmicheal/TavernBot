@@ -291,13 +291,13 @@ namespace CCTavern.Commands {
                 } else {
                     var lineSymbol =
                         (nextTrack != null && nextTrack.PlaylistId != dbTrack.PlaylistId)
-                        || (dbTrack.Playlist.PlaylistSongCount == 1)
+                        || (dbTrack.Playlist?.PlaylistSongCount == 1)
                         ? "/" : "|";
 
                     if (currentPlaylist == dbTrack.PlaylistId) {
                         queueContent += lineSymbol;
                     } else if (currentPlaylist != dbTrack.PlaylistId) {
-                        queueContent += $"/ Playlist: {dbTrack.Playlist.Title} \n";
+                        queueContent += $"/ Playlist: {dbTrack.Playlist?.Title} \n";
 
                         queueContent += lineSymbol;
                     } else if (currentPlaylist == null) {

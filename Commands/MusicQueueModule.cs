@@ -140,7 +140,7 @@ namespace CCTavern.Commands {
 
             queueContent += $"Queue Page {targetPage} / {pages} ({guildQueueCount} songs [index @ {guild.TrackCount}])\n\n";
 
-            var pageContents = guildQueueQuery
+            List<GuildQueueItem> pageContents = guildQueueQuery
                 .OrderBy(x => x.Position)
                 .Include(x => x.Playlist)
                 .Page(targetPage, ITEMS_PER_PAGE)
@@ -164,13 +164,13 @@ namespace CCTavern.Commands {
                 } else {
                     var lineSymbol = 
                         (nextTrack != null && nextTrack.PlaylistId != dbTrack.PlaylistId)
-                        || (dbTrack.Playlist.PlaylistSongCount == 1)
+                        || (dbTrack.Playlist?.PlaylistSongCount == 1)
                         ? "/" : "|";
 
                     if (currentPlaylist == dbTrack.PlaylistId) {
                         queueContent += lineSymbol;
                     } else if (currentPlaylist != dbTrack.PlaylistId) {
-                        queueContent += $"/ Playlist: {dbTrack.Playlist.Title} \n";
+                        queueContent += $"/ Playlist: {dbTrack.Playlist?.Title} \n";
 
                         queueContent += lineSymbol;
                     } else if (currentPlaylist == null) {

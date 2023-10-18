@@ -239,7 +239,7 @@ namespace CCTavern.Commands {
 
                 if (continuePlaying) {
                     var db = new TavernContext();
-                    var guild = await db.GetOrCreateDiscordGuild(ctx.Guild, true);
+                    var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
                     var nextTrack = await Music.getNextTrackForGuild(ctx.Guild);
 
                     if (nextTrack != null) {

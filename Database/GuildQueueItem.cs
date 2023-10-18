@@ -17,6 +17,11 @@ namespace CCTavern.Database {
         [Key]
         public ulong Id { get; set; }
 
+        [ForeignKey("Id")]
+        public ulong GuildId { get; set; }
+        public virtual Guild Guild { get; set; }
+
+
         public ulong Position { get; set; }
 
         public string Title { get; set; }
@@ -40,14 +45,10 @@ namespace CCTavern.Database {
         public ulong? RequestedById { get; set; }
         public virtual CachedUser RequestedBy { get; set; }
 
-        [ForeignKey("Id")]
-        public ulong GuildId { get; set; }
-        public virtual Guild Guild { get; set; }
 
         [ForeignKey("Id")]
         public ulong? PlaylistId { get; set; }
         public virtual GuildQueuePlaylist Playlist { get; set; }
-
 
 
         public async Task<string> GetTagline(TavernContext? ctx = null, bool fetchUserIfNotPresent = false) {

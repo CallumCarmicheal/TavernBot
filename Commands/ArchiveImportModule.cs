@@ -10,6 +10,7 @@ using DSharpPlus.Lavalink;
 using K4os.Hash.xxHash;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Update;
 using Microsoft.Extensions.Logging;
 
 using Org.BouncyCastle.Crypto;
@@ -183,7 +184,7 @@ namespace CCTavern.Commands {
                     var archivedMessage = new ArchivedMessage();
                     archivedMessage.AuthorId = dbUserId;
                     archivedMessage.MessageId = msg.Id;
-                    archivedMessage.GuildId = guild.Id;
+                    //archivedMessage.GuildId = guild.Id;
                     archivedMessage.MessageContents = msg.Content;
                     archivedMessage.DateMessageCreated = msg.CreationTimestamp.DateTime;
 
@@ -529,13 +530,12 @@ namespace CCTavern.Commands {
             }
 
             // Check if the bot is connected
-            var conn = lava.GetGuildConnection(ctx.Member?.VoiceState.Guild);
             var node = lava.ConnectedNodes.Values.First();
 
-            if (conn == null) {
-                // Connect the bot
-                conn = await node.ConnectAsync(channel);
-            }
+            // Connect the bot if not connected
+            var conn = lava.GetGuildConnection(ctx.Member?.VoiceState.Guild);
+            if (conn == null)
+                await node.ConnectAsync(channel);
 
             LavalinkLoadResult loadResult;
             loadResult = Uri.TryCreate(search, UriKind.Absolute, out Uri? uri)

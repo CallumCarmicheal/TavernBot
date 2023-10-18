@@ -36,8 +36,8 @@ namespace CCTavern.Database {
         /// </summary>
         public bool LeaveAfterQueue { get; set; } = false;
 
+        public ICollection<GuildQueueItem> Tracks { get; set; }
 
-        public ICollection<GuildQueueItem> Queue { get; set; }
-        public ICollection<ArchivedTrack> ArchivedTracks { get; set; }
+        //public ICollection<ArchivedTrack>  ArchivedTracks { get; set; }
     }
 }

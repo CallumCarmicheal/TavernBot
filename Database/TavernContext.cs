@@ -86,29 +86,35 @@ public partial class TavernContext : DbContext
 
             modelBuilder.Entity<GuildQueueItem>()
                 .HasOne(qi => qi.RequestedBy)
-                .WithMany(usr => usr.RequestedSongs)
-                .HasForeignKey(p => p.RequestedById)
+                    .WithMany(usr => usr.RequestedSongs)
+                .HasForeignKey(qi => qi.RequestedById)
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<GuildQueueItem>()
                 .HasOne(qi => qi.DeletedBy)
-                .WithMany(usr => usr.DeletedSongs)
-                .HasForeignKey(p => p.DeletedById)
+                    .WithMany(usr => usr.DeletedSongs)
+                .HasForeignKey(qi => qi.DeletedById)
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<GuildQueueItem>()
-               .HasOne(qi => qi.Playlist)
-               .WithMany(pl => pl.Songs)
-               .HasForeignKey(p => p.PlaylistId)
-               .IsRequired(false)
-               .OnDelete(DeleteBehavior.SetNull);
+                .HasOne(qi => qi.Playlist)
+                    .WithMany(pl => pl.Songs)
+                .HasForeignKey(qi => qi.PlaylistId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<GuildQueueItem>()
-               .ToTable("GuildQueueItems")
-               .HasKey(t => t.Id);
-            
+                .HasOne(qi => qi.Guild)
+                    .WithMany(guild => guild.Tracks)
+                .HasForeignKey(qi => qi.GuildId)
+                    .IsRequired(true)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<GuildQueueItem>()
+                .ToTable("GuildQueueItems")
+                .HasKey(t => t.Id);
         }
 
         OnModelCreatingPartial(modelBuilder);
@@ -157,11 +163,11 @@ public partial class TavernContext : DbContext
         return cachedUser;
     }
 
-    public async Task<Guild> GetOrCreateDiscordGuild(DiscordGuild guild, bool includeTracks = false) {
+    public async Task<Guild> GetOrCreateDiscordGuild(DiscordGuild guild) {
         Guild dbGuild;
         
         var query = Guilds.Where(x => x.Id == guild.Id);
-        if (includeTracks) query = query.Include(x => x.Queue);
+        //if (includeTracks) query = query.Include(x => x.Queue);
 
         if (await query.AnyAsync() == false) {
             dbGuild = new Guild() {
