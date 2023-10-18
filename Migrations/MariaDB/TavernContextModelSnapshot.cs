@@ -3,6 +3,7 @@ using System;
 using CCTavern.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -17,38 +18,42 @@ namespace CCTavern.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "7.0.8")
-                .HasAnnotation("Relational:MaxIdentifierLength", 64);
+                .HasAnnotation("Relational:MaxIdentifierLength", 128);
+
+            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
             modelBuilder.Entity("CCTavern.Database.ArchivedMessage", b =>
                 {
-                    b.Property<ulong>("Id")
+                    b.Property<decimal>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint unsigned");
+                        .HasColumnType("decimal(20,0)");
 
-                    b.Property<ulong?>("AuthorId")
-                        .HasColumnType("bigint unsigned");
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<decimal>("Id"));
+
+                    b.Property<decimal?>("AuthorId")
+                        .HasColumnType("decimal(20,0)");
 
                     b.Property<bool>("ContainsPrefix")
-                        .HasColumnType("tinyint(1)");
+                        .HasColumnType("bit");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime>("DateMessageCreated")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime2");
 
-                    b.Property<ulong>("GuildId")
-                        .HasColumnType("bigint unsigned");
+                    b.Property<decimal>("GuildId")
+                        .HasColumnType("decimal(20,0)");
 
                     b.Property<string>("MessageContents")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasColumnType("nvarchar(max)");
 
-                    b.Property<ulong>("MessageId")
-                        .HasColumnType("bigint unsigned");
+                    b.Property<decimal>("MessageId")
+                        .HasColumnType("decimal(20,0)");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
@@ -61,41 +66,43 @@ namespace CCTavern.Migrations
 
             modelBuilder.Entity("CCTavern.Database.ArchivedTrack", b =>
                 {
-                    b.Property<ulong>("Id")
+                    b.Property<decimal>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint unsigned");
+                        .HasColumnType("decimal(20,0)");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<decimal>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime>("DateMessageCreated")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime2");
 
-                    b.Property<ulong>("GuildId")
-                        .HasColumnType("bigint unsigned");
+                    b.Property<decimal>("GuildId")
+                        .HasColumnType("decimal(20,0)");
 
                     b.Property<TimeSpan>("Length")
-                        .HasColumnType("time(6)");
+                        .HasColumnType("time");
 
-                    b.Property<ulong>("MessageId")
-                        .HasColumnType("bigint unsigned");
+                    b.Property<decimal>("MessageId")
+                        .HasColumnType("decimal(20,0)");
 
-                    b.Property<ulong>("Position")
-                        .HasColumnType("bigint unsigned");
+                    b.Property<decimal>("Position")
+                        .HasColumnType("decimal(20,0)");
 
-                    b.Property<ulong?>("RequestedById")
-                        .HasColumnType("bigint unsigned");
+                    b.Property<decimal?>("RequestedById")
+                        .HasColumnType("decimal(20,0)");
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("TrackString")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
@@ -108,29 +115,31 @@ namespace CCTavern.Migrations
 
             modelBuilder.Entity("CCTavern.Database.CachedUser", b =>
                 {
-                    b.Property<ulong>("Id")
+                    b.Property<decimal>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint unsigned");
+                        .HasColumnType("decimal(20,0)");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<decimal>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("DisplayName")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasColumnType("nvarchar(max)");
 
-                    b.Property<ulong>("GuildId")
-                        .HasColumnType("bigint unsigned");
+                    b.Property<decimal>("GuildId")
+                        .HasColumnType("decimal(20,0)");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime2");
 
-                    b.Property<ulong>("UserId")
-                        .HasColumnType("bigint unsigned");
+                    b.Property<decimal>("UserId")
+                        .HasColumnType("decimal(20,0)");
 
                     b.Property<string>("Username")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
@@ -141,45 +150,45 @@ namespace CCTavern.Migrations
 
             modelBuilder.Entity("CCTavern.Database.Guild", b =>
                 {
-                    b.Property<ulong>("Id")
-                        .HasColumnType("bigint unsigned");
+                    b.Property<decimal>("Id")
+                        .HasColumnType("decimal(20,0)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime2");
 
-                    b.Property<ulong>("CurrentTrack")
-                        .HasColumnType("bigint unsigned");
+                    b.Property<decimal>("CurrentTrack")
+                        .HasColumnType("decimal(20,0)");
 
                     b.Property<bool>("IsPlaying")
-                        .HasColumnType("tinyint(1)");
+                        .HasColumnType("bit");
 
-                    b.Property<ulong?>("LastMessageStatusId")
-                        .HasColumnType("bigint unsigned");
+                    b.Property<decimal?>("LastMessageStatusId")
+                        .HasColumnType("decimal(20,0)");
 
                     b.Property<bool>("LeaveAfterQueue")
-                        .HasColumnType("tinyint(1)");
+                        .HasColumnType("bit");
 
-                    b.Property<ulong?>("MusicChannelId")
-                        .HasColumnType("bigint unsigned");
+                    b.Property<decimal?>("MusicChannelId")
+                        .HasColumnType("decimal(20,0)");
 
                     b.Property<string>("MusicChannelName")
-                        .HasColumnType("longtext");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasColumnType("nvarchar(max)");
 
-                    b.Property<ulong>("NextTrack")
-                        .HasColumnType("bigint unsigned");
+                    b.Property<decimal>("NextTrack")
+                        .HasColumnType("decimal(20,0)");
 
                     b.Property<string>("Prefixes")
-                        .HasColumnType("longtext");
+                        .HasColumnType("nvarchar(max)");
 
-                    b.Property<ulong>("TrackCount")
-                        .HasColumnType("bigint unsigned");
+                    b.Property<decimal>("TrackCount")
+                        .HasColumnType("decimal(20,0)");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
@@ -188,50 +197,52 @@ namespace CCTavern.Migrations
 
             modelBuilder.Entity("CCTavern.Database.GuildQueueItem", b =>
                 {
-                    b.Property<ulong>("Id")
+                    b.Property<decimal>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint unsigned");
+                        .HasColumnType("decimal(20,0)");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<decimal>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("DateDeleted")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime2");
 
-                    b.Property<ulong?>("DeletedById")
-                        .HasColumnType("bigint unsigned");
+                    b.Property<decimal?>("DeletedById")
+                        .HasColumnType("decimal(20,0)");
 
                     b.Property<string>("DeletedReason")
-                        .HasColumnType("longtext");
+                        .HasColumnType("nvarchar(max)");
 
-                    b.Property<ulong>("GuildId")
-                        .HasColumnType("bigint unsigned");
+                    b.Property<decimal>("GuildId")
+                        .HasColumnType("decimal(20,0)");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
+                        .HasColumnType("bit");
 
                     b.Property<TimeSpan>("Length")
-                        .HasColumnType("time(6)");
+                        .HasColumnType("time");
 
-                    b.Property<ulong?>("PlaylistId")
-                        .HasColumnType("bigint unsigned");
+                    b.Property<decimal?>("PlaylistId")
+                        .HasColumnType("decimal(20,0)");
 
-                    b.Property<ulong>("Position")
-                        .HasColumnType("bigint unsigned");
+                    b.Property<decimal>("Position")
+                        .HasColumnType("decimal(20,0)");
 
-                    b.Property<ulong?>("RequestedById")
-                        .HasColumnType("bigint unsigned");
+                    b.Property<decimal?>("RequestedById")
+                        .HasColumnType("decimal(20,0)");
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("TrackString")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
@@ -248,25 +259,27 @@ namespace CCTavern.Migrations
 
             modelBuilder.Entity("CCTavern.Database.GuildQueuePlaylist", b =>
                 {
-                    b.Property<ulong>("Id")
+                    b.Property<decimal>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint unsigned");
+                        .HasColumnType("decimal(20,0)");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<decimal>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime2");
 
-                    b.Property<ulong?>("CreatedById")
-                        .HasColumnType("bigint unsigned");
+                    b.Property<decimal?>("CreatedById")
+                        .HasColumnType("decimal(20,0)");
 
                     b.Property<int>("PlaylistSongCount")
                         .HasColumnType("int");
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
@@ -295,7 +308,7 @@ namespace CCTavern.Migrations
             modelBuilder.Entity("CCTavern.Database.ArchivedTrack", b =>
                 {
                     b.HasOne("CCTavern.Database.Guild", "Guild")
-                        .WithMany("ArchivedTracks")
+                        .WithMany()
                         .HasForeignKey("GuildId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -328,7 +341,7 @@ namespace CCTavern.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("CCTavern.Database.Guild", "Guild")
-                        .WithMany("Queue")
+                        .WithMany()
                         .HasForeignKey("GuildId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -368,13 +381,6 @@ namespace CCTavern.Migrations
                     b.Navigation("DeletedSongs");
 
                     b.Navigation("RequestedSongs");
-                });
-
-            modelBuilder.Entity("CCTavern.Database.Guild", b =>
-                {
-                    b.Navigation("ArchivedTracks");
-
-                    b.Navigation("Queue");
                 });
 
             modelBuilder.Entity("CCTavern.Database.GuildQueuePlaylist", b =>
