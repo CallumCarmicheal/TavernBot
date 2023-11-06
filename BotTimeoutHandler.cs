@@ -42,7 +42,7 @@ namespace CCTavern {
                  lastActivityTracker[guild.Id] = DateTime.Now;
             else lastActivityTracker.Add(guild.Id, DateTime.Now);
 
-            logger.LogInformation(TLE.MBTimeout, "Guild {guildId}, Updated timeout!", guild.Id);
+            logger.LogDebug(TLE.MBTimeout, "Guild {guildId}, Updated timeout!", guild.Id);
         }
 
         public BotTimeoutHandler() {
