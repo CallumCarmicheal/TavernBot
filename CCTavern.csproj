@@ -4,9 +4,9 @@
     <TargetFramework>net7.0</TargetFramework>
     <Nullable>enable</Nullable>
     <Configurations>Debug;Release;Archival_Debug;Archival_Release</Configurations>
-    <AssemblyVersion>1.1.0</AssemblyVersion>
-    <FileVersion>1.1.0</FileVersion>
-    <Version>1.1.0</Version>
+    <AssemblyVersion>1.1.1</AssemblyVersion>
+    <FileVersion>1.1.1</FileVersion>
+    <Version>1.1.1</Version>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Archival_Debug|AnyCPU'">
     <DefineConstants>$(DefineConstants);ARCHIVAL_MODE;DEBUG</DefineConstants>
