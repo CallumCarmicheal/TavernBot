@@ -16,25 +16,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'" />
   <ItemGroup>
-    <Compile Remove="Migrations\MariaDB\20230624190255_InitialDatabase.cs" />
-    <Compile Remove="Migrations\MariaDB\20230624190255_InitialDatabase.Designer.cs" />
-    <Compile Remove="Migrations\MariaDB\20230624190432_AddCreatedUpdatedDates.cs" />
-    <Compile Remove="Migrations\MariaDB\20230624190432_AddCreatedUpdatedDates.Designer.cs" />
-    <Compile Remove="Migrations\MariaDB\20230624191207_AddDeletedByFieldsForQueue.cs" />
-    <Compile Remove="Migrations\MariaDB\20230624191207_AddDeletedByFieldsForQueue.Designer.cs" />
-    <Compile Remove="Migrations\MariaDB\20230625002051_CreateArchivalTable.cs" />
-    <Compile Remove="Migrations\MariaDB\20230625002051_CreateArchivalTable.Designer.cs" />
-    <Compile Remove="Migrations\MariaDB\20230625054644_AddMessageIdToArchivalTable.cs" />
-    <Compile Remove="Migrations\MariaDB\20230625054644_AddMessageIdToArchivalTable.Designer.cs" />
-    <Compile Remove="Migrations\MariaDB\20230819170043_AddGuildLeaveAfterQueue.cs" />
-    <Compile Remove="Migrations\MariaDB\20230819170043_AddGuildLeaveAfterQueue.Designer.cs" />
-    <Compile Remove="Migrations\MariaDB\20230820132542_CreateArchivedMessagesTable.cs" />
-    <Compile Remove="Migrations\MariaDB\20230820132542_CreateArchivedMessagesTable.Designer.cs" />
-    <Compile Remove="Migrations\MariaDB\20230820141459_MakeGuildQueueItemDateDeletedNullable.cs" />
-    <Compile Remove="Migrations\MariaDB\20230820141459_MakeGuildQueueItemDateDeletedNullable.Designer.cs" />
-    <Compile Remove="Migrations\MariaDB\20230913145910_AddDeletedByToGuildQueueItemTable.cs" />
-    <Compile Remove="Migrations\MariaDB\20230913145910_AddDeletedByToGuildQueueItemTable.Designer.cs" />
-    <Compile Remove="Migrations\MariaDB\TavernContextModelSnapshot.cs" />
+    <Compile Remove="Migrations\20231018012150_CreateInitialDatabaseMsSQL.cs" />
+    <Compile Remove="Migrations\20231018012150_CreateInitialDatabaseMsSQL.Designer.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Config.Net" Version="5.1.5" />
@@ -66,9 +49,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="C:\Programming\CSharp\Discord Music Bot\CCMusique\.editorconfig" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Migrations\MariaDB\" />
   </ItemGroup>
   <Target Name="SetSourceRevisionId" BeforeTargets="InitializeSourceControlInformation">
     <Exec Command="git describe --long --always --dirty --exclude=* --abbrev=8" ConsoleToMSBuild="True" IgnoreExitCode="False">

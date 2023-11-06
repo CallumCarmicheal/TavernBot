@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Data;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 using DSharpPlus.Entities;
@@ -48,6 +49,8 @@ public partial class TavernContext : DbContext
         if (Program.Settings.LogDatabaseQueries)
             optionsBuilder.UseLoggerFactory(Program.LoggerFactory);
     }
+
+    #region Entity Framework: Model Configuration and Events
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) {
         base.OnModelCreating(modelBuilder);
@@ -120,23 +123,47 @@ public partial class TavernContext : DbContext
         OnModelCreatingPartial(modelBuilder);
     }
 
+    public override int SaveChanges(bool acceptAllChangesOnSuccess) {
+        updateChangeTrackerDates();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) {
+        updateChangeTrackerDates();
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default) {
+        updateChangeTrackerDates();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
     public override int SaveChanges() {
+        updateChangeTrackerDates();
+        return base.SaveChanges();
+    }
+
+    private void updateChangeTrackerDates() {
         var entries = ChangeTracker
             .Entries()
             .Where(e => (e.Entity is BaseDbEntity)
                      && (e.State == EntityState.Added || e.State == EntityState.Modified));
 
         foreach (var entityEntry in entries) {
-            ((BaseDbEntity)entityEntry.Entity).UpdatedAt = DateTime.Now;
-
+            // Set the creation date
             if (entityEntry.State == EntityState.Added)
                 ((BaseDbEntity)entityEntry.Entity).CreatedAt = DateTime.Now;
+            // Update the modified date
+            else if (entityEntry.State == EntityState.Modified)
+                ((BaseDbEntity)entityEntry.Entity).UpdatedAt = DateTime.Now;
         }
-
-        return base.SaveChanges();
     }
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
+
+    #endregion
+
+    #region Query Functions
 
     public async Task<CachedUser> GetOrCreateCachedUser(Guild guild, DiscordMember user) {
         CachedUser cachedUser;
@@ -183,4 +210,7 @@ public partial class TavernContext : DbContext
 
         return dbGuild;
     }
+
+    #endregion
+
 }
