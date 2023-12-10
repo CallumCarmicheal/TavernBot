@@ -34,16 +34,16 @@ namespace CCTavern.Commands {
         }
 
         [Command("shuffle"), Aliases("sh")]
-        [Description("Lists all songs in the music queue")]
+        [Description("Shuffle the music in the queue")]
         [RequireGuild]
         public async Task ToggleGuildShuffle(CommandContext ctx, 
-            [Description("Automatically play next song on the queue from where it stopped (triggered if= yes, 1, true, resume, ?)")]
-            string shuffleEnabled_str = ""
+            [Description("Automatically play next song on the queue from where it stopped (triggered if = yes, 1, true)")]
+            string enableShuffle_str = ""
         ) {
-            var shuffleEnabled_str_lwr = shuffleEnabled_str.Trim().ToLower();
+            var shuffleEnabled_str_lwr = enableShuffle_str.Trim().ToLower();
             bool shuffleEnabled = string.IsNullOrWhiteSpace(shuffleEnabled_str_lwr) ? false : 
                 ( shuffleEnabled_str_lwr[0] == 'y' || shuffleEnabled_str_lwr[0] == '1' 
-                    || shuffleEnabled_str_lwr[0] == 't' || shuffleEnabled_str_lwr[0] == 'r' );
+                    || shuffleEnabled_str_lwr[0] == 't' );
 
            
 
