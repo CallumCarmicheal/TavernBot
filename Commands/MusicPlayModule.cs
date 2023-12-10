@@ -96,6 +96,11 @@ namespace CCTavern.Commands {
             var db = new TavernContext();
 
             if (loadResult.LoadResultType == LavalinkLoadResultType.PlaylistLoaded) {
+                // Set a static time 30 seconds from now so if the message needs to be reset
+                // it still waits 30 seconds from the original message.
+                var waitTimespan = TimeSpan.FromSeconds(30);
+
+            waitForButton:
                 long ticks = DateTime.Now.Ticks;
                 byte[] bytes = BitConverter.GetBytes(ticks);
                 string interactionId = Convert.ToBase64String(bytes).Replace('+', '_').Replace('/', '-').TrimEnd('=');
@@ -108,16 +113,22 @@ namespace CCTavern.Commands {
                     .AddComponents(singleButton, playlistButton);
 
                 var buttonMessage = await ctx.RespondAsync(builder);
-
                 var interactivity = ctx.Client.GetInteractivity();
-                var result = await interactivity.WaitForButtonAsync(buttonMessage, TimeSpan.FromSeconds(30));
-
+                var result = await interactivity.WaitForButtonAsync(buttonMessage, waitTimespan);
+                
                 if (result.TimedOut) {
                     await buttonMessage.DeleteAsync();
-                    await ctx.RespondAsync("Track was not added to queue, interactive buttons timed out. (30+ seconds no response).");
+                    await ctx.RespondAsync("Track was not added to queue, interactive buttons timed out. (30+ seconds with no response).");
                     return;
                 } 
-                else if (result.Result.Id == $"single{interactionId}") {
+
+                // Dirty hack to ensure only the message sender clicks the button.
+                if (result.Result.User.Id != ctx.User.Id) {
+                    await buttonMessage.DeleteAsync();
+                    goto waitForButton;
+                }
+
+                if (result.Result.Id == $"single{interactionId}") {
                     track = loadResult.Tracks.ElementAt(loadResult.PlaylistInfo.SelectedTrack);
                     await buttonMessage.DeleteAsync();
                 } 
@@ -145,7 +156,7 @@ namespace CCTavern.Commands {
 
                         // If we are the first track and join event then start playing it.
                         if (x == 0 && isPlayEvent) {
-                            dbGuild = await db.GetOrCreateDiscordGuild(conn.Guild);
+                            dbGuild ??= await db.GetOrCreateDiscordGuild(conn.Guild);
                             dbGuild.CurrentTrack = trackIdx;
                             await db.SaveChangesAsync();
                             await conn.PlayAsync(lt);
