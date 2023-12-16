@@ -140,13 +140,57 @@ namespace CCTavern
             // Setup the lavalink connection
             await music.SetupLavalink();
 
-            status = new("Ready", ActivityType.Playing);
+            await connectionDebug();
+
+            var date = DateTime.Now;
+            var datefmt = $"({date:dd/MM/yyyy HH:mm:ss})";
+
+            status = new("Ready (" + datefmt + ")", ActivityType.Playing);
             await Client.UpdateStatusAsync(status, UserStatus.Online);
 
             logger.LogInformation(TLE.Startup, "Ready :)");
 
             // And now we wait infinitely so that our bot actually stays connected.
             await Task.Delay(-1);
+        }
+
+        private static async Task connectionDebug() {
+
+            var dbgSettings = Settings.ConnectionDebugging;
+            if (dbgSettings == null 
+                || dbgSettings?.DiscordChannelId == null 
+                || dbgSettings?.DiscordThreadId == null 
+                || dbgSettings?.DiscordMessageId == null)
+                return;
+            
+
+            var channel = await Client.GetChannelAsync(dbgSettings.DiscordChannelId.Value);
+            var threads = channel.Threads.ToArray();
+            await Task.Delay(300);
+            var threadQuery = channel.Threads.Where(x => x.Id == Settings.ConnectionDebugging?.DiscordThreadId);
+            if (threadQuery.Any() == false || threadQuery.First() == null) {
+                logger.LogInformation(TLE.Startup, "Couldn't find debug thread.");
+                return;
+            }
+
+            var thread = threadQuery.First();
+
+            DiscordMessage? msg = null;
+            try { msg = await thread.GetMessageAsync(dbgSettings.DiscordMessageId.Value, false); } catch { }
+            
+            if (msg == null) {
+                logger.LogInformation(TLE.Startup, "Couldn't find debug message in thread.");
+                return;
+            }
+
+            try {
+                var date = DateTime.Now;
+                var datefmt = $"`{date:dd/MM/yyyy HH:mm:ss}` ({Formatter.Timestamp(date, TimestampFormat.RelativeTime)})";
+                await msg.ModifyAsync("CCTavern started at " + datefmt);
+                logger.LogInformation(TLE.Startup, "Couldn't find debug message in thread.");
+            } catch (Exception ex) {
+                logger.LogError(TLE.Startup, ex, "Failed to update startup message in discord thread.");
+            }
         }
 
         private static void loadVersionString() {
