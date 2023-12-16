@@ -59,8 +59,9 @@ namespace CCTavern.Commands {
 
             var lava = ctx.Client.GetLavalink();
             if (!lava.ConnectedNodes.Any()) {
-                await ctx.RespondAsync("The Lavalink connection is not established");
-                return;
+                // Attempt reconnection, if fails exit function.
+                if (false == await Music.AttemptReconnectionWithCommandContext(ctx))
+                    return;
             }
 
             // Check if the bot is connected
@@ -218,8 +219,9 @@ namespace CCTavern.Commands {
 
             var lava = ctx.Client.GetLavalink();
             if (!lava.ConnectedNodes.Any()) {
-                await ctx.RespondAsync("The Lavalink connection is not established");
-                return;
+                // Attempt reconnection, if fails exit function.
+                if (false == await Music.AttemptReconnectionWithCommandContext(ctx))
+                    return;
             }
 
             var voiceState = ctx.Member?.VoiceState;

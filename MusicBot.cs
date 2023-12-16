@@ -25,6 +25,7 @@ using System.Diagnostics;
 using Org.BouncyCastle.Asn1.Cms;
 using System.Threading;
 using System.Data.Common;
+using DSharpPlus.CommandsNext;
 
 namespace CCTavern {
     public class MusicBot {
@@ -32,7 +33,9 @@ namespace CCTavern {
         private readonly ILogger logger;
 
         public LavalinkExtension Lavalink { get; private set; }
-        public LavalinkNodeConnection LavalinkNode { get; private set; }
+
+        private ConnectionEndpoint? _lavalinkEndpoint = null;
+        private LavalinkConfiguration? _lavalinkConfiguration = null;
 
         internal Dictionary<ulong, TemporaryQueue> TemporaryTracks = new Dictionary<ulong, TemporaryQueue>();
         internal static Dictionary<ulong, GuildState> GuildStates { get; set; } = new Dictionary<ulong, GuildState>();
@@ -47,30 +50,29 @@ namespace CCTavern {
 
             var lavalinkSettings = Program.Settings.Lavalink;
 
-            var endpoint = new ConnectionEndpoint {
+            _lavalinkEndpoint = new ConnectionEndpoint {
                 Hostname = lavalinkSettings.Hostname,
                 Port = lavalinkSettings.Port
             };
 
-            var lavalinkConfig = new LavalinkConfiguration {
-                Password = lavalinkSettings.Password, 
-                RestEndpoint = endpoint,
-                SocketEndpoint = endpoint
+            _lavalinkConfiguration = new LavalinkConfiguration {
+                Password       = lavalinkSettings.Password, 
+                RestEndpoint   = _lavalinkEndpoint.Value,
+                SocketEndpoint = _lavalinkEndpoint.Value
             };
 
             Lavalink = client.UseLavalink();
-            LavalinkNode = await Lavalink.ConnectAsync(lavalinkConfig);
+            var lavalinkNode = await Lavalink.ConnectAsync(_lavalinkConfiguration);
 
-            LavalinkNode.PlayerUpdated    += LavalinkNode_PlayerUpdated;
-            LavalinkNode.PlaybackStarted  += LavalinkNode_PlaybackStarted;
-            LavalinkNode.PlaybackFinished += LavalinkNode_PlaybackFinished;
-            LavalinkNode.TrackException   += LavalinkNode_TrackException;
-            LavalinkNode.TrackStuck       += LavalinkNode_TrackStuck;
+            lavalinkNode.PlayerUpdated    += LavalinkNode_PlayerUpdated;
+            lavalinkNode.PlaybackStarted  += LavalinkNode_PlaybackStarted;
+            lavalinkNode.PlaybackFinished += LavalinkNode_PlaybackFinished;
+            lavalinkNode.TrackException   += LavalinkNode_TrackException;
+            lavalinkNode.TrackStuck       += LavalinkNode_TrackStuck;
+            lavalinkNode.Disconnected     += LavalinkNode_Disconnected;
             
             logger.LogInformation(TLE.MBSetup, "Lavalink successful");
         }
-
-
 
         public static async Task<DiscordChannel?> GetMusicTextChannelFor(DiscordGuild guild) {
             var db = new TavernContext();
@@ -227,6 +229,11 @@ namespace CCTavern {
             } catch { }
 
             return false;
+        }
+
+        private Task LavalinkNode_Disconnected(LavalinkNodeConnection sender, DSharpPlus.Lavalink.EventArgs.NodeDisconnectedEventArgs args) {
+            logger.LogInformation(TLE.Misc, "LavalinkNode_Disconnected, IsCleanClose={IsCleanClose}", args.IsCleanClose);
+            return Task.CompletedTask;
         }
 
         private async Task LavalinkNode_TrackStuck(LavalinkGuildConnection conn, DSharpPlus.Lavalink.EventArgs.TrackStuckEventArgs args) {
@@ -453,6 +460,51 @@ namespace CCTavern {
             await Task.Delay(500);
             await conn.PlayAsync(track);
             logger.LogInformation(TLE.Misc, "-------------PlaybackFinished ### Finished processing");
+        }
+
+        internal async Task<bool> AttemptReconnectionWithCommandContext(CommandContext ctx) {
+            var message = await ctx.RespondAsync("The Lavalink connection is not established, attempting reconnection please wait...");
+            var lavalink = client.GetLavalink();
+
+            if (lavalink.ConnectedNodes.Count > 0) 
+                goto connectionSuccessfulMessage;
+
+            // Reconnect
+            logger.LogInformation(TLE.MBSetup, "Lavalink disconnected, attempting reconnection.");
+
+            int retries = 0;
+            LavalinkNodeConnection? lavalinkNode = null;
+
+            while (retries < 3 && (lavalinkNode == null || lavalinkNode.IsConnected == false)) {
+                lavalinkNode = await Lavalink.ConnectAsync(_lavalinkConfiguration);
+
+                if (lavalinkNode.IsConnected) {
+                    lavalinkNode.PlayerUpdated += LavalinkNode_PlayerUpdated;
+                    lavalinkNode.PlaybackStarted += LavalinkNode_PlaybackStarted;
+                    lavalinkNode.PlaybackFinished += LavalinkNode_PlaybackFinished;
+                    lavalinkNode.TrackException += LavalinkNode_TrackException;
+                    lavalinkNode.TrackStuck += LavalinkNode_TrackStuck;
+                    logger.LogInformation(TLE.MBSetup, "Lavalink connection successful");
+
+                    goto connectionSuccessfulMessage;
+                } else {
+                    logger.LogInformation(TLE.Startup, "Failed to reconnect to lavalink ({retries}/3)", retries);
+
+                    _ = Task.Delay(500).ContinueWith(async _ => await message.ModifyAsync("Failed to connect to lavalink server after 3 retries."));
+                    _ = Task.Delay(120 * 1000).ContinueWith(async _ => { try { await message.DeleteAsync(); } catch { } });
+                }
+
+                await message.ModifyAsync($"Lavalink disconnected, attempting reconnection ({retries + 1}/3)");
+                retries++;
+            }
+
+            return false;
+
+        connectionSuccessfulMessage:
+            // Update text in 500 ms and delete message in 60 seconds.
+            _ = Task.Delay(500)      .ContinueWith(async _ => await message.ModifyAsync("Successfully reconnected to lavalink"));
+            _ = Task.Delay(60 * 1000).ContinueWith(async _ => { try { await message.DeleteAsync(); } catch { } });
+            return true;
         }
     }
 }

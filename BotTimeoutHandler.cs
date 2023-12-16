@@ -39,8 +39,14 @@ namespace CCTavern {
             var guild = await db.GetOrCreateDiscordGuild(conn.Guild);
 
             if (lastActivityTracker.ContainsKey(guild.Id))
-                 lastActivityTracker[guild.Id] = DateTime.Now;
-            else lastActivityTracker.Add(guild.Id, DateTime.Now);
+                lastActivityTracker[guild.Id] = DateTime.Now;
+            else {
+                lock (lastActivityTracker) {
+                    if (lastActivityTracker.ContainsKey(guild.Id))
+                        lastActivityTracker[guild.Id] = DateTime.Now;
+                    else lastActivityTracker.Add(guild.Id, DateTime.Now);
+                }
+            }
 
             logger.LogDebug(TLE.MBTimeout, "Guild {guildId}, Updated timeout!", guild.Id);
         }
