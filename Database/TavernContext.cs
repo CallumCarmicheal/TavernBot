@@ -211,6 +211,15 @@ public partial class TavernContext : DbContext
         return dbGuild;
     }
 
+    public async Task<Guild?> GetGuild(ulong guildId) {
+        var query = Guilds.Where(x => x.Id == guildId);
+        if (await query.AnyAsync() == false) 
+            return null;
+
+        return await query.FirstAsync();
+    }
+
+
     #endregion
 
 }

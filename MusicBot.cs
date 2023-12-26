@@ -1,39 +1,24 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 using DSharpPlus.Net;
 using DSharpPlus.Lavalink;
 using DSharpPlus;
-using CCTavern;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 using Microsoft.Extensions.Logging;
 using CCTavern.Logger;
 using DSharpPlus.Entities;
 using CCTavern.Database;
-using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
-using System.Xml.Linq;
-using Microsoft.EntityFrameworkCore.Update;
-using System.Security.Policy;
 using System.Web;
-using CCTavern.Utility;
-using System.Reflection;
-using System.Diagnostics;
-using Org.BouncyCastle.Asn1.Cms;
-using System.Threading;
-using System.Data.Common;
 using DSharpPlus.CommandsNext;
-using Google.Protobuf.WellKnownTypes;
-using System.Drawing;
-using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 
 namespace CCTavern {
     public class MusicBot {
         private readonly DiscordClient client;
         private readonly ILogger logger;
+
 
         public LavalinkExtension Lavalink { get; private set; }
 
@@ -42,6 +27,8 @@ namespace CCTavern {
 
         internal Dictionary<ulong, TemporaryQueue> TemporaryTracks = new Dictionary<ulong, TemporaryQueue>();
         internal static Dictionary<ulong, GuildState> GuildStates { get; set; } = new Dictionary<ulong, GuildState>();
+
+
 
         public MusicBot(DiscordClient client) {
             this.client = client;
@@ -275,12 +262,31 @@ namespace CCTavern {
 
                 var progressBar = GenerateProgressBar(args.Position.TotalSeconds, args.Player.CurrentState.CurrentTrack.Length.TotalSeconds, 20);
                 var remainingText = GetTrackRemaining(args.Position, args.Player.CurrentState.CurrentTrack.Length);
-                guildState.MusicEmbed.Embed.Fields[guildState.MusicEmbed.FieldIndex].Value = $"```{remainingText.currentTime} {progressBar} {remainingText.timeLeft}```";
+
+                var embed = guildState.MusicEmbed.Embed;
+                var fieldIdx = guildState.MusicEmbed.FieldIndex;
+
+                var progressText = $"```{remainingText.currentTime} {progressBar} {remainingText.timeLeft}```";
+                
+                if (guildState.TrackChapters == null || guildState.TrackChapters?.Count <= 1) {
+                    embed.Fields[fieldIdx].Value = progressText;
+                } else {
+                    var currentTrack = guildState.TrackChapters?.GetNearestByTimeSpan(args.Position);
+
+                    if (currentTrack == null) {
+                        embed.Fields[fieldIdx].Value = progressText;
+                    } else {
+                        embed.Fields[fieldIdx].Value = progressText + $"```{currentTrack.Title}```";
+                        embed.Fields[fieldIdx].Name = "Current Track";
+
+                        // Update the thumbnail
+                        if (currentTrack.Thumbnails.Any()) 
+                            embed.Thumbnail.Url = currentTrack.Thumbnails.OrderByDescending(x => x.Height).First().Url;
+                    }
+                }
 
                 var message = guildState.MusicEmbed.Message;
                 await message.ModifyAsync((DiscordEmbed)guildState.MusicEmbed.Embed);
-
-                //var message = outputChannel.GetMessageAsync(guildState.MusicEmbed, false);
             }
 
         Finish:
@@ -294,6 +300,7 @@ namespace CCTavern {
             var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(conn.Guild);
             var guildState = GuildStates[guild.Id];
+            guildState.TrackChapters = null; // Reset playlist tracks to null
 
             if (guildState == null) {
                 guildState = new GuildState(guild.Id);
@@ -309,15 +316,18 @@ namespace CCTavern {
 
             GuildQueueItem? dbTrack = null;
 
+            var currentTrackIdx = guild.CurrentTrack;
+
             var requestedBy = "<#ERROR>";
-            var currentTrackQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(x => x.GuildId == guild.Id && x.Position == guild.CurrentTrack);
+            var currentTrackQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(x => x.GuildId == guild.Id && x.Position == currentTrackIdx);
             if (currentTrackQuery.Any()) {
                 dbTrack = await currentTrackQuery.FirstAsync();
                 requestedBy = (dbTrack?.RequestedBy == null) ? "<#NULL>" : dbTrack?.RequestedBy.DisplayName;
             }
 
             string? thumbnail = null;
-            if (args.Track.Uri.Host == "youtube.com" || args.Track.Uri.Host == "www.youtube.com") {
+            bool isYoutubeUrl = (args.Track.Uri.Host == "youtube.com" || args.Track.Uri.Host == "www.youtube.com");
+            if (isYoutubeUrl) {
                 var uriQuery = HttpUtility.ParseQueryString(args.Track.Uri.Query);
                 var videoId = uriQuery["v"];
 
@@ -368,8 +378,26 @@ namespace CCTavern {
                 FieldIndex = embedIndex
             };
 
+            if (isYoutubeUrl && Program.Settings.YoutubeIntegration.Enabled && args.Track.Length.TotalMinutes >= 1) 
+                _ = Task.Run(() => ParsePlaylist(guild.Id, currentTrackIdx, args.Track.Identifier));
+
             logger.LogInformation(TLE.Misc, "LavalinkNode_PlaybackStarted <-- Done processing");
         }
+
+        private async Task ParsePlaylist(ulong guildId, ulong currentTrack, string videoUrl) {
+            var (success, chapters) = await YoutubeChaptersParser.ParseChapters(videoUrl);
+            if (success == false) return;
+
+            var db = new TavernContext();
+            var guild = await db.GetGuild(guildId);
+
+            // Check if we are no longer on the same song, then dont update the chapter title.
+            if (guild?.CurrentTrack != currentTrack) 
+                return;
+
+            GuildStates[guildId].TrackChapters = chapters;
+        }
+
 
         private async Task LavalinkNode_PlaybackFinished(LavalinkGuildConnection conn, DSharpPlus.Lavalink.EventArgs.TrackFinishEventArgs args) {
             logger.LogInformation(TLE.MBFin, "-------------PlaybackFinished : {reason}", args.Reason.ToString());
@@ -567,5 +595,8 @@ namespace CCTavern {
 
         private (string currentTime, string timeLeft) GetTrackRemaining(TimeSpan Current, TimeSpan Length) =>
             (Current.ToDynamicTimestamp(),"-" + (Length - Current).ToDynamicTimestamp());
+
+
+
     }
 }

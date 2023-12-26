@@ -37,6 +37,9 @@ namespace CCTavern {
 
         [Option(Alias = "debug")]
         public IDebugSettings ConnectionDebugging { get; set; }
+
+        [Option(Alias = "youtubeIntegration")]
+        public IYoutubeIntegrationSettings YoutubeIntegration { get; set; }
     }
 
     // ll.hostname=127.0.0.1 ll.port=2800 ll.password=Password123
@@ -62,5 +65,13 @@ namespace CCTavern {
         /// </summary>
         [Option(Alias = "discordMessageId", DefaultValue = null)]
         public ulong? DiscordMessageId { get; set; }
+    }
+
+    public interface IYoutubeIntegrationSettings {
+        [Option(Alias = "enabled", DefaultValue = false)]
+        public bool Enabled { get; set; }
+
+        [Option(Alias = "youtubeOperationalApiEndpoint", DefaultValue = null)]
+        public string OperationalApi { get; set; }
     }
 }
