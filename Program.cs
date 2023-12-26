@@ -140,13 +140,15 @@ namespace CCTavern
             // Setup the lavalink connection
             await music.SetupLavalink();
 
-            await connectionDebug();
+            //await connectionDebug();
 
             var date = DateTime.Now;
             var datefmt = $"({date:dd/MM/yyyy HH:mm:ss})";
 
             status = new("Ready (" + datefmt + ")", ActivityType.Playing);
             await Client.UpdateStatusAsync(status, UserStatus.Online);
+
+            // _ = YoutubeHelper.Instance; // Load the Youtube Service.
 
             logger.LogInformation(TLE.Startup, "Ready :)");
 
