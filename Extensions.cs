@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using TimeSpanParserUtil;
+
 namespace CCTavern {
     internal static class Extensions {
         //used by LINQ to SQL
@@ -69,6 +71,31 @@ namespace CCTavern {
             if (time.Seconds > 0) timestamp.Push($"{time.Seconds:00}s");
 
             return string.Join(":", timestamp.Reverse());
+        }
+
+        public static TimeSpan? TryParseTimeStamp(this string input) {
+            TimeSpan ts;
+
+            if (TimeSpan.TryParseExact(input, new string[] { "ss", "mm\\:ss", "mm\\-ss", "mm\\'ss", "mm\\;ss" }, null, out ts))
+                return ts;
+
+            if (TimeSpanParser.TryParse(input, timeSpan: out ts))
+                return ts;
+
+            return null;
+        }
+
+        public static T? GetNearestByTimeSpan<T>(this SortedList<TimeSpan, T> thisList, TimeSpan thisValue)
+        {
+            var keys = thisList.Keys;
+            var _where = keys.Where(k => k <= thisValue);
+
+            if (_where.Any() == false)
+                return default;
+
+            var nearest = thisValue -
+                _where.Min(k => thisValue - k);
+            return thisList[nearest];
         }
     }
 }

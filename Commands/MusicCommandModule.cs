@@ -1,4 +1,5 @@
-﻿using CCTavern.Commands.Test;
+﻿using CCTavern;
+using CCTavern.Commands.Test;
 using CCTavern.Database;
 using CCTavern.Logger;
 
@@ -350,7 +351,7 @@ namespace CCTavern.Commands {
             // Check if we are playing something
             //if (conn.CurrentState == 
 
-            TimeSpan? timespan = _attemptToParseTimespan(unparsedTimespan);
+            TimeSpan? timespan = unparsedTimespan.TryParseTimeStamp();
 
             if (timespan == null) {
                 emoji = DiscordEmoji.FromName(ctx.Client, ":question:");
