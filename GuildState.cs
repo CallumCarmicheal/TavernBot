@@ -1,4 +1,6 @@
-﻿using System;
+﻿using DSharpPlus.Entities;
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -13,9 +15,22 @@ namespace CCTavern {
 
         public bool ShuffleEnabled { get; set; } = false;
 
+        public MusicEmbedState? MusicEmbed { get; set; } = null;
+
         public GuildState(ulong guildId) {
             this.GuildId = guildId;
         }
+    }
 
+    internal class MusicEmbedState {
+        //public ulong MessageId { get; set; } 
+
+        public DiscordEmbedBuilder Embed { get; set; }
+
+        public int FieldIndex { get; set; }
+
+        // public DateTime NextUpdate { get; set; }
+
+        public DiscordMessage Message { get; set; }
     }
 }

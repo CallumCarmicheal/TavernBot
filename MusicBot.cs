@@ -26,6 +26,9 @@ using Org.BouncyCastle.Asn1.Cms;
 using System.Threading;
 using System.Data.Common;
 using DSharpPlus.CommandsNext;
+using Google.Protobuf.WellKnownTypes;
+using System.Drawing;
+using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 
 namespace CCTavern {
     public class MusicBot {
@@ -56,21 +59,21 @@ namespace CCTavern {
             };
 
             _lavalinkConfiguration = new LavalinkConfiguration {
-                Password       = lavalinkSettings.Password, 
-                RestEndpoint   = _lavalinkEndpoint.Value,
+                Password = lavalinkSettings.Password,
+                RestEndpoint = _lavalinkEndpoint.Value,
                 SocketEndpoint = _lavalinkEndpoint.Value
             };
 
             Lavalink = client.UseLavalink();
             var lavalinkNode = await Lavalink.ConnectAsync(_lavalinkConfiguration);
 
-            lavalinkNode.PlayerUpdated    += LavalinkNode_PlayerUpdated;
-            lavalinkNode.PlaybackStarted  += LavalinkNode_PlaybackStarted;
+            lavalinkNode.PlayerUpdated += LavalinkNode_PlayerUpdated;
+            lavalinkNode.PlaybackStarted += LavalinkNode_PlaybackStarted;
             lavalinkNode.PlaybackFinished += LavalinkNode_PlaybackFinished;
-            lavalinkNode.TrackException   += LavalinkNode_TrackException;
-            lavalinkNode.TrackStuck       += LavalinkNode_TrackStuck;
-            lavalinkNode.Disconnected     += LavalinkNode_Disconnected;
-            
+            lavalinkNode.TrackException += LavalinkNode_TrackException;
+            lavalinkNode.TrackStuck += LavalinkNode_TrackStuck;
+            lavalinkNode.Disconnected += LavalinkNode_Disconnected;
+
             logger.LogInformation(TLE.MBSetup, "Lavalink successful");
         }
 
@@ -80,9 +83,9 @@ namespace CCTavern {
 
             // Check if we have that in the database
             ulong? discordChannelId = null;
-            
+
             if (dbGuild.MusicChannelId == null) {
-                if (GuildStates.ContainsKey(guild.Id) && GuildStates[guild.Id].TemporaryMusicChannelId != null) 
+                if (GuildStates.ContainsKey(guild.Id) && GuildStates[guild.Id].TemporaryMusicChannelId != null)
                     discordChannelId = GuildStates[guild.Id].TemporaryMusicChannelId;
             } else discordChannelId = dbGuild.MusicChannelId;
 
@@ -93,7 +96,7 @@ namespace CCTavern {
         public static void AnnounceJoin(DiscordChannel channel) {
             if (channel == null) return;
 
-            if (!GuildStates.ContainsKey(channel.Guild.Id)) 
+            if (!GuildStates.ContainsKey(channel.Guild.Id))
                 GuildStates[channel.Guild.Id] = new GuildState(channel.Guild.Id);
 
             if (GuildStates[channel.Guild.Id].TemporaryMusicChannelId == null)
@@ -172,8 +175,8 @@ namespace CCTavern {
             targetTrackId ??= guild.NextTrack;
 
             var query = db.GuildQueueItems.Where(
-                x => x.GuildId   == guild.Id 
-                  && x.Position  >= targetTrackId 
+                x => x.GuildId == guild.Id
+                  && x.Position >= targetTrackId
                   && x.IsDeleted == false);
 
             if (query.Any() == false)
@@ -218,13 +221,13 @@ namespace CCTavern {
             try {
                 if (guild.LastMessageStatusId != null && outputChannel != null) {
                     ulong lastMessageStatusId = guild.LastMessageStatusId.Value;
-                        var oldMessage = await outputChannel.GetMessageAsync(lastMessageStatusId, true);
-                        if (oldMessage != null) {
-                            guild.LastMessageStatusId = null;
+                    var oldMessage = await outputChannel.GetMessageAsync(lastMessageStatusId, true);
+                    if (oldMessage != null) {
+                        guild.LastMessageStatusId = null;
 
-                            await oldMessage.DeleteAsync();
-                            return true;
-                        }
+                        await oldMessage.DeleteAsync();
+                        return true;
+                    }
                 }
             } catch { }
 
@@ -262,6 +265,25 @@ namespace CCTavern {
         }
 
         private async Task LavalinkNode_PlayerUpdated(LavalinkGuildConnection conn, DSharpPlus.Lavalink.EventArgs.PlayerUpdateEventArgs args) {
+            //logger.LogInformation(TLE.Misc, "LavalinkNode_PlayerUpdated, {Position}.", args.Position.ToDynamicTimestamp());
+
+            var guildState = GuildStates[conn.Guild.Id];
+
+            if (guildState != null && guildState.MusicEmbed != null) {
+                var outputChannel = await GetMusicTextChannelFor(conn.Guild);
+                if (outputChannel == null) goto Finish;
+
+                var progressBar = GenerateProgressBar(args.Position.TotalSeconds, args.Player.CurrentState.CurrentTrack.Length.TotalSeconds, 20);
+                var remainingText = GetTrackRemaining(args.Position, args.Player.CurrentState.CurrentTrack.Length);
+                guildState.MusicEmbed.Embed.Fields[guildState.MusicEmbed.FieldIndex].Value = $"```{remainingText.currentTime} {progressBar} {remainingText.timeLeft}```";
+
+                var message = guildState.MusicEmbed.Message;
+                await message.ModifyAsync((DiscordEmbed)guildState.MusicEmbed.Embed);
+
+                //var message = outputChannel.GetMessageAsync(guildState.MusicEmbed, false);
+            }
+
+        Finish:
             await BotTimeoutHandler.Instance.UpdateMusicLastActivity(conn);
         }
 
@@ -272,6 +294,11 @@ namespace CCTavern {
             var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(conn.Guild);
             var guildState = GuildStates[guild.Id];
+
+            if (guildState == null) {
+                guildState = new GuildState(guild.Id);
+                GuildStates.Add(guild.Id, guildState);
+            }
 
             var outputChannel = await GetMusicTextChannelFor(conn.Guild);
             if (outputChannel == null) {
@@ -298,35 +325,49 @@ namespace CCTavern {
             }
 
             DiscordEmbedBuilder embed = new DiscordEmbedBuilder() {
-                Url   = $"https://youtube.com/watch?v={args.Track.Identifier}",
+                Url = $"https://youtube.com/watch?v={args.Track.Identifier}",
                 Color = DiscordColor.SpringGreen,
                 Title = args.Track.Title,
             };
 
-            if (thumbnail != null) 
+            if (thumbnail != null)
                 embed.WithThumbnail(thumbnail);
 
             embed.WithAuthor(args.Track.Author);
-            embed.AddField("Player Panel", "[Manage bot through web panel (not added)](https://callumcarmicheal.com/#)", false);
+            //embed.AddField("Player Panel", "[Manage bot through web panel (not added)](https://callumcarmicheal.com/#)", false);
 
             if (dbTrack == null)
-                 embed.AddField("Position", "<TRX Nil>", true);
+                embed.AddField("Position", "<TRX Nil>", true);
             else embed.AddField("Position", dbTrack.Position.ToString(), true);
 
             embed.AddField("Duration", args.Track.Length.ToString(@"hh\:mm\:ss"), true);
             embed.AddField("Requested by", requestedBy, true);
 
-            if (guildState != null && guildState.ShuffleEnabled)
+            if (guildState.ShuffleEnabled)
                 embed.AddField("Shuffle", "Enabled", true);
 
             if (dbTrack != null)
                 embed.AddField("Date", Formatter.Timestamp(dbTrack.CreatedAt, TimestampFormat.LongDateTime), true);
-            embed.WithFooter("gb:callums-basement@" + Program.VERSION_Full);
+
+            var embedIndex = embed.Fields.Count;
+            var progressBar = GenerateProgressBar(0, args.Track.Length.TotalSeconds, 20);
+            var (currentTime, timeLeft) = GetTrackRemaining(TimeSpan.FromSeconds(0), args.Track.Length);
+            embed.AddField("Progress", $"```{progressBar} {timeLeft}```");
+
+            // 
+            embed.WithFooter($"gb:callums-basement@{Program.VERSION_Full}");
 
             var message = await client.SendMessageAsync(outputChannel, embed: embed);
             guild.LastMessageStatusId = message.Id;
             guild.IsPlaying = true;
             await db.SaveChangesAsync();
+
+            guildState.MusicEmbed = new MusicEmbedState() {
+                Message = message,
+                Embed = embed,
+                FieldIndex = embedIndex
+            };
+
             logger.LogInformation(TLE.Misc, "LavalinkNode_PlaybackStarted <-- Done processing");
         }
 
@@ -354,7 +395,7 @@ namespace CCTavern {
                 await DeletePastStatusMessage(guild, outputChannel);
             }
 
-            bool            isTempTrack = false;
+            bool isTempTrack = false;
             GuildQueueItem? dbTrack = null;
 
             // Check if we have any temporary tracks and remove empty playlist if needed
@@ -369,8 +410,8 @@ namespace CCTavern {
 
             // Get the track
             LavalinkTrack? track = null;
-            
-            if (dbTrack != null) 
+
+            if (dbTrack != null)
                 track = await conn.Node.Rest.DecodeTrackAsync(dbTrack.TrackString);
 
             // Get the next track (attempt it 10 times)
@@ -389,7 +430,7 @@ namespace CCTavern {
 
                 // If we have reached the max count disconnect
                 if (!shuffleEnabled && nextTrackNumber > guild.TrackCount) {
-                    if (Program.Settings.LoggingVerbose) 
+                    if (Program.Settings.LoggingVerbose)
                         logger.LogInformation(TLE.MBFin, "Reached end of playlist count {attempts} attempts, {trackCount} tracks.", attempts, guild.TrackCount);
 
                     if (outputChannel != null) {
@@ -412,7 +453,7 @@ namespace CCTavern {
                 }
 
                 dbTrack = await getNextTrackForGuild(conn.Guild, nextTrackNumber);
-                track   = dbTrack == null ? null : await conn.Node.Rest.DecodeTrackAsync(dbTrack?.TrackString);
+                track = dbTrack == null ? null : await conn.Node.Rest.DecodeTrackAsync(dbTrack?.TrackString);
             }
 
             // If we cannot still resolve a track leave the channel (if setting provides)
@@ -421,7 +462,7 @@ namespace CCTavern {
                     , MAX_ATTEMPTS, dbTrack?.Position, dbTrack == null ? "True" : "False", track == null ? "True" : "False");
 
                 if (outputChannel != null)
-                    await outputChannel.SendMessageAsync($"Error (2), Failed to parse next track at position `{nextTrackNumber}`.\n" 
+                    await outputChannel.SendMessageAsync($"Error (2), Failed to parse next track at position `{nextTrackNumber}`.\n"
                         + $"Please manually set next queue index above `{nextTrackNumber}` with jump or queue a new song!");
 
                 if (guild.LeaveAfterQueue) {
@@ -446,7 +487,7 @@ namespace CCTavern {
 
             if (isTempTrack == false && dbTrack != null) {
                 guild.CurrentTrack = dbTrack.Position;
-                guild.NextTrack    = dbTrack.Position + 1;
+                guild.NextTrack = dbTrack.Position + 1;
             }
 
             await db.SaveChangesAsync();
@@ -466,7 +507,7 @@ namespace CCTavern {
             var message = await ctx.RespondAsync("The Lavalink connection is not established, attempting reconnection please wait...");
             var lavalink = client.GetLavalink();
 
-            if (lavalink.ConnectedNodes.Count > 0) 
+            if (lavalink.ConnectedNodes.Count > 0)
                 goto connectionSuccessfulMessage;
 
             // Reconnect
@@ -502,9 +543,29 @@ namespace CCTavern {
 
         connectionSuccessfulMessage:
             // Update text in 500 ms and delete message in 60 seconds.
-            _ = Task.Delay(500)      .ContinueWith(async _ => await message.ModifyAsync("Successfully reconnected to lavalink"));
+            _ = Task.Delay(500).ContinueWith(async _ => await message.ModifyAsync("Successfully reconnected to lavalink"));
             _ = Task.Delay(60 * 1000).ContinueWith(async _ => { try { await message.DeleteAsync(); } catch { } });
             return true;
         }
+
+        private string GenerateProgressBar(double value, double maxValue, int size) {
+            var percentage = value / maxValue; // Calculate the percentage of the bar
+            var progress = (int)Math.Round((size * percentage)); // Calculate the number of square caracters to fill the progress side.
+            var emptyProgress = size - progress; // Calculate the number of dash caracters to fill the empty progress side.
+
+            var progressText = new string('─', progress - 1 < 0 ? 0 : progress - 1); // Repeat is creating a string with progress * caracters in it
+            var emptyProgressText = new string('─', emptyProgress); // Repeat is creating a string with empty progress * caracters in it
+            //var percentageText = (int)Math.Round((double)percentage * 100) + '%'; // Displaying the percentage of the bar
+
+            // Creating the bar
+            string bar = (progress >= 1)
+                ? $@"[{progressText + "⊙" + emptyProgressText}]"
+                : $@"[{progressText + emptyProgressText}]";
+
+            return bar;
+        }
+
+        private (string currentTime, string timeLeft) GetTrackRemaining(TimeSpan Current, TimeSpan Length) =>
+            (Current.ToDynamicTimestamp(),"-" + (Length - Current).ToDynamicTimestamp());
     }
 }

@@ -59,5 +59,16 @@ namespace CCTavern {
             result = result | (long)rand.Next((Int32)min, (Int32)max);
             return result;
         }
+
+        public static string ToDynamicTimestamp(this TimeSpan time) {
+            Stack<string> timestamp = new Stack<string>(5);
+
+            if (time.Days > 0) timestamp.Push($"{time.Days:00}d");
+            if (time.Hours > 0) timestamp.Push($"{time.Hours:00}h");
+            if (time.Minutes > 0) timestamp.Push($"{time.Minutes:00}m");
+            if (time.Seconds > 0) timestamp.Push($"{time.Seconds:00}s");
+
+            return string.Join(":", timestamp.Reverse());
+        }
     }
 }
