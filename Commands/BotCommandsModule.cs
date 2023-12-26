@@ -14,7 +14,8 @@ namespace CCTavern.Commands {
 
         [Command("version")]
         public async Task PrintStatus(CommandContext ctx) {
-            await ctx.RespondAsync("Version: " + Program.VERSION_Full + "\nGit Hash: " + Program.VERSION_Git_WithBuild + "\nGithub: https://github.com/CallumCarmicheal/TavernBot/commit/" + Program.VERSION_Git);
+            string url = "https://github.com/CallumCarmicheal/TavernBot/commit/" + Program.VERSION_Git.Replace("-dirty", "");
+            await ctx.RespondAsync($"Version: {Program.VERSION_Full}\nGit Hash: {Program.VERSION_Git_WithBuild}\n[Github]({url})");
         }
     }
 }

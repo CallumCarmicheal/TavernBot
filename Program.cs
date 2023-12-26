@@ -165,6 +165,17 @@ namespace CCTavern
             
 
             var channel = await Client.GetChannelAsync(dbgSettings.DiscordChannelId.Value);
+            try {
+                if (channel.Threads == null) {
+                    logger.LogInformation(TLE.Startup, "Couldn't find debug thread. (channel.Threads == null)");
+                    return;
+                }
+            } catch {
+                logger.LogInformation(TLE.Startup, "Couldn't find debug thread. (exception on channel.Threads == null)");
+                return;
+            }
+            
+
             var threads = channel.Threads.ToArray();
             await Task.Delay(300);
             var threadQuery = channel.Threads.Where(x => x.Id == Settings.ConnectionDebugging?.DiscordThreadId);
