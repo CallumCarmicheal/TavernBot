@@ -66,7 +66,7 @@ namespace CCTavern {
 
         public static async Task<DiscordChannel?> GetMusicTextChannelFor(DiscordGuild guild) {
             var db = new TavernContext();
-            Guild dbGuild = await db.GetOrCreateDiscordGuild(guild);
+            var dbGuild = await db.GetOrCreateDiscordGuild(guild);
 
             // Check if we have that in the database
             ulong? discordChannelId = null;
@@ -99,8 +99,8 @@ namespace CCTavern {
 
         public static async Task<GuildQueueItem> CreateGuildQueueItem(
                 TavernContext db, Guild dbGuild,
-                LavalinkTrack track, DiscordChannel channel, DiscordMember requestedBy, GuildQueuePlaylist? playlist, ulong trackPosition) {
-
+                LavalinkTrack track, DiscordChannel channel, DiscordMember requestedBy, GuildQueuePlaylist? playlist, ulong trackPosition
+        ) {
             var requestedUser = await db.GetOrCreateCachedUser(dbGuild, requestedBy);
             var qi = new GuildQueueItem() {
                 GuildId = channel.Guild.Id,
@@ -146,7 +146,9 @@ namespace CCTavern {
                 var guildState = GuildStates[discordGuild.Id];
 
                 if (guildState != null && guildState.ShuffleEnabled) {
-                    var guildQueueQuery = db.GuildQueueItems.Where(x => x.GuildId == guild.Id && x.IsDeleted == false).OrderByDescending(x => x.Position);
+                    var guildQueueQuery = db.GuildQueueItems
+                        .Where(x => x.GuildId == guild.Id && x.IsDeleted == false)
+                        .OrderByDescending(x => x.Position);
 
                     if (await guildQueueQuery.CountAsync() >= 10) {
                         var rnd = new Random();
@@ -161,10 +163,12 @@ namespace CCTavern {
 
             targetTrackId ??= guild.NextTrack;
 
-            var query = db.GuildQueueItems.Where(
-                x => x.GuildId == guild.Id
-                  && x.Position >= targetTrackId
-                  && x.IsDeleted == false);
+            var query = db.GuildQueueItems
+                .Include(x => x.RequestedBy)
+                .Where(
+                    x => x.GuildId == guild.Id
+                      && x.Position >= targetTrackId
+                      && x.IsDeleted == false);
 
             if (query.Any() == false)
                 return null;
@@ -286,7 +290,11 @@ namespace CCTavern {
                 }
 
                 var message = guildState.MusicEmbed.Message;
-                await message.ModifyAsync((DiscordEmbed)guildState.MusicEmbed.Embed);
+                try {
+                    await message.ModifyAsync((DiscordEmbed)guildState.MusicEmbed.Embed);
+                } catch (DSharpPlus.Exceptions.NotFoundException ex) {
+                    guildState.MusicEmbed = null;
+                }
             }
 
         Finish:

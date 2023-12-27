@@ -239,7 +239,9 @@ namespace CCTavern.Commands {
                 dbUser = await db.GetOrCreateCachedUser(dbGuild, ctx.Member);
 
             // Get the song
-            var guildQueueQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(x => x.GuildId == dbGuild.Id && x.IsDeleted == false && x.Position == songIndex);
+            var guildQueueQuery = db.GuildQueueItems
+                .Include(p => p.RequestedBy)
+                .Where(x => x.GuildId == dbGuild.Id && x.IsDeleted == false && x.Position == songIndex);
             
             // Check if the song doesn't exist
             if (await guildQueueQuery.AnyAsync() == false) {

@@ -253,7 +253,9 @@ namespace CCTavern.Commands {
             var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
-            var query = db.GuildQueueItems.Where(x => x.GuildId == ctx.Guild.Id && x.Position == nextTrackPosition && x.IsDeleted == false);
+            var query = db
+                .GuildQueueItems.Include(x => x.RequestedBy)
+                .Where(x => x.GuildId == ctx.Guild.Id && x.Position == nextTrackPosition && x.IsDeleted == false);
             if (query.Any() == false) {
                 await ctx.RespondAsync("Failed to jump to track (could not be found).");
                 return;
