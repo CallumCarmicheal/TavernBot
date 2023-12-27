@@ -21,7 +21,7 @@ namespace CCTavern {
 
         public static async Task<(bool success, SortedList<TimeSpan, IVideoChapter>? chapters)> ParseChapters(string videoId) {
             // snippet,chapters | if you want to get the description too. To parse it see below in commented function
-            string apiEndpoint = string.Format("{0}/videos?part=chapters&id={1}", Program.Settings.YoutubeIntegration.OperationalApi, videoId);
+            string apiEndpoint = string.Format("{0}/videos?part=snippet,chapters&id={1}", Program.Settings.YoutubeIntegration.OperationalApi, videoId);
             var response = await cli.GetAsync(apiEndpoint);
             var json = await response.Content.ReadAsStringAsync();
 
