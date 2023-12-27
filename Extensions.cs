@@ -63,12 +63,12 @@ namespace CCTavern {
         }
 
         public static string ToDynamicTimestamp(this TimeSpan time) {
-            Stack<string> timestamp = new Stack<string>(5);
+            Stack<string> timestamp = new Stack<string>(4);
 
-            if (time.Days > 0) timestamp.Push($"{time.Days:00}d");
-            if (time.Hours > 0) timestamp.Push($"{time.Hours:00}h");
-            if (time.Minutes > 0) timestamp.Push($"{time.Minutes:00}m");
-            if (time.Seconds > 0) timestamp.Push($"{time.Seconds:00}s");
+            if (time.Days > 0) timestamp.Push($"{time.Days:0}d {time.Hours:0}h {time.Minutes:00}m {time.Seconds:00}s");
+            else if (time.Hours > 0) timestamp.Push($"{time.Hours:0}h {time.Minutes:00}m {time.Seconds:00}s");
+            else if (time.Minutes > 0) timestamp.Push($"{time.Minutes:00}m {time.Seconds:00}s");
+            else if (time.Seconds > 0) timestamp.Push($"{time.Seconds:00}s");
 
             return string.Join(":", timestamp.Reverse());
         }
