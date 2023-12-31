@@ -200,22 +200,23 @@ namespace CCTavern.Commands {
         [Description("Join the current voice channel and do nothing.")]
         [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
         public async Task JoinVoice(CommandContext ctx,
-                [Description("Automatically play next song on the queue from where it stopped (triggered if= yes, 1, true, resume, start)")]
-                string continuePlaying_str = "f"
+                [Description("True values [yes, 1, true, resume, start]")]
+                string flag_str = "f"
         ) {
-            var continuePlaying_str_lwr = continuePlaying_str.ToLower();
-            bool continuePlaying = continuePlaying_str_lwr[0] == 'y' || continuePlaying_str_lwr[0] == '1' 
-                || continuePlaying_str_lwr[0] == 't' || continuePlaying_str_lwr[0] == 'r';
+            var flag_str_lwr = flag_str.ToLower();
+            bool flag = flag_str_lwr[0] == 'y' || flag_str_lwr[0] == '1' 
+                || flag_str_lwr[0] == 't' || flag_str_lwr[0] == 'r'
+                || (flag_str_lwr[0] == 'o' && flag_str_lwr[1] == 'n');
 
-            if (continuePlaying_str_lwr[0] == 's') {
-                if (continuePlaying_str_lwr == "stop")
-                    continuePlaying = false;
+            if (flag_str_lwr[0] == 's') {
+                if (flag_str_lwr == "stop")
+                    flag = false;
 
-                if (continuePlaying_str_lwr == "start")
-                    continuePlaying = true;
+                if (flag_str_lwr == "start")
+                    flag = true;
             }
 
-            logger.LogInformation(TLE.Misc, "Join voice: Continue = {continuePlaying}", continuePlaying);
+            logger.LogInformation(TLE.Misc, "Join voice: Continue = {continuePlaying}", flag);
 
             var lava = ctx.Client.GetLavalink();
             if (!lava.ConnectedNodes.Any()) {
@@ -250,7 +251,7 @@ namespace CCTavern.Commands {
                 MusicBot.AnnounceJoin(channel);
                 await ctx.RespondAsync($"Joined <#{channel.Id}>!");
 
-                if (continuePlaying) {
+                if (flag) {
                     var db = new TavernContext();
                     var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
                     var nextTrack = await Music.getNextTrackForGuild(ctx.Guild);

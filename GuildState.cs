@@ -16,9 +16,13 @@ namespace CCTavern {
         public ulong? TemporaryMusicChannelId { get; set; } = null;
 
         public bool ShuffleEnabled { get; set; } = false;
+        public bool RepeatEnabled { get; internal set; } = false;
+        public int TimesRepeated { get; set; } = 0;
+
 
         public MusicEmbedState? MusicEmbed { get; set; } = null;
         public SortedList<TimeSpan, IVideoChapter>? TrackChapters { get; set; }
+
 
         public GuildState(ulong guildId) {
             this.GuildId = guildId;

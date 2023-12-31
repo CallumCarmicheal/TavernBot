@@ -28,8 +28,6 @@ namespace CCTavern {
         internal Dictionary<ulong, TemporaryQueue> TemporaryTracks = new Dictionary<ulong, TemporaryQueue>();
         internal static Dictionary<ulong, GuildState> GuildStates { get; set; } = new Dictionary<ulong, GuildState>();
 
-
-
         public MusicBot(DiscordClient client) {
             this.client = client;
             this.logger = Program.LoggerFactory.CreateLogger("MusicBot");
@@ -258,9 +256,9 @@ namespace CCTavern {
         private async Task LavalinkNode_PlayerUpdated(LavalinkGuildConnection conn, DSharpPlus.Lavalink.EventArgs.PlayerUpdateEventArgs args) {
             //logger.LogInformation(TLE.Misc, "LavalinkNode_PlayerUpdated, {Position}.", args.Position.ToDynamicTimestamp());
 
-            var guildState = GuildStates[conn.Guild.Id];
+            var guildState = GuildStates.ContainsKey(conn.Guild.Id) ? GuildStates[conn.Guild.Id] : null;
 
-            if (guildState != null && guildState.MusicEmbed != null) {
+            if (args.Player.CurrentState.CurrentTrack != null && guildState != null && guildState.MusicEmbed != null) {
                 var outputChannel = await GetMusicTextChannelFor(conn.Guild);
                 if (outputChannel == null) goto Finish;
 
@@ -364,6 +362,9 @@ namespace CCTavern {
             if (guildState.ShuffleEnabled)
                 embed.AddField("Shuffle", "Enabled", true);
 
+            if (guildState.RepeatEnabled)
+                embed.AddField("Repeat", $"Repeated `{guildState.TimesRepeated}` times.", true);
+
             if (dbTrack != null)
                 embed.AddField("Date", Formatter.Timestamp(dbTrack.CreatedAt, TimestampFormat.LongDateTime), true);
 
@@ -386,7 +387,7 @@ namespace CCTavern {
                 FieldIndex = embedIndex
             };
 
-            if (isYoutubeUrl && Program.Settings.YoutubeIntegration.Enabled && args.Track.Length.TotalMinutes >= 1) 
+            if (isYoutubeUrl && Program.Settings.YoutubeIntegration.Enabled && args.Track.Length.TotalMinutes >= 5) 
                 _ = Task.Run(() => ParsePlaylist(guild.Id, currentTrackIdx, args.Track.Identifier));
 
             logger.LogInformation(TLE.Misc, "LavalinkNode_PlaybackStarted <-- Done processing");
@@ -416,19 +417,22 @@ namespace CCTavern {
 
             // Check if we have a channel for the guild
             var db = new TavernContext();
-            var guild = await db.GetOrCreateDiscordGuild(conn.Guild);
-            var guildState = GuildStates[guild.Id];
+            var dbGuild = await db.GetOrCreateDiscordGuild(conn.Guild);
+            var guildState = GuildStates.ContainsKey(dbGuild.Id) ? GuildStates[dbGuild.Id] : null;
             var shuffleEnabled = guildState != null && guildState.ShuffleEnabled;
+            var repeatEnabled  = guildState != null && guildState.RepeatEnabled;
+
+            if (repeatEnabled) shuffleEnabled = false; // Disable shuffle if on repeat mode!
 
             // Set IsPlaying to false.
-            guild.IsPlaying = false;
+            dbGuild.IsPlaying = false;
             await db.SaveChangesAsync();
 
             var outputChannel = await GetMusicTextChannelFor(conn.Guild);
             if (outputChannel == null) {
                 logger.LogError(TLE.MBFin, "Failed to get music channel for lavalink connection.");
             } else {
-                await DeletePastStatusMessage(guild, outputChannel);
+                await DeletePastStatusMessage(dbGuild, outputChannel);
             }
 
             bool isTempTrack = false;
@@ -441,8 +445,21 @@ namespace CCTavern {
                 logger.LogInformation(TLE.MBFin, "Playing temporary track: {Title}.", dbTrack?.Title ?? "<NULL>");
             }
 
-            // Get the next available track
-            dbTrack = await getNextTrackForGuild(conn.Guild);
+            // Check if we are on the repeat mode.
+            if (repeatEnabled) {
+                // Get the current track
+                dbTrack = await getNextTrackForGuild(conn.Guild, dbGuild.CurrentTrack);
+
+                if (guildState != null)
+                    guildState.TimesRepeated++;
+            } 
+            else {
+                // Get the next available track
+                dbTrack = await getNextTrackForGuild(conn.Guild);
+
+                if (guildState != null)
+                    guildState.TimesRepeated = 0;
+            }
 
             // Get the track
             LavalinkTrack? track = null;
@@ -454,28 +471,28 @@ namespace CCTavern {
             int attempts = 0;
             int MAX_ATTEMPTS = 10;
 
-            ulong nextTrackNumber = guild.NextTrack;
+            ulong nextTrackNumber = dbGuild.NextTrack;
 
             while (track == null && attempts++ < MAX_ATTEMPTS) {
                 logger.LogInformation(TLE.MBFin, "Error, Failed to parse next track `{Title}` at position `{Position}`.", dbTrack?.Title, dbTrack?.Position);
-                if (outputChannel != null && nextTrackNumber <= guild.TrackCount)
+                if (outputChannel != null && nextTrackNumber <= dbGuild.TrackCount)
                     await outputChannel.SendMessageAsync($"Error (1), Failed to parse next track `{dbTrack?.Title}` at position `{nextTrackNumber}`.");
 
                 // Get the next track
                 nextTrackNumber++;
 
                 // If we have reached the max count disconnect
-                if (!shuffleEnabled && nextTrackNumber > guild.TrackCount) {
+                if (!shuffleEnabled && nextTrackNumber > dbGuild.TrackCount) {
                     if (Program.Settings.LoggingVerbose)
-                        logger.LogInformation(TLE.MBFin, "Reached end of playlist count {attempts} attempts, {trackCount} tracks.", attempts, guild.TrackCount);
+                        logger.LogInformation(TLE.MBFin, "Reached end of playlist count {attempts} attempts, {trackCount} tracks.", attempts, dbGuild.TrackCount);
 
                     if (outputChannel != null) {
                         string messageText = "Finished queue.";
 
-                        if (guild.LeaveAfterQueue) {
+                        if (dbGuild.LeaveAfterQueue) {
                             // Remove temporary playlist
-                            if (TemporaryTracks.ContainsKey(guild.Id))
-                                TemporaryTracks.Remove(guild.Id);
+                            if (TemporaryTracks.ContainsKey(dbGuild.Id))
+                                TemporaryTracks.Remove(dbGuild.Id);
 
                             messageText = "Disconnected after finished queue.";
                             await conn.DisconnectAsync();
@@ -501,10 +518,10 @@ namespace CCTavern {
                     await outputChannel.SendMessageAsync($"Error (2), Failed to parse next track at position `{nextTrackNumber}`.\n"
                         + $"Please manually set next queue index above `{nextTrackNumber}` with jump or queue a new song!");
 
-                if (guild.LeaveAfterQueue) {
+                if (dbGuild.LeaveAfterQueue) {
                     // Remove temporary playlist
-                    if (TemporaryTracks.ContainsKey(guild.Id))
-                        TemporaryTracks.Remove(guild.Id);
+                    if (TemporaryTracks.ContainsKey(dbGuild.Id))
+                        TemporaryTracks.Remove(dbGuild.Id);
 
                     // Disconnecting
                     await conn.DisconnectAsync();
@@ -519,11 +536,11 @@ namespace CCTavern {
             track.TrackString = dbTrack?.TrackString;
 
             // Update guild in database
-            guild.IsPlaying = true;
+            dbGuild.IsPlaying = true;
 
             if (isTempTrack == false && dbTrack != null) {
-                guild.CurrentTrack = dbTrack.Position;
-                guild.NextTrack = dbTrack.Position + 1;
+                dbGuild.CurrentTrack = dbTrack.Position;
+                dbGuild.NextTrack = dbTrack.Position + 1;
             }
 
             await db.SaveChangesAsync();

@@ -4,6 +4,7 @@ using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
+using DSharpPlus.Lavalink;
 
 using LinqKit;
 
@@ -37,21 +38,19 @@ namespace CCTavern.Commands {
         [Description("Shuffle the music in the queue")]
         [RequireGuild]
         public async Task ToggleGuildShuffle(CommandContext ctx, 
-            [Description("Automatically play next song on the queue from where it stopped (triggered if = yes, 1, true)")]
-            string enableShuffle_str = ""
+            [Description("True values [yes, 1, true, on]")]
+            string flag_str = ""
         ) {
-            var shuffleEnabled_str_lwr = enableShuffle_str.Trim().ToLower();
-            bool shuffleEnabled = string.IsNullOrWhiteSpace(shuffleEnabled_str_lwr) ? false : 
-                ( shuffleEnabled_str_lwr[0] == 'y' || shuffleEnabled_str_lwr[0] == '1' 
-                    || shuffleEnabled_str_lwr[0] == 't' );
-
-           
+            var flag_str_lwr = flag_str.Trim().ToLower();
+            bool flag = string.IsNullOrWhiteSpace(flag_str_lwr) ? false : 
+                ( flag_str_lwr[0] == 'y' || flag_str_lwr[0] == '1' || flag_str_lwr[0] == 't' 
+                || (flag_str_lwr[0] == 'o' && flag_str_lwr[1] == 'n'));
 
             // Get the guild
             var db    = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
-            if (string.IsNullOrWhiteSpace(shuffleEnabled_str_lwr) || shuffleEnabled_str_lwr[0] == '?') {
+            if (string.IsNullOrWhiteSpace(flag_str_lwr) || flag_str_lwr[0] == '?') {
                 if (MusicBot.GuildStates.ContainsKey(guild.Id) == false) {
                     await ctx.RespondAsync("Shuffle disabled.");
                     return;
@@ -72,9 +71,14 @@ namespace CCTavern.Commands {
             if (MusicBot.GuildStates.ContainsKey(guild.Id) == false) 
                 MusicBot.GuildStates[guild.Id] = new GuildState(guild.Id);
 
-            MusicBot.GuildStates[guild.Id].ShuffleEnabled = shuffleEnabled;
+            // Check if the flag is empty then we are to toggle.
+            if (string.IsNullOrWhiteSpace(flag_str)) {
+                MusicBot.GuildStates[guild.Id].ShuffleEnabled = !MusicBot.GuildStates[guild.Id].ShuffleEnabled;
+            } else {
+                MusicBot.GuildStates[guild.Id].ShuffleEnabled = flag;
+            }
             
-            await ctx.RespondAsync(shuffleEnabled ? "Shuffle enabled." : "Shuffle disabled.");
+            await ctx.RespondAsync(MusicBot.GuildStates[guild.Id].ShuffleEnabled ? "Shuffle enabled." : "Shuffle disabled.");
         }
 
         [Command("queue"), Aliases("q")]
@@ -288,6 +292,63 @@ namespace CCTavern.Commands {
             await db.SaveChangesAsync();
         }
 
+
+        [Command("repeat")]
+        [Description("Repeat current playing song")]
+        [RequireGuild]
+        public async Task ToggleGuildRepeat(CommandContext ctx,
+            [Description("True values [yes, 1, true, on]")]
+            string flag_str = ""
+        ) {
+            var flag_str_lwr = flag_str.Trim().ToLower();
+            bool flag = string.IsNullOrWhiteSpace(flag_str_lwr) ? false :
+                (flag_str_lwr[0] == 'y' || flag_str_lwr[0] == '1' || flag_str_lwr[0] == 't'
+                || (flag_str_lwr[0] == 'o' && flag_str_lwr[1] == 'n'));
+
+            // Check if we have a valid voice state
+            if (ctx.Member?.VoiceState == null || ctx.Member.VoiceState.Channel == null) {
+                await ctx.RespondAsync("You are not in a voice channel.");
+                return;
+            }
+
+            var voiceState = ctx.Member.VoiceState;
+            var channel = voiceState.Channel;
+            if (voiceState.Channel.GuildId != ctx.Guild.Id) {
+                await ctx.RespondAsync("Not in voice channel of this guild.");
+                return;
+            }
+
+
+            var lava = ctx.Client.GetLavalink();
+            if (!lava.ConnectedNodes.Any()) return;
+
+            var conn = lava.GetGuildConnection(ctx.Member?.VoiceState.Guild);
+            if (conn == null) {
+                await ctx.RespondAsync("Music bot is not currently in voice channel.");
+                return;
+            }
+
+            // Get the guild
+            var db = new TavernContext();
+            var dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
+            GuildState guildState;
+
+            if (MusicBot.GuildStates.ContainsKey(dbGuild.Id) == false)
+                 MusicBot.GuildStates.Add(dbGuild.Id, guildState = new GuildState(dbGuild.Id));
+            else guildState = MusicBot.GuildStates[dbGuild.Id];
+
+            // Check if the flag is empty then we are to toggle.
+            if (string.IsNullOrWhiteSpace(flag_str)) {
+                guildState.RepeatEnabled = !guildState.RepeatEnabled;
+            } else {
+                guildState.RepeatEnabled = flag;
+            }
+
+            if (guildState.RepeatEnabled)
+                await ctx.RespondAsync($"Repeat enabled.");
+            else
+                await ctx.RespondAsync($"Repeat disabled.");
+        }
 
         /*/[Command("searchQueue"), Aliases("sq")]
         [Description("Search queue for ")]
