@@ -59,19 +59,7 @@ namespace CCTavern
         // Remember to make your main method async! You no longer need to have both a Main and MainAsync method in the same class.
         public static async Task Main() 
         {
-            loadVersionString();
-
-            LoggerFactory = new CCTavern.Logger.TavernLoggerFactory();
-            LoggerFactory.AddProvider(new CCTavern.Logger.TavernLoggerProvider());
-
-            logger = LoggerFactory.CreateLogger<Program>();
-            logger.LogInformation(TLE.Startup, "Application starting, Version = {version}", VERSION_Full);
-
-#if (ARCHIVAL_MODE)
-            logger.LogInformation("!!! ARCHIVE MODE ONLY !!!");
-#endif
-
-            ReloadSettings();
+            await SetupEnvironment();
 
             // For the sake of examples, we're going to load our Discord token from an environment variable.
             if (string.IsNullOrWhiteSpace(Settings.DiscordToken)) {
@@ -83,9 +71,6 @@ namespace CCTavern
             // Setup default server prefixes
             var list = Settings.DefaultPrefixes.SplitWithTrim(Constants.PREFIX_SEPERATOR, '\\', true).ToList();
             g_DefaultPrefixes = list;
-
-            // Setup database and load defaults
-            await setupDatabase();
 
             // Next, we instantiate our client.
             DiscordConfiguration config = new() {
@@ -154,6 +139,25 @@ namespace CCTavern
 
             // And now we wait infinitely so that our bot actually stays connected.
             await Task.Delay(-1);
+        }
+
+        public static async Task SetupEnvironment(bool exitOnError = true) {
+            loadVersionString();
+
+            LoggerFactory = new CCTavern.Logger.TavernLoggerFactory();
+            LoggerFactory.AddProvider(new CCTavern.Logger.TavernLoggerProvider());
+
+            logger = LoggerFactory.CreateLogger<Program>();
+            logger.LogInformation(TLE.Startup, "Application starting, Version = {version}", VERSION_Full);
+
+#if (ARCHIVAL_MODE)
+            logger.LogInformation("!!! ARCHIVE MODE ONLY !!!");
+#endif
+
+            ReloadSettings();
+
+            // Setup database and load defaults
+            await setupDatabase();
         }
 
         private static async Task connectionDebug() {

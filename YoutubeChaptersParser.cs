@@ -19,6 +19,7 @@ namespace CCTavern {
 
         private static HttpClient cli = new HttpClient();
 
+        // TEST: var chapters = await YoutubeChaptersParser.ParseChapters("vrMfm8-UBVM");
         public static async Task<(bool success, SortedList<TimeSpan, IVideoChapter>? chapters)> ParseChapters(string videoId) {
             // snippet,chapters | if you want to get the description too. To parse it see below in commented function
             string apiEndpoint = string.Format("{0}/videos?part=snippet,chapters&id={1}", Program.Settings.YoutubeIntegration.OperationalApi, videoId);
@@ -173,7 +174,7 @@ namespace CCTavern {
 
         public class ISnippet {
             [JsonProperty("publishedAt")]
-            public int PublishedAt { get; set; }
+            public object PublishedAt { get; set; }
 
             [JsonProperty("description")]
             public string Description { get; set; }
