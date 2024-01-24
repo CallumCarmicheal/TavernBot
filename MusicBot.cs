@@ -262,6 +262,11 @@ namespace CCTavern {
                 var outputChannel = await GetMusicTextChannelFor(conn.Guild);
                 if (outputChannel == null) goto Finish;
 
+                // Check if the track exits early (maybe seeking?)
+                if (args.Position.TotalSeconds > args.Player.CurrentState.CurrentTrack.Length.TotalSeconds) {
+                    goto Finish;
+                }
+
                 var progressBar = GenerateProgressBar(args.Position.TotalSeconds, args.Player.CurrentState.CurrentTrack.Length.TotalSeconds, 20);
                 var remainingText = GetTrackRemaining(args.Position, args.Player.CurrentState.CurrentTrack.Length);
 
@@ -273,13 +278,30 @@ namespace CCTavern {
                 if (guildState.TrackChapters == null || guildState.TrackChapters?.Count <= 1) {
                     embed.Fields[fieldIdx].Value = progressText;
                 } else {
-                    var currentTrack = guildState.TrackChapters?.GetNearestByTimeSpan(args.Position);
+                    (YoutubeChaptersParser.IVideoChapter? currentTrack, TimeSpan startTime, TimeSpan? endTime)? result 
+                        = guildState?.TrackChapters?.GetNearestByItemTimeSpanWithTimespanRegion<YoutubeChaptersParser.IVideoChapter?>(args.Position);
 
-                    if (currentTrack == null) {
+                    if (result == null || result.Value.currentTrack == null) {
                         embed.Fields[fieldIdx].Value = progressText;
                     } else {
-                        embed.Fields[fieldIdx].Value = progressText + $"```{currentTrack.Title}```";
+                        var posTotalSeconds = args.Position.TotalSeconds;
+                        //var trackTotalSeconds = args.Player.CurrentState.CurrentTrack.Length.TotalSeconds;
+                        var currentTrack = result.Value.currentTrack;
+                        var startTime    = result.Value.startTime;
+                        var endTime      = result.Value.endTime;
+
+                        if (endTime == null) {
+                            var trackLength = args.Player.CurrentState.CurrentTrack.Length;
+
+                            progressBar   = GenerateProgressBar(posTotalSeconds - startTime.TotalSeconds, trackLength.TotalSeconds - startTime.TotalSeconds, 20);
+                            remainingText = GetTrackRemaining(args.Position - startTime, trackLength - startTime);
+                        } else {
+                            progressBar   = GenerateProgressBar(posTotalSeconds - startTime.TotalSeconds, endTime.Value.TotalSeconds - startTime.TotalSeconds, 20);
+                            remainingText = GetTrackRemaining(args.Position - startTime, endTime.Value - startTime);
+                        }
+
                         embed.Fields[fieldIdx].Name = "Current Track";
+                        embed.Fields[fieldIdx].Value = progressText + $"```{currentTrack.Title}\n{remainingText.currentTime} {progressBar} {remainingText.timeLeft}```";
 
                         // Update the thumbnail
                         if (currentTrack.Thumbnails.Any()) 
@@ -619,9 +641,7 @@ namespace CCTavern {
         }
 
         private (string currentTime, string timeLeft) GetTrackRemaining(TimeSpan Current, TimeSpan Length) =>
-            (Current.ToDynamicTimestamp(),"-" + (Length - Current).ToDynamicTimestamp());
-
-
-
+            (currentTime: Current.ToDynamicTimestamp(alwaysShowMinutes: true), 
+                timeLeft: "-" + (Length - Current).ToDynamicTimestamp(alwaysShowMinutes: false));
     }
 }

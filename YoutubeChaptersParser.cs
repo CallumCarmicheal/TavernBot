@@ -190,9 +190,5 @@ namespace CCTavern {
             [JsonProperty("height")]
             public int Height { get; set; }
         }
-
     }
-
-
-
 }

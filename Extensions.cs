@@ -62,13 +62,14 @@ namespace CCTavern {
             return result;
         }
 
-        public static string ToDynamicTimestamp(this TimeSpan time) {
+        public static string ToDynamicTimestamp(this TimeSpan time, bool alwaysShowMinutes = false) {
             Stack<string> timestamp = new Stack<string>(4);
 
             if (time.Days > 0) timestamp.Push($"{time.Days:0}d {time.Hours:0}h {time.Minutes:00}m {time.Seconds:00}s");
             else if (time.Hours > 0) timestamp.Push($"{time.Hours:0}h {time.Minutes:00}m {time.Seconds:00}s");
             else if (time.Minutes > 0) timestamp.Push($"{time.Minutes:00}m {time.Seconds:00}s");
-            else if (time.Seconds > 0) timestamp.Push($"{time.Seconds:00}s");
+            else //if (time.Seconds > 0) 
+                timestamp.Push((alwaysShowMinutes ? "00m " : "") + $"{time.Seconds:00}s");
 
             return string.Join(":", timestamp.Reverse());
         }
@@ -85,7 +86,7 @@ namespace CCTavern {
             return null;
         }
 
-        public static T? GetNearestByTimeSpan<T>(this SortedList<TimeSpan, T> thisList, TimeSpan thisValue)
+        public static T? GetNearestByItemTimeSpan<T>(this SortedList<TimeSpan, T> thisList, TimeSpan thisValue)
         {
             var keys = thisList.Keys;
             var _where = keys.Where(k => k <= thisValue);
@@ -96,6 +97,26 @@ namespace CCTavern {
             var nearest = thisValue -
                 _where.Min(k => thisValue - k);
             return thisList[nearest];
+        }
+
+        public static (T? item, TimeSpan startTime, TimeSpan? endTime) GetNearestByItemTimeSpanWithTimespanRegion<T>(this SortedList<TimeSpan, T> thisList, TimeSpan thisValue) {
+            var keys = thisList.Keys;
+            var _where = keys.Where(k => k <= thisValue);
+
+            if (_where.Any() == false)
+                return default;
+
+            var nearest = thisValue -
+                _where.Min(k => thisValue - k);
+
+            var value = thisList[nearest];
+            var idx = thisList.IndexOfKey(nearest);
+            TimeSpan? endTime = null;
+
+            try { endTime = thisList.GetKeyAtIndex(idx + 1); } 
+            catch { }
+
+            return (value, nearest, endTime);
         }
     }
 }
