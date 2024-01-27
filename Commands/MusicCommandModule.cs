@@ -202,7 +202,7 @@ namespace CCTavern.Commands {
             
             var track = await node.Rest.DecodeTrackAsync(dbTrack.TrackString);
             if (track == null) {
-                await ctx.RespondAsync($"Skipping... Error, Failed to parse next track {dbTrack.GetTagline(db, true)}.");
+                await ctx.RespondAsync($"Skipping... Error, Failed to parse next track {await dbTrack.GetTagline(db, true)}.");
                 return;
             }
 
@@ -459,7 +459,7 @@ namespace CCTavern.Commands {
             var track = await node.Rest.DecodeTrackAsync(dbTrack.TrackString);
 
             if (track == null) {
-                await ctx.RespondAsync($"Jumping error, Failed to parse next track {dbTrack.GetTagline(db, true)}");
+                await ctx.RespondAsync($"Jumping error, Failed to parse next track {await dbTrack.GetTagline(db, true)}");
                 return;
             }
 
@@ -469,7 +469,7 @@ namespace CCTavern.Commands {
             await db.SaveChangesAsync();
 
             await conn.PlayAsync(track);
-            await ctx.RespondAsync($"Jumped to track {dbTrack.GetTagline(db, true)}.");
+            await ctx.RespondAsync($"Jumped to track {await dbTrack.GetTagline(db, true)}.");
         }
     }
 }
