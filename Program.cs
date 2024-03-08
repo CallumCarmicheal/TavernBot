@@ -319,16 +319,16 @@ namespace CCTavern
                 var dnConfiguration = DotNetConfigurationMode;
                 switch (dnConfiguration) {
                     case "Debug|Archival_Mode":
-                        folder = "bin\\Archival_Debug\\net7.0\\";
+                        folder = "bin\\Archival_Debug\\net8.0\\";
                         break;
                     case "Release|Archival_Mode":
-                        folder = "bin\\Archival_Debug\\net7.0\\";
+                        folder = "bin\\Archival_Release\\net8.0\\";
                         break;
                     case "Debug":
-                        folder = "bin\\Archival_Debug\\net7.0\\";
+                        folder = "bin\\Debug\\net8.0\\";
                         break;
                     case "Release":
-                        folder = "bin\\Archival_Debug\\net7.0\\";
+                        folder = "bin\\Release\\net8.0\\";
                         break;
                 }
 
