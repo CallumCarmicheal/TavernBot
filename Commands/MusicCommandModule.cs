@@ -47,10 +47,9 @@ namespace CCTavern.Commands
                 return;
             }
 
-            var playerState = await GetPlayerAsync(ctx.Guild.Id, connectToVoiceChannel: false).ConfigureAwait(false);
+            (var playerState, var playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, connectToVoiceChannel: false).ConfigureAwait(false);
 
-            if (playerState.Status == Lavalink4NET.Players.PlayerRetrieveStatus.Success
-                    && playerState.Player != null) {
+            if (playerIsConnected && playerState.Player != null) {
                 await playerState.Player.DisconnectAsync().ConfigureAwait(false);
 
                 await ctx.RespondAsync($"Left <#{ctx.Member.VoiceState.Channel.Id}>!");
@@ -93,9 +92,9 @@ namespace CCTavern.Commands
                 return;
             }
 
-            var playerQuery = await GetPlayerAsync(ctx.Guild.Id, connectToVoiceChannel: false).ConfigureAwait(false);
+            (var playerQuery, var playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, connectToVoiceChannel: false).ConfigureAwait(false);
 
-            if (playerQuery.Player == null || playerQuery.Status != Lavalink4NET.Players.PlayerRetrieveStatus.Success) {
+            if (playerIsConnected == false || playerQuery.Player == null) {
                 await ctx.RespondAsync("Music bot is not connected.");
                 return;
             }
@@ -156,9 +155,8 @@ namespace CCTavern.Commands
                 return;
             }
 
-            var playerState = await GetPlayerAsync(ctx.Guild.Id, connectToVoiceChannel: false).ConfigureAwait(false);
-            if (playerState.Status != Lavalink4NET.Players.PlayerRetrieveStatus.Success
-                    || playerState.Player == null) {
+            (var playerState, var playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, connectToVoiceChannel: false).ConfigureAwait(false);
+            if (playerIsConnected == false || playerState.Player == null) {
                 DiscordEmoji? emoji = DiscordEmoji.FromName(ctx.Client, ":face_with_raised_eyebrow:");
                 await ctx.Message.CreateReactionAsync(emoji);
                 return;

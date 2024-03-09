@@ -40,7 +40,7 @@ namespace CCTavern.Commands {
             return ValueTask.FromResult(player);
         }
 
-        protected async ValueTask< PlayerResult<TavernPlayer> > GetPlayerAsync(ulong guildId, ulong? voiceChannelId = null, bool connectToVoiceChannel = true) {
+        protected async ValueTask< (PlayerResult<TavernPlayer>, bool isPlayerConnected) > GetPlayerAsync(ulong guildId, ulong? voiceChannelId = null, bool connectToVoiceChannel = true) {
             var channelBehavior = connectToVoiceChannel
                 ? PlayerChannelBehavior.Join
                 : PlayerChannelBehavior.None;
@@ -60,13 +60,7 @@ namespace CCTavern.Commands {
                 .ConfigureAwait(false);
 
             if (!result.IsSuccess) {
-                var errorMessage = result.Status switch {
-                    PlayerRetrieveStatus.UserNotInVoiceChannel => "You are not connected to a voice channel.",
-                    PlayerRetrieveStatus.BotNotConnected => "The bot is currently not connected.",
-                    _ => "Unknown error.",
-                };
-
-                return result;
+                return (result, false);
             }
 
             if (result.Player != null && connectToVoiceChannel) {
@@ -87,7 +81,7 @@ namespace CCTavern.Commands {
                 }
             }
 
-            return result;
+            return (result, result.IsSuccess && result.Player != null && result.Player.ConnectionState.IsConnected);
         }
 
         protected string GetPlayerErrorMessage(PlayerRetrieveStatus status) {
@@ -101,19 +95,6 @@ namespace CCTavern.Commands {
             };
 
             return errorMessage;
-        }
-
-        protected async ValueTask<bool> IsPlayerConnected(ulong guildId, ulong? voiceChannelId = null) {
-            var playerResult = await GetPlayerAsync(guildId, voiceChannelId, connectToVoiceChannel: false).ConfigureAwait(false);
-
-            if (playerResult.IsSuccess == false 
-                    || playerResult.Status == PlayerRetrieveStatus.BotNotConnected
-                    || playerResult.Status == PlayerRetrieveStatus.PreconditionFailed
-                    || playerResult.Player == null) {
-                return false;
-            }
-
-            return true;
         }
     }
 }

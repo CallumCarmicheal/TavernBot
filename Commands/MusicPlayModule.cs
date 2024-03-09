@@ -1,6 +1,4 @@
-﻿using Azure.Identity;
-
-using CCTavern.Database;
+﻿using CCTavern.Database;
 using CCTavern.Logger;
 using CCTavern.Player;
 
@@ -11,24 +9,14 @@ using DSharpPlus.Entities;
 using DSharpPlus.Interactivity.Extensions;
 
 using Lavalink4NET;
-using Lavalink4NET.Clients;
 using Lavalink4NET.Rest.Entities.Tracks;
 using Lavalink4NET.Tracks;
 
-using Microsoft.EntityFrameworkCore.Metadata.Conventions;
-using Microsoft.EntityFrameworkCore.Update;
 using Microsoft.Extensions.Logging;
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Channels;
 using System.Threading.Tasks;
-
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
-using static System.Net.WebRequestMethods;
 
 namespace CCTavern.Commands {
     enum TrackRequestedPlayMode {
@@ -69,10 +57,9 @@ namespace CCTavern.Commands {
                 return;
             }
 
-            var guild = ctx.Guild;
             var voiceChannel = voiceState.Channel;
-            var playerResult = await GetPlayerAsync(ctx.Guild.Id, voiceChannel.Id, true).ConfigureAwait(false);
-            if (playerResult.IsSuccess == false) {
+            (var playerResult, var playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, voiceChannel.Id, true).ConfigureAwait(false);
+            if (playerIsConnected == false || playerResult.Player == null) {
                 await ctx.RespondAsync(GetPlayerErrorMessage(playerResult.Status));
                 return;
             }
@@ -257,10 +244,10 @@ namespace CCTavern.Commands {
             }
 
             var voiceChannel = voiceState.Channel;
-            var playerResult = await GetPlayerAsync(ctx.Guild.Id, voiceChannel.Id, connectToVoiceChannel: false).ConfigureAwait(false);
+            (var playerResult, var playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, voiceChannel.Id, connectToVoiceChannel: false).ConfigureAwait(false);
 
             // If we failed to get the music bot but the error was not BotNotConnected.
-            if (playerResult.Status != Lavalink4NET.Players.PlayerRetrieveStatus.BotNotConnected && playerResult.IsSuccess == false) {
+            if (playerIsConnected == false || playerResult.Player == null) {
                 await ctx.RespondAsync(GetPlayerErrorMessage(playerResult.Status));
                 return;
             }
@@ -272,8 +259,8 @@ namespace CCTavern.Commands {
             }
 
             // Connect the music bot 
-            playerResult = await GetPlayerAsync(ctx.Guild.Id, voiceChannel.Id, connectToVoiceChannel: true).ConfigureAwait(false);
-            if (playerResult.IsSuccess == false) {
+            (playerResult, playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, voiceChannel.Id, connectToVoiceChannel: true).ConfigureAwait(false);
+            if (playerIsConnected == false || playerResult.Player == null) {
                 await ctx.RespondAsync(GetPlayerErrorMessage(playerResult.Status));
                 return;
             }
