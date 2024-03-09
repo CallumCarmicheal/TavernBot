@@ -47,7 +47,7 @@ namespace CCTavern.Player
             discordClient = properties.ServiceProvider!.GetRequiredService<DiscordClient>();
 
             _cancellationTokenSource = new CancellationTokenSource();
-            _timer = new Timer(ProgressBarTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
+            _timer = new Timer(callback: ProgressBarTimerCallback, state: null, dueTime: Timeout.Infinite, period: Timeout.Infinite);
 
             logger.LogDebug("TavernPlayer <<<<<<<<< Constructor");
         }
@@ -77,7 +77,7 @@ namespace CCTavern.Player
             _timer.Change(Timeout.Infinite, Timeout.Infinite);
         }
 
-        private async void ProgressBarTimerCallback(object state) {
+        private async void ProgressBarTimerCallback(object? state) {
             // Stop the timer if requested
             if (_cancellationTokenSource.Token.IsCancellationRequested) {
                 StopProgressTimer();
@@ -118,18 +118,17 @@ namespace CCTavern.Player
 
             var progressText = $"```{remainingText.currentTime} {progressBar} {remainingText.timeLeft}```";
 
-            if (guildState.TrackChapters == null || guildState.TrackChapters?.Count <= 1) {
+            if (guildState?.TrackChapters == null || guildState.TrackChapters?.Count <= 1) {
                 embed.Fields[fieldIdx].Value = progressText;
             } else {
-                (YoutubeChaptersParser.IVideoChapter? currentTrack, TimeSpan startTime, TimeSpan? endTime)? result
-                    = guildState?.TrackChapters?.GetNearestByItemTimeSpanWithTimespanRegion<YoutubeChaptersParser.IVideoChapter?>(Position);
+                var result = guildState.TrackChapters?.GetNearestByItemTimeSpanWithTimespanRegion(Position);
 
-                if (result == null || result.Value.currentTrack == null) {
+                if (result == null || result.Value.item == null) {
                     embed.Fields[fieldIdx].Value = progressText;
                 } else {
                     var posTotalSeconds = Position.TotalSeconds;
                     //var trackTotalSeconds = args.Player.CurrentState.CurrentTrack.Length.TotalSeconds;
-                    var currentTrack = result.Value.currentTrack;
+                    var currentTrack = result.Value.item;
                     var startTime    = result.Value.startTime;
                     var endTime      = result.Value.endTime;
 
@@ -176,12 +175,12 @@ namespace CCTavern.Player
 
             var discordGuild = await GetGuildAsync();
             var db = new TavernContext();
-            var guild = await db.GetOrCreateDiscordGuild(discordGuild);
-            var guildState = mbHelper.GetOrCreateGuildState(guild.Id);
+            var dbGuild = await db.GetOrCreateDiscordGuild(discordGuild);
+            var guildState = mbHelper.GetOrCreateGuildState(dbGuild.Id);
 
             if (guildState == null) {
-                guildState = new GuildState(guild.Id);
-                mbHelper.GuildStates.Add(guild.Id, guildState);
+                guildState = new GuildState(dbGuild.Id);
+                mbHelper.GuildStates.Add(dbGuild.Id, guildState);
             }
 
             guildState.TrackChapters = null; // Reset playlist tracks to null
@@ -190,22 +189,21 @@ namespace CCTavern.Player
             if (outputChannel == null) {
                 logger.LogError(TLE.MBLava, "Failed to get music channel.");
             } else {
-                await mbHelper.DeletePastStatusMessage(guild, outputChannel);
+                await mbHelper.DeletePastStatusMessage(dbGuild, outputChannel);
             }
 
             GuildQueueItem? dbTrack = null;
 
-            var currentTrackIdx = guild.CurrentTrack;
+            var currentTrackIdx = dbGuild.CurrentTrack;
 
             var requestedBy = "<#ERROR>";
-            var currentTrackQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(x => x.GuildId == guild.Id && x.Position == currentTrackIdx);
+            var currentTrackQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(x => x.GuildId == dbGuild.Id && x.Position == currentTrackIdx);
             if (currentTrackQuery.Any()) {
                 dbTrack = await currentTrackQuery.FirstAsync(cancellationToken);
                 requestedBy = (dbTrack?.RequestedBy == null) ? "<#NULL>" : dbTrack?.RequestedBy.DisplayName;
             }
 
             string? thumbnail = null;
-            
 
             bool isYoutubeUrl = (track.Uri?.Host == "youtube.com" || track.Uri?.Host == "www.youtube.com");
             if (isYoutubeUrl && track.Uri != null) {
@@ -253,8 +251,8 @@ namespace CCTavern.Player
 
             var message = await discordClient.SendMessageAsync(outputChannel, embed: embed);
 
-            guild.LastMessageStatusId = message.Id;
-            guild.IsPlaying = true;
+            dbGuild.LastMessageStatusId = message.Id;
+            dbGuild.IsPlaying = true;
             await db.SaveChangesAsync(cancellationToken);
 
             guildState.MusicEmbed = new MusicEmbedState() {
@@ -264,7 +262,7 @@ namespace CCTavern.Player
             };
 
             if (isYoutubeUrl && Program.Settings.YoutubeIntegration.Enabled && track.Duration.TotalMinutes >= 5)
-                _ = Task.Run(() => mbHelper.ParseYoutubeChaptersPlaylist(guild.Id, currentTrackIdx, track.Identifier, _cancellationTokenSource.Token), _cancellationTokenSource.Token);
+                _ = Task.Run(() => mbHelper.ParseYoutubeChaptersPlaylist(dbGuild.Id, currentTrackIdx, track.Identifier, _cancellationTokenSource.Token), _cancellationTokenSource.Token);
 
             StartProgressTimer();
             logger.LogInformation(TLE.Misc, "NotifyTrackStartedAsync <-- Done processing");
@@ -286,7 +284,7 @@ namespace CCTavern.Player
             var dbGuild = await db.GetOrCreateDiscordGuild(guild);
             var guildState = mbHelper.GuildStates.ContainsKey(dbGuild.Id) ? mbHelper.GuildStates[dbGuild.Id] : null;
             var shuffleEnabled = guildState != null && guildState.ShuffleEnabled;
-            var repeatEnabled = guildState != null && guildState.RepeatEnabled;
+            var repeatEnabled  = guildState != null && guildState.RepeatEnabled;
 
             if (repeatEnabled) shuffleEnabled = false; // Disable shuffle if on repeat mode!
 
@@ -294,6 +292,7 @@ namespace CCTavern.Player
             dbGuild.IsPlaying = false;
             await db.SaveChangesAsync();
 
+            // Get the output music chanenl
             var outputChannel = await mbHelper.GetMusicTextChannelFor(guild);
             if (outputChannel == null) {
                 logger.LogError(TLE.MBFin, "Failed to get music channel for lavalink connection.");
@@ -314,7 +313,7 @@ namespace CCTavern.Player
             // Check if we are on the repeat mode.
             if (repeatEnabled) {
                 // Get the current track
-                dbTrack = await mbHelper.getNextTrackForGuild(guild, dbGuild.CurrentTrack);
+                dbTrack = await mbHelper.getNextTrackForGuild(guild, targetTrackId: dbGuild.CurrentTrack);
 
                 if (guildState != null)
                     guildState.TimesRepeated++;
@@ -430,15 +429,14 @@ namespace CCTavern.Player
 
         #region Tracking
 
-        public async ValueTask NotifyPlayerActiveAsync(PlayerTrackingState trackingState, CancellationToken cancellationToken = default) {
+        public ValueTask NotifyPlayerActiveAsync(PlayerTrackingState trackingState, CancellationToken cancellationToken = default) {
             //logger.LogInformation(TLE.MBTimeout, "<================== NotifyPlayerActiveAsync @ {trackingState}", trackingState);
 
             // This method is called when the player was previously inactive and is now active again.
             // For example: All users in the voice channel left and now a user joined the voice channel again.
             cancellationToken.ThrowIfCancellationRequested();
 
-            // return default; // do nothing
-
+            return default; // do nothing
             //logger.LogInformation(TLE.MBTimeout, "<<<<<<<<<<<<<<<<<<< NotifyPlayerActiveAsync @ {trackingState}", trackingState);
         }
 
@@ -465,10 +463,9 @@ namespace CCTavern.Player
             await mbHelper.DeletePastStatusMessage(dbGuild, outputChannel);
 
             //logger.LogInformation(TLE.MBTimeout, "<<<<<<<<<<<<<<<<<<< NotifyPlayerInactiveAsync");
-
         }
 
-        public async ValueTask NotifyPlayerTrackedAsync(PlayerTrackingState trackingState, CancellationToken cancellationToken = default) {
+        public ValueTask NotifyPlayerTrackedAsync(PlayerTrackingState trackingState, CancellationToken cancellationToken = default) {
             //logger.LogInformation(TLE.MBTimeout, "<================== NotifyPlayerTrackedAsync @ {trackingState}", trackingState);
             
             // This method is called when the player was previously active and is now inactive.
@@ -477,7 +474,7 @@ namespace CCTavern.Player
 
             //logger.LogInformation(TLE.MBTimeout, "<<<<<<<<<<<<<<<<<<< NotifyPlayerTrackedAsync @ {trackingState}", trackingState);
 
-            // return default; // do nothing
+            return default; // do nothing
         }
         #endregion
 

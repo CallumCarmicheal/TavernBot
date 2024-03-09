@@ -56,11 +56,13 @@ namespace CCTavern.Commands {
             }
 
             var voiceChannel = voiceState.Channel;
-            (var playerResult, var playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, voiceChannel.Id, true).ConfigureAwait(false);
+            (var playerResult, var playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, voiceChannel.Id, connectToVoiceChannel: true).ConfigureAwait(false);
             if (playerIsConnected == false || playerResult.Player == null) {
                 await ctx.RespondAsync(GetPlayerErrorMessage(playerResult.Status));
                 return;
             }
+
+            await ctx.RespondAsync($"Connected to <#{ctx.Member?.VoiceState.Channel.Id}>.");
 
             var db = new TavernContext();
             var player = playerResult.Player;
@@ -150,11 +152,17 @@ namespace CCTavern.Commands {
         private async Task _Play_Single(CommandContext ctx, TavernContext db, TavernPlayer player, TrackLoadResult trackResults) {
             var track = trackResults.Track;
             if (track is null) {
-                await ctx.RespondAsync($"Failed to parse track .");
+                await ctx.RespondAsync($"Failed to parse track.");
                 return;
             }
 
-            bool isPlayEvent = player.State == Lavalink4NET.Players.PlayerState.NotPlaying;
+            // Check if the member is null
+            if (ctx.Member == null) {
+                await ctx.RespondAsync($"CRITICAL ERROR, Unable to retrieve author Id.");
+                return;
+            }
+
+            var isPlayEvent = player.State == Lavalink4NET.Players.PlayerState.NotPlaying;
             var trackPosition = await mbHelper.EnqueueTrack(track, ctx.Channel, ctx.Member, null, isPlayEvent);
             await ctx.RespondAsync($"Enqueued `{track.Title}` in position `{trackPosition}`.");
 
@@ -168,14 +176,25 @@ namespace CCTavern.Commands {
         }
 
         private async Task _Play_Playlist(CommandContext ctx, TavernContext db, TavernPlayer player, TrackLoadResult trackResults) {
-            bool isPlayEvent = player.State == Lavalink4NET.Players.PlayerState.NotPlaying;
+            // Sanity checks
+            if (ctx.Member == null) {
+                await ctx.RespondAsync("CRITICAL ERROR: Failed to retrieve author Id.");
+                return;
+            }
 
-            var dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
-            var requestedBy = await db.GetOrCreateCachedUser(new Guild { Id = ctx.Guild.Id }, ctx.Member);
+            if (trackResults.Playlist == null) {
+                await ctx.RespondAsync("Failed to parse playlist data.");
+                return;
+            }
+
+            // 
+            bool isPlayEvent = player.State == Lavalink4NET.Players.PlayerState.NotPlaying;
+            var dbGuild      = await db.GetOrCreateDiscordGuild(ctx.Guild);
+            var requestedBy  = await db.GetOrCreateCachedUser(new Guild { Id = ctx.Guild.Id }, ctx.Member);
 
             // Add all the tracks to the queue
             var list = trackResults.Tracks.ToList();
-            var addingMessage = await ctx.RespondAsync($"Adding `0`/`{list.Count()}` tracks to playlist...");
+            var addingMessage = await ctx.RespondAsync($"Adding `0`/`{list.Count}` tracks to playlist...");
 
             // Create the queue 
             var playlist = new GuildQueuePlaylist();

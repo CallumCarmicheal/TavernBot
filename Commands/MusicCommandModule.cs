@@ -6,8 +6,11 @@ using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
 
+using Humanizer;
+
 using Lavalink4NET;
 using Lavalink4NET.Clients;
+using Lavalink4NET.Players;
 using Lavalink4NET.Tracks;
 
 using Microsoft.EntityFrameworkCore;
@@ -46,12 +49,12 @@ namespace CCTavern.Commands
                 return;
             }
 
-            (var playerState, var playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, connectToVoiceChannel: false).ConfigureAwait(false);
+            (var playerState, var playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, ctx.Member?.VoiceState.Channel.Id, connectToVoiceChannel: false).ConfigureAwait(false);
 
             if (playerIsConnected && playerState.Player != null) {
                 await playerState.Player.DisconnectAsync().ConfigureAwait(false);
 
-                await ctx.RespondAsync($"Left <#{ctx.Member.VoiceState.Channel.Id}>!");
+                await ctx.RespondAsync($"Left <#{ctx?.Member?.VoiceState.Channel.Id}>!");
             } else {
                 await ctx.RespondAsync("Music bot is not connected.");
             }
@@ -61,24 +64,103 @@ namespace CCTavern.Commands
         [Description("Pause currently playing track")]
         [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
         public async Task Pause(CommandContext ctx) {
-            await ctx.RespondAsync($"TODO: Not implemented!");
-            throw new NotImplementedException(); // TODO: Implement
+            // Check if we have a valid voice state
+            if (ctx.Member?.VoiceState == null || ctx.Member.VoiceState.Channel == null) {
+                await ctx.RespondAsync("You are not in a voice channel.");
+                return;
+            }
+
+            (var playerState, var playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, connectToVoiceChannel: false).ConfigureAwait(false);
+
+            // Check if we are connected
+            if (playerIsConnected && playerState.Player != null) {
+                // Check if we are playing any music currently
+                if (playerState.Player.State != PlayerState.Playing) {
+                    await ctx.RespondAsync("Music bot not currently playing any music.");
+                } else {
+                    // Pause the music bot
+                    await playerState.Player.PauseAsync().ConfigureAwait(false);
+
+                    DiscordEmoji? emoji = DiscordEmoji.FromName(ctx.Client, ":pause_button:");
+                    await ctx.Message.CreateReactionAsync(emoji);
+                    return;
+                }
+            } else {
+                await ctx.RespondAsync("Music bot is not connected.");
+            }
         }
 
         [Command("resume"), Aliases("r", "pr", "+")]
         [Description("Resume currently playing track")]
         [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
         public async Task Resume(CommandContext ctx) {
-            await ctx.RespondAsync($"TODO: Not implemented!");
-            throw new NotImplementedException(); // TODO: Implement
+            // Check if we have a valid voice state
+            if (ctx.Member?.VoiceState == null || ctx.Member.VoiceState.Channel == null) {
+                await ctx.RespondAsync("You are not in a voice channel.");
+                return;
+            }
+
+            (var playerState, var playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, connectToVoiceChannel: false).ConfigureAwait(false);
+
+            // Check if we are connected
+            if (playerIsConnected && playerState.Player != null) {
+                // Check if we are playing any music currently
+                if (playerState.Player.State != PlayerState.Paused) {
+                    await ctx.RespondAsync("Music bot not currently paused.");
+                } else {
+                    // Resume the music bot
+                    await playerState.Player.ResumeAsync().ConfigureAwait(false);
+
+                    DiscordEmoji? emoji = DiscordEmoji.FromName(ctx.Client, ":arrow_forward:");
+                    await ctx.Message.CreateReactionAsync(emoji);
+                    return;
+                }
+            } else {
+                await ctx.RespondAsync("Music bot is not connected.");
+            }
         }
 
         [Command("continue"), Aliases("c")]
-        [Description("Continue currently playing playing")]
+        [Description("Continue currently playing the current track, if not playing anything play the next track in the queue")]
         [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
         public async Task Continue(CommandContext ctx) {
-            await ctx.RespondAsync($"TODO: Not implemented!");
-            throw new NotImplementedException(); // TODO: Implement
+            // Check if we have a valid voice state
+            if (ctx.Member?.VoiceState == null || ctx.Member.VoiceState.Channel == null) {
+                await ctx.RespondAsync("You are not in a voice channel.");
+                return;
+            }
+
+            (var playerState, var playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, connectToVoiceChannel: false).ConfigureAwait(false);
+
+            // Check if we are connected
+            if (playerIsConnected == false || playerState.Player == null) {
+                await ctx.RespondAsync("Music bot is not connected.");
+                return;
+            }
+
+            // Check if we are playing any music currently
+            if (playerState.Player.State == PlayerState.Playing) {
+                await ctx.RespondAsync("Music bot is already playing music. Did you mean to `skip`?");
+                return;
+            }
+            // If the music bot is paused then resume it.
+            else if (playerState.Player.State == PlayerState.Paused) {
+                await playerState.Player.ResumeAsync().ConfigureAwait(false);
+
+                var emoji = DiscordEmoji.FromName(ctx.Client, ":arrow_forward:");
+                await ctx.Message.CreateReactionAsync(emoji);
+                return;
+            }
+
+            // The music bot is not playing anything
+            // Get the next song and attempt to play it.
+            var dbTrack = await mbHelper.getNextTrackForGuild(ctx.Guild);
+            if (dbTrack != null) {
+                await _jump_internal(ctx, dbTrack.Position, "Resumed playlist, playing track");
+                return;
+            }
+
+            await ctx.RespondAsync("Unable retrieve next track, maybe you are at the end of the playlist?");
         }
 
         [Command("skip"), Aliases("s")]
@@ -100,31 +182,26 @@ namespace CCTavern.Commands
 
             var player = playerQuery.Player;
 
-            // Disabled: No need to check if we are playing anything, just play the next track.
-            //if (playerQuery.Player.State == Lavalink4NET.Players.PlayerState.NotPlaying || playerQuery.Player.CurrentTrack == null) {
-            //    await ctx.RespondAsync("There are no tracks playing.");
-            //    return;
-            //}
-
             // Get the next track
             var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
             // Get the next song
             var dbTrack = await mbHelper.getNextTrackForGuild(ctx.Guild);
-
             if (dbTrack == null) {
                 await ctx.RespondAsync("Skipping... (There are no more tracks to play, add to the queue?)");
                 await player.StopAsync().ConfigureAwait(false);
                 return;
             }
 
+            // Parse the track
             var track = LavalinkTrack.Parse(dbTrack.TrackString, provider: null);
             if (track == null) {
                 await ctx.RespondAsync($"Skipping... Error, Failed to parse next track {await dbTrack.GetTagline(db, true)}.");
                 return;
             }
 
+            // Update the guild queue location.
             guild.CurrentTrack = dbTrack.Position;
             guild.NextTrack = dbTrack.Position + 1;
             await db.SaveChangesAsync();
@@ -193,7 +270,26 @@ namespace CCTavern.Commands
         [Description("Current playing track")]
         [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
         public async Task NowPlaying(CommandContext ctx) {
-            throw new NotImplementedException(); // TODO: Implement
+
+            (var playerQuery, var playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, connectToVoiceChannel: false).ConfigureAwait(false);
+            if (playerIsConnected == false || playerQuery.Player == null) {
+                await ctx.RespondAsync("Music bot is not connected.");
+                return;
+            }
+
+            // Get the next track
+            var db = new TavernContext();
+            var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
+
+            var query = db.GuildQueueItems.Where(x => x.Position == guild.CurrentTrack);
+            if (query.Any() == false) {
+                await ctx.RespondAsync("Failed to jump to track (could not be found).");
+                return;
+            }
+
+            // Get the current song
+            var dbTrack = await query.FirstAsync();
+            await ctx.RespondAsync($"Currently playing {await dbTrack.GetTagline(db, true)}.");
         }
 
         [Command("seek"), Aliases("fw", "sp", "ss")]
@@ -203,8 +299,38 @@ namespace CCTavern.Commands
             [Description("Timespan to parse, examples \"1hr 30m 20s\", \"33 seconds\", \"minute:second\", \"hour:minute:second\"")]
             string unparsedTimespan
         ) {
-            await ctx.RespondAsync($"TODO: Not implemented!");
-            throw new NotImplementedException(); // TODO: Implement
+            DiscordEmoji? emoji = null;
+
+            // Check if the user is in the voice channel
+            if (ctx.Member?.VoiceState == null || ctx.Member.VoiceState.Channel == null) {
+                await ctx.RespondAsync("You are not in a voice channel.");
+                return;
+            }
+
+            (var playerQuery, var playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, connectToVoiceChannel: false).ConfigureAwait(false);
+            if (playerIsConnected == false || playerQuery.Player == null) {
+                await ctx.RespondAsync("Music bot is not connected.");
+                return;
+            }
+
+            // Check if we dont have a track
+            if (playerQuery.Player.CurrentTrack == null) {
+                emoji = DiscordEmoji.FromName(ctx.Client, ":face_with_raised_eyebrow:");
+                await ctx.Message.CreateReactionAsync(emoji);
+                return;
+            }
+
+            // Attempt to parse the timespan
+            TimeSpan? timespan = unparsedTimespan.TryParseTimeStamp();
+            if (timespan == null) {
+                emoji = DiscordEmoji.FromName(ctx.Client, ":question:");
+                await ctx.Message.CreateReactionAsync(emoji);
+                return;
+            }
+
+            // Seek the player
+            await playerQuery.Player.SeekAsync(timespan.Value);
+            await ctx.RespondAsync($"Seeked to `{timespan.Value.Humanize()}`.");
         }
 
         [Command("random"), Aliases("rnd", "rj", "randomjump")]
@@ -212,14 +338,99 @@ namespace CCTavern.Commands
         [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
         public async Task RandomJump(CommandContext ctx,
             [Description("If the song should instantly be played or play after the current one")]
-            bool playInstant = true, 
+            bool replaceCurrentTrack = true, 
             [Description("Start position to use when generating a random number")]
             int startPosition = -1, 
             [Description("Last position to use when generating a random number")]
             int endPosition = -1
         ) {
-            await ctx.RespondAsync($"TODO: Not implemented!");
-            throw new NotImplementedException(); // TODO: Implement
+            // Check if the user is in the voice channel
+            if (ctx.Member?.VoiceState == null || ctx.Member.VoiceState.Channel == null) {
+                await ctx.RespondAsync("You are not in a voice channel.");
+                return;
+            }
+
+            (var playerQuery, var playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, connectToVoiceChannel: false).ConfigureAwait(false);
+            if (playerIsConnected == false || playerQuery.Player == null) {
+                await ctx.RespondAsync("Music bot is not connected.");
+                return;
+            }
+
+            // If the player is not connected, connect the music bot.
+            if (playerIsConnected == false) {
+                // Connect the music bot
+                (playerQuery, playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, ctx.Member?.VoiceState.Channel.Id, connectToVoiceChannel: true).ConfigureAwait(false);
+
+                if (playerIsConnected == false || playerQuery.Player == null) {
+                    await ctx.RespondAsync("Failed to start bot, please try again later.");
+                    return;
+                }
+
+                await ctx.RespondAsync($"Connected to <#{ctx.Member?.VoiceState.Channel.Id}>.");
+            }
+
+            var db = new TavernContext();
+            var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
+
+            // Check if we have tracks in the queue
+            var guildQueueQuery = db.GuildQueueItems
+                .Include(x => x.RequestedBy)
+                .Where(x => x.GuildId == guild.Id && x.IsDeleted == false)
+                .OrderBy(x => x.Position);
+
+            if (await guildQueueQuery.AnyAsync() == false) {
+                await ctx.RespondAsync("Sorry bro, there ain't nothing te shuffle. Try adding some songs first.");
+                return;
+            }
+            
+            // Update the random positions
+            if (startPosition == -1) startPosition = 0;
+            if (endPosition == -1)   endPosition = guildQueueQuery.Count();
+
+            // Get a random track from the database
+            var rand = new Random();
+            var dbTrack = await guildQueueQuery.Skip(rand.Next(startPosition, endPosition)).FirstAsync();
+
+            // If we failed to find one using the Position, try again
+            if (dbTrack == null)
+                // attempt to do it one more time
+                dbTrack = await guildQueueQuery.Skip(rand.Next(startPosition, endPosition)).FirstAsync();
+
+            // TODO: Maybe find the nearest track using the position above.
+
+            if (dbTrack == null) {
+                await ctx.RespondAsync("***Bot got hurt in the confusion***. For some reason or another (ᴾʳᵒᵇᵃᵇˡʸ ᶜᵃˡˡᵘᵐˢ ᵇᵃᵈ ᵖʳᵒᵍʳᵃᵐᵐᶦⁿᵍ)"
+                    + " I cant find a track to play. Try again... maybe!?");
+                return;
+            }
+
+            guild.CurrentTrack = dbTrack.Position;
+            guild.NextTrack    = dbTrack.Position + 1;
+
+            // Parse the track from the database
+            var track = LavalinkTrack.Parse(dbTrack.TrackString, provider: null);
+            if (track == null) {
+                await ctx.RespondAsync($"Jumping error, Failed to parse next track {await dbTrack.GetTagline(db, true)}");
+                return;
+            }
+
+            // If we are playing the track 
+            if (replaceCurrentTrack) {
+                guild.CurrentTrack = dbTrack.Position;
+                guild.NextTrack    = dbTrack.Position + 1;
+                await db.SaveChangesAsync();
+
+                // Swap the track
+                await playerQuery.Player.PlayAsync(track);
+                await ctx.RespondAsync($"Jumped to track {await dbTrack.GetTagline(db, true)}.");
+            } 
+            else {
+                // Update the next track
+                guild.NextTrack = dbTrack.Position;
+                await db.SaveChangesAsync();
+
+                await ctx.RespondAsync($"Next track set to {await dbTrack.GetTagline(db, true)}.");
+            }
         }
 
         private TimeSpan? _attemptToParseTimespan(string input) {

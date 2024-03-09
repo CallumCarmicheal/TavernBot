@@ -33,9 +33,10 @@ namespace CCTavern.Commands
         [Command("playonce"), Aliases("po")]
         [Description("Play a song once using a search (**Disabled during development**)")]
         [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
-        public async Task PlayOnce(CommandContext ctx, [RemainingText] string search) {
+        public Task PlayOnce(CommandContext ctx, [RemainingText] string search) {
             logger.LogInformation(TLE.MBPlay, "Play Music Once: " + search);
             throw new NotImplementedException(); // TODO: Implement
+            // return default;
         }
 
 
