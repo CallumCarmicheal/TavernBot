@@ -60,6 +60,24 @@ namespace CCTavern.Commands {
                 return result;
             }
 
+            if (result.Player != null && connectToVoiceChannel) {
+                var playerManager = audioService.Players;
+                var pmType = playerManager.GetType();
+
+                var eventInfo     = pmType.GetEvent("PlayerStateChanged", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                var eventDelegate = pmType.GetField("PlayerStateChanged", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(playerManager) as MulticastDelegate;
+                if (eventDelegate != null) {
+                    var eventArgs = new PlayerStateChangedEventArgs(result.Player, PlayerState.NotPlaying);
+
+                    foreach (var handler in eventDelegate.GetInvocationList()) {
+                        var task = handler.Method.Invoke(handler.Target, [ playerManager, eventArgs ]) as Task;
+
+                        if (task != null)
+                            await task.ConfigureAwait(false);
+                    }
+                }
+            }
+
             return result;
         }
 
