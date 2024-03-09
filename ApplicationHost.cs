@@ -16,6 +16,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -122,12 +123,12 @@ namespace CCTavern {
                 return 0;
 
             var guildId = msg.Channel.Guild.Id;
-            IEnumerable<string> prefixes = ServerPrefixes.ContainsKey(guildId)
-                ? ServerPrefixes[guildId] : g_DefaultPrefixes;
+            IEnumerable<string> prefixes = Program.ServerPrefixes.ContainsKey(guildId)
+                ? Program.ServerPrefixes[guildId] : Program.g_DefaultPrefixes;
 
             foreach (var pfix in prefixes) {
                 if (mpos == -1 && !string.IsNullOrWhiteSpace(pfix)) {
-                    mpos = msg.GetStringPrefixLength(pfix, Settings.PrefixesCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase);
+                    mpos = msg.GetStringPrefixLength(pfix, Program.Settings.PrefixesCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase);
 
                     if (mpos != -1)
                         break;
