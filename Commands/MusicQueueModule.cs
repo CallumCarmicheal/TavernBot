@@ -84,7 +84,7 @@ namespace CCTavern.Commands
         [RequireGuild]
         public async Task GetQueue(CommandContext ctx,
             [Description("Page number to view, if blank then the page containing the current track is shown. (Supports relative +1, -12) ")]
-            string TargetPageString = null!,
+            string targetPageString = null!,
             [Description("Show date")]
             bool showDate = false,
             [Description("Show time")]
@@ -105,22 +105,22 @@ namespace CCTavern.Commands
             var targetPage = (int)Math.Ceiling((decimal)currentPosition / ITEMS_PER_PAGE);
 
             // Parse user's target page
-            if (TargetPageString != null) {
-                TargetPageString = TargetPageString.Trim();
+            if (targetPageString != null) {
+                targetPageString = targetPageString.Trim();
                 int output;
 
                 try {
-                    if (TargetPageString.StartsWith("+")) {
-                        string strToConvert = TargetPageString[1..];
+                    if (targetPageString.StartsWith("+")) {
+                        string strToConvert = targetPageString[1..];
                         if (int.TryParse(strToConvert, out output)) {
                             targetPage += output;
                         }
-                    } else if (TargetPageString.StartsWith("-")) {
-                        string strToConvert = TargetPageString[1..];
+                    } else if (targetPageString.StartsWith("-")) {
+                        string strToConvert = targetPageString[1..];
                         if (int.TryParse(strToConvert, out output)) {
                             targetPage -= output;
                         }
-                    } else if (int.TryParse(TargetPageString, out output)) {
+                    } else if (int.TryParse(targetPageString, out output)) {
                         targetPage = output;
                     }
                 } catch { }
@@ -202,7 +202,7 @@ namespace CCTavern.Commands
             [Description("Page number to view, if blank then the page containing the current track is shown.")]
             string TargetPageString = null!
         ) {
-            await GetQueue(ctx, TargetPageString, true, false);
+            await GetQueue(ctx, TargetPageString, showDate: true, showTime: false);
         }
 
         [Command("queuedt"), Aliases("qdt")]
@@ -212,7 +212,7 @@ namespace CCTavern.Commands
             [Description("Page number to view, if blank then the page containing the current track is shown.")]
             string TargetPageString = null!
         ) {
-            await GetQueue(ctx, TargetPageString, true, true);
+            await GetQueue(ctx, TargetPageString, showDate: true, showTime: true);
         }
 
         [Command("queuet"), Aliases("qt")]
@@ -222,7 +222,7 @@ namespace CCTavern.Commands
             [Description("Page number to view, if blank then the page containing the current track is shown.")]
             string TargetPageString = null!
         ) {
-            await GetQueue(ctx, TargetPageString, false, true);
+            await GetQueue(ctx, TargetPageString, showDate: false, showTime: true);
         }
 
         [Command("remove"), Aliases("delete")]

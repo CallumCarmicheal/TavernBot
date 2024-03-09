@@ -13,6 +13,8 @@ using Microsoft.EntityFrameworkCore;
 using System.Web;
 using DSharpPlus.CommandsNext;
 using System.Runtime.CompilerServices;
+using Lavalink4NET.Tracks;
+using System.Threading;
 
 namespace CCTavern.Player
 {
@@ -184,8 +186,8 @@ namespace CCTavern.Player
             (currentTime: Current.ToDynamicTimestamp(alwaysShowMinutes: true),
                 timeLeft: "-" + (Length - Current).ToDynamicTimestamp(alwaysShowMinutes: false));
 
-        public async Task ParsePlaylist(ulong guildId, ulong currentTrack, string videoUrl) {
-            var (success, chapters) = await YoutubeChaptersParser.ParseChapters(videoUrl);
+        public async Task ParseYoutubeChaptersPlaylist(ulong guildId, ulong currentTrack, string videoUrl, CancellationToken cancellationToken = default) {
+            var (success, chapters) = await YoutubeChaptersParser.ParseChapters(videoUrl, cancellationToken).ConfigureAwait(false);
             if (success == false) return;
 
             var db = new TavernContext();
@@ -204,6 +206,48 @@ namespace CCTavern.Player
 
             GuildStates.Add(guildId, new GuildState(guildId));
             return GuildStates[guildId];
+        }
+
+
+        public static async Task<GuildQueueItem> CreateGuildQueueItem(
+                TavernContext db, Guild dbGuild,
+                LavalinkTrack track, DiscordChannel channel, DiscordMember requestedBy, GuildQueuePlaylist? playlist, ulong trackPosition
+        ) {
+            var requestedUser = await db.GetOrCreateCachedUser(dbGuild, requestedBy);
+            var qi = new GuildQueueItem() {
+                GuildId = channel.Guild.Id,
+                Length = track.Duration,
+                Position = trackPosition,
+                RequestedById = requestedUser.Id,
+                Title = track.Title,
+                TrackString = track.ToString(),
+                PlaylistId = playlist?.Id
+            };
+
+            return qi;
+        }
+
+        public async Task<ulong> EnqueueTrack(LavalinkTrack track, DiscordChannel channel, DiscordMember requestedBy, GuildQueuePlaylist? playlist, bool updateNextTrack) {
+            var db = new TavernContext();
+            var dbGuild = await db.GetOrCreateDiscordGuild(channel.Guild);
+
+            dbGuild.TrackCount = dbGuild.TrackCount + 1;
+            var trackPosition = dbGuild.TrackCount;
+            await db.SaveChangesAsync();
+
+            logger.LogInformation(TLE.Misc, $"Queue Music into {channel.Guild.Name}.{channel.Name} [{trackPosition}] from {requestedBy.Username}: {track.Title}, {track.Duration.ToString(@"hh\:mm\:ss")}");
+
+            var qi = await CreateGuildQueueItem(db, dbGuild, track, channel, requestedBy, playlist, trackPosition);
+
+            if (updateNextTrack) {
+                dbGuild.NextTrack = trackPosition + 1;
+                logger.LogInformation(TLE.Misc, $"Setting next track to current position.");
+            }
+
+            db.GuildQueueItems.Add(qi);
+            await db.SaveChangesAsync();
+
+            return trackPosition;
         }
     }
 
@@ -256,12 +300,6 @@ namespace CCTavern.Player
 
             logger.LogInformation(TLE.MBSetup, "Lavalink successful");
         }
-
-        
-
-
-
-        
 
         
 

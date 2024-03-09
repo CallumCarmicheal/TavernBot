@@ -7,6 +7,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 using static CCTavern.YoutubeChaptersParser;
@@ -20,10 +21,10 @@ namespace CCTavern {
         private static HttpClient cli = new HttpClient();
 
         // TEST: var chapters = await YoutubeChaptersParser.ParseChapters("vrMfm8-UBVM");
-        public static async Task<(bool success, SortedList<TimeSpan, IVideoChapter>? chapters)> ParseChapters(string videoId) {
+        public static async Task<(bool success, SortedList<TimeSpan, IVideoChapter>? chapters)> ParseChapters(string videoId, CancellationToken cancellationToken = default) {
             // snippet,chapters | if you want to get the description too. To parse it see below in commented function
             string apiEndpoint = string.Format("{0}/videos?part=snippet,chapters&id={1}", Program.Settings.YoutubeIntegration.OperationalApi, videoId);
-            var response = await cli.GetAsync(apiEndpoint);
+            var response = await cli.GetAsync(apiEndpoint, cancellationToken);
             var json = await response.Content.ReadAsStringAsync();
 
             if (string.IsNullOrWhiteSpace(json)) 

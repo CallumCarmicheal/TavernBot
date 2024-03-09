@@ -15,6 +15,10 @@ using DSharpPlus.Entities;
 using Microsoft.Extensions.Options;
 using MySqlX.XDevAPI.Common;
 using ZstdSharp.Unsafe;
+using System.Diagnostics.Tracing;
+using System.Reflection;
+using System.Runtime.ConstrainedExecution;
+using Lavalink4NET.Events.Players;
 
 namespace CCTavern.Commands {
     public class BaseAudioCommandModule : BaseCommandModule {
@@ -28,10 +32,11 @@ namespace CCTavern.Commands {
             cancellationToken.ThrowIfCancellationRequested();
             ArgumentNullException.ThrowIfNull(properties);
 
-            return ValueTask.FromResult(new TavernPlayer(properties));
+            var player = new TavernPlayer(properties);
+            return ValueTask.FromResult(player);
         }
 
-        protected async ValueTask<PlayerResult<TavernPlayer>> GetPlayerAsync(ulong guildId, ulong? voiceChannelId = null, bool connectToVoiceChannel = true) {
+        protected async ValueTask< PlayerResult<TavernPlayer> > GetPlayerAsync(ulong guildId, ulong? voiceChannelId = null, bool connectToVoiceChannel = true) {
             var channelBehavior = connectToVoiceChannel
                 ? PlayerChannelBehavior.Join
                 : PlayerChannelBehavior.None;
@@ -92,6 +97,19 @@ namespace CCTavern.Commands {
             };
 
             return errorMessage;
+        }
+
+        protected async ValueTask<bool> IsPlayerConnected(ulong guildId, ulong? voiceChannelId = null) {
+            var playerResult = await GetPlayerAsync(guildId, voiceChannelId, connectToVoiceChannel: false).ConfigureAwait(false);
+
+            if (playerResult.IsSuccess == false 
+                    || playerResult.Status == PlayerRetrieveStatus.BotNotConnected
+                    || playerResult.Status == PlayerRetrieveStatus.PreconditionFailed
+                    || playerResult.Player == null) {
+                return false;
+            }
+
+            return true;
         }
     }
 }

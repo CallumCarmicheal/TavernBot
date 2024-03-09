@@ -172,7 +172,7 @@ namespace CCTavern.Commands {
             }
 
             bool isPlayEvent = player.State == Lavalink4NET.Players.PlayerState.NotPlaying;
-            var trackPosition = await player.enqueueMusicTrack(track, ctx.Channel, ctx.Member, null, isPlayEvent);
+            var trackPosition = await mbHelper.EnqueueTrack(track, ctx.Channel, ctx.Member, null, isPlayEvent);
             await ctx.RespondAsync($"Enqueued `{track.Title}` in position `{trackPosition}`.");
 
             if (isPlayEvent) {
@@ -205,7 +205,7 @@ namespace CCTavern.Commands {
             // Loop the tracks
             for (int x = 0; x < list.Count(); x++) {
                 var lt = list[x];
-                var trackIdx = await player.enqueueMusicTrack(lt, ctx.Channel, ctx.Member, playlist, (x == 0 && isPlayEvent));
+                var trackIdx = await mbHelper.EnqueueTrack(lt, ctx.Channel, ctx.Member, playlist, (x == 0 && isPlayEvent));
 
                 // If we are the first track and join event then start playing it.
                 if (x == 0 && isPlayEvent) {
@@ -232,20 +232,18 @@ namespace CCTavern.Commands {
         [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
         public async Task JoinVoice(CommandContext ctx,
             [Description("True values [yes, 1, true, resume, start]")]
-            string flag_str = "f"
+            string flagStr = "f"
         ) {
-            var flag_str_lwr = flag_str.ToLower();
-            bool resumePlaylist = flag_str_lwr[0] == 'y' || flag_str_lwr[0] == '1'
-                || flag_str_lwr[0] == 't' || flag_str_lwr[0] == 'r'
-                || (flag_str_lwr[0] == 'o' && flag_str_lwr[1] == 'n');
-
-            if (flag_str_lwr[0] == 's') {
-                if (flag_str_lwr == "stop")
-                    resumePlaylist = false;
-
-                if (flag_str_lwr == "start")
-                    resumePlaylist = true;
-            }
+            var flagStrLower = flagStr.ToLowerInvariant();
+            bool resumePlaylist = flagStrLower[0] switch {
+                'y' or '1' or 't' or 'r' or ('o' and 'n') => true,
+                's' => flagStrLower switch {
+                    "start" => true,
+                    "stop" => false,
+                    _ => false
+                },
+                _ => false
+            };
 
             logger.LogInformation(TLE.Misc, "Join voice: Continue = {continuePlaying}", resumePlaylist);
 
