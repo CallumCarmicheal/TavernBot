@@ -101,13 +101,13 @@ namespace CCTavern
                 config.ResumptionOptions = new LavalinkSessionResumptionOptions(TimeSpan.FromSeconds(60));
             });
             builder.Services.Configure<IdleInactivityTrackerOptions>(config => {
-                config.Timeout = TimeSpan.FromSeconds(10);
+                config.Timeout = TimeSpan.FromMinutes(5);
             });
             builder.Services.Configure<UsersInactivityTrackerOptions>(config => {
-                config.Timeout = TimeSpan.FromSeconds(10);
+                config.Timeout = TimeSpan.FromMinutes(5);
             });
             builder.Services.ConfigureInactivityTracking(options => {
-                options.DefaultTimeout      = TimeSpan.FromSeconds(30);
+                options.DefaultTimeout      = TimeSpan.FromMinutes(5);
                 options.DefaultPollInterval = TimeSpan.FromSeconds(5);
             });
             builder.Services.AddInactivityTracking();

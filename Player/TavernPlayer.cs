@@ -431,7 +431,7 @@ namespace CCTavern.Player
         #region Tracking
 
         public async ValueTask NotifyPlayerActiveAsync(PlayerTrackingState trackingState, CancellationToken cancellationToken = default) {
-            logger.LogInformation(TLE.MBTimeout, "<================== NotifyPlayerActiveAsync @ {trackingState}", trackingState);
+            //logger.LogInformation(TLE.MBTimeout, "<================== NotifyPlayerActiveAsync @ {trackingState}", trackingState);
 
             // This method is called when the player was previously inactive and is now active again.
             // For example: All users in the voice channel left and now a user joined the voice channel again.
@@ -439,11 +439,11 @@ namespace CCTavern.Player
 
             // return default; // do nothing
 
-            logger.LogInformation(TLE.MBTimeout, "<<<<<<<<<<<<<<<<<<< NotifyPlayerActiveAsync @ {trackingState}", trackingState);
+            //logger.LogInformation(TLE.MBTimeout, "<<<<<<<<<<<<<<<<<<< NotifyPlayerActiveAsync @ {trackingState}", trackingState);
         }
 
         public async ValueTask NotifyPlayerInactiveAsync(PlayerTrackingState trackingState, CancellationToken cancellationToken = default) {
-            logger.LogInformation(TLE.MBTimeout, "<================== NotifyPlayerInactiveAsync @ {trackingState}", trackingState);
+            //logger.LogInformation(TLE.MBTimeout, "<================== NotifyPlayerInactiveAsync @ {trackingState}", trackingState);
             
             // This method is called when the player reached the inactivity deadline.
             // For example: All users in the voice channel left and the player was inactive for longer than 30 seconds.
@@ -464,18 +464,18 @@ namespace CCTavern.Player
             await discordClient.SendMessageAsync(outputChannel, "Left the voice channel <#" + VoiceChannelId + "> due to inactivity.");
             await mbHelper.DeletePastStatusMessage(dbGuild, outputChannel);
 
-            logger.LogInformation(TLE.MBTimeout, "<<<<<<<<<<<<<<<<<<< NotifyPlayerInactiveAsync");
+            //logger.LogInformation(TLE.MBTimeout, "<<<<<<<<<<<<<<<<<<< NotifyPlayerInactiveAsync");
 
         }
 
         public async ValueTask NotifyPlayerTrackedAsync(PlayerTrackingState trackingState, CancellationToken cancellationToken = default) {
-            logger.LogInformation(TLE.MBTimeout, "<================== NotifyPlayerTrackedAsync @ {trackingState}", trackingState);
+            //logger.LogInformation(TLE.MBTimeout, "<================== NotifyPlayerTrackedAsync @ {trackingState}", trackingState);
             
             // This method is called when the player was previously active and is now inactive.
             // For example: A user left the voice channel and now all users left the voice channel.
             cancellationToken.ThrowIfCancellationRequested();
 
-            logger.LogInformation(TLE.MBTimeout, "<<<<<<<<<<<<<<<<<<< NotifyPlayerTrackedAsync @ {trackingState}", trackingState);
+            //logger.LogInformation(TLE.MBTimeout, "<<<<<<<<<<<<<<<<<<< NotifyPlayerTrackedAsync @ {trackingState}", trackingState);
 
             // return default; // do nothing
         }

@@ -19,6 +19,10 @@ using System.Diagnostics.Tracing;
 using System.Reflection;
 using System.Runtime.ConstrainedExecution;
 using Lavalink4NET.Events.Players;
+using Lavalink4NET.Integrations.ExtraFilters;
+using System.Numerics;
+using Lavalink4NET.Player;
+using Lavalink4NET.Filters;
 
 namespace CCTavern.Commands {
     public class BaseAudioCommandModule : BaseCommandModule {
