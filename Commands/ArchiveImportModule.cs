@@ -5,7 +5,6 @@ using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
 using DSharpPlus.Interactivity.Extensions;
-using DSharpPlus.Lavalink;
 
 using K4os.Hash.xxHash;
 
@@ -30,12 +29,10 @@ namespace CCTavern.Commands {
             "<<!play", "_play", "+play", ";;play", "!play"
         };
 
-        private ILogger _logger;
-        private ILogger logger {
-            get {
-                if (_logger == null) _logger = Program.LoggerFactory.CreateLogger<MusicCommandModule>();
-                return _logger;
-            }
+        private readonly ILogger<ArchiveImportModule> logger;
+
+        public ArchiveImportModule(ILogger<ArchiveImportModule> logger) {
+            this.logger = logger;
         }
 
         [Command("archive:d")]

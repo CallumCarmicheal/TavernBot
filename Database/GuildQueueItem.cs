@@ -1,5 +1,4 @@
 ﻿using DSharpPlus;
-using DSharpPlus.Lavalink;
 
 using Microsoft.EntityFrameworkCore;
 

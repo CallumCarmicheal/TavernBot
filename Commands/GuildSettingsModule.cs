@@ -5,6 +5,8 @@ using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
 
+using Lavalink4NET;
+
 using Microsoft.Extensions.Logging;
 
 using System;
@@ -15,14 +17,11 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace CCTavern.Commands {
-    internal class GuildSettingsModule : BaseCommandModule {
+    internal class GuildSettingsModule : BaseAudioCommandModule {
+        private readonly ILogger<MusicCommandModule> logger;
 
-        private ILogger _logger;
-        private ILogger logger {
-            get {
-                if (_logger == null) _logger = Program.LoggerFactory.CreateLogger<MusicCommandModule>();
-                return _logger;
-            }
+        public GuildSettingsModule(ILogger<MusicCommandModule> logger, IAudioService audioService) : base(audioService) {
+            this.logger = logger;
         }
 
         [Command("setPrefixes"), Aliases("sspfx")]

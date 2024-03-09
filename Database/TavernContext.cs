@@ -193,8 +193,10 @@ public partial class TavernContext : DbContext
     public async Task<Guild> GetOrCreateDiscordGuild(DiscordGuild guild) {
         Guild dbGuild;
         
-        var query = Guilds.Where(x => x.Id == guild.Id);
-        //if (includeTracks) query = query.Include(x => x.Queue);
+        var query = Guilds
+            .Where(x => x.Id == guild.Id);
+
+        // if (includeTracks) query = query.Include(x => x.Tracks);
 
         if (await query.AnyAsync() == false) {
             dbGuild = new Guild() {
@@ -212,7 +214,9 @@ public partial class TavernContext : DbContext
     }
 
     public async Task<Guild?> GetGuild(ulong guildId) {
-        var query = Guilds.Where(x => x.Id == guildId);
+        var query = Guilds
+            .Where(x => x.Id == guildId);
+
         if (await query.AnyAsync() == false) 
             return null;
 

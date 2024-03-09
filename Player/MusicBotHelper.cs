@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 
 using DSharpPlus.Net;
-using DSharpPlus.Lavalink;
 using DSharpPlus;
 using Microsoft.Extensions.Logging;
 using CCTavern.Logger;
@@ -13,127 +12,116 @@ using CCTavern.Database;
 using Microsoft.EntityFrameworkCore;
 using System.Web;
 using DSharpPlus.CommandsNext;
+using System.Runtime.CompilerServices;
 
-namespace CCTavern {
-    public class MusicBot {
-        private readonly DiscordClient client;
-        private readonly ILogger logger;
+namespace CCTavern.Player
+{
+    public class MusicBotHelper
+    {
+        private readonly ILogger<MusicBotHelper> logger;
+        private readonly DiscordClient discordClient;
+
+        internal Dictionary<ulong, GuildState> GuildStates { get; set; } = new Dictionary<ulong, GuildState>();
+        internal Dictionary<ulong, TemporaryQueue> TemporaryTracks { get; set; } = new Dictionary<ulong, TemporaryQueue>();
 
 
-        public LavalinkExtension Lavalink { get; private set; }
-
-        private ConnectionEndpoint? _lavalinkEndpoint = null;
-        private LavalinkConfiguration? _lavalinkConfiguration = null;
-
-        internal Dictionary<ulong, TemporaryQueue> TemporaryTracks = new Dictionary<ulong, TemporaryQueue>();
-        internal static Dictionary<ulong, GuildState> GuildStates { get; set; } = new Dictionary<ulong, GuildState>();
-
-        public MusicBot(DiscordClient client) {
-            this.client = client;
-            this.logger = Program.LoggerFactory.CreateLogger("MusicBot");
+        public MusicBotHelper(DiscordClient client, ILogger<MusicBotHelper> logger)
+        {
+            this.logger = logger;
+            discordClient = client;
         }
 
-        public async Task SetupLavalink() {
-            logger.LogInformation(TLE.MBSetup, "Setting up lavalink");
-
-            var lavalinkSettings = Program.Settings.Lavalink;
-
-            _lavalinkEndpoint = new ConnectionEndpoint {
-                Hostname = lavalinkSettings.Hostname,
-                Port = lavalinkSettings.Port
-            };
-
-            _lavalinkConfiguration = new LavalinkConfiguration {
-                Password = lavalinkSettings.Password,
-                RestEndpoint = _lavalinkEndpoint.Value,
-                SocketEndpoint = _lavalinkEndpoint.Value
-            };
-
-            Lavalink = client.UseLavalink();
-            var lavalinkNode = await Lavalink.ConnectAsync(_lavalinkConfiguration);
-
-            lavalinkNode.PlayerUpdated += LavalinkNode_PlayerUpdated;
-            lavalinkNode.PlaybackStarted += LavalinkNode_PlaybackStarted;
-            lavalinkNode.PlaybackFinished += LavalinkNode_PlaybackFinished;
-            lavalinkNode.TrackException += LavalinkNode_TrackException;
-            lavalinkNode.TrackStuck += LavalinkNode_TrackStuck;
-            lavalinkNode.Disconnected += LavalinkNode_Disconnected;
-
-            logger.LogInformation(TLE.MBSetup, "Lavalink successful");
-        }
-
-        public static async Task<DiscordChannel?> GetMusicTextChannelFor(DiscordGuild guild) {
+        public async Task<DiscordChannel?> GetMusicTextChannelFor(DiscordGuild guild)
+        {
             var db = new TavernContext();
             var dbGuild = await db.GetOrCreateDiscordGuild(guild);
 
             // Check if we have that in the database
             ulong? discordChannelId = null;
 
-            if (dbGuild.MusicChannelId == null) {
+            if (dbGuild.MusicChannelId == null)
+            {
                 if (GuildStates.ContainsKey(guild.Id) && GuildStates[guild.Id].TemporaryMusicChannelId != null)
                     discordChannelId = GuildStates[guild.Id].TemporaryMusicChannelId;
-            } else discordChannelId = dbGuild.MusicChannelId;
+            }
+            else discordChannelId = dbGuild.MusicChannelId;
 
             if (discordChannelId == null) return null;
-            return await Program.Client.GetChannelAsync(discordChannelId.Value);
+            return await discordClient.GetChannelAsync(discordChannelId.Value);
         }
 
-        public static void AnnounceJoin(DiscordChannel channel) {
-            if (channel == null) return;
+        public (bool isTempTrack, GuildQueueItem? dbTrack) GetNextTemporaryTrackForGuild(Guild guild)
+        {
+            bool isTempTrack = false;
+            GuildQueueItem? dbTrack = null;
 
-            if (!GuildStates.ContainsKey(channel.Guild.Id))
-                GuildStates[channel.Guild.Id] = new GuildState(channel.Guild.Id);
+            if (TemporaryTracks.ContainsKey(guild.Id))
+            {
+                if (Program.Settings.LoggingVerbose) logger.LogError(TLE.MBFin, "Temporary tarcks discovered");
 
-            if (GuildStates[channel.Guild.Id].TemporaryMusicChannelId == null)
-                GuildStates[channel.Guild.Id].TemporaryMusicChannelId = channel.Id;
-        }
+                var tempTracks = TemporaryTracks[guild.Id];
+                tempTracks.SongItems.FirstOrDefault()?.FinishedPlaying(tempTracks);
 
-        public static void AnnounceLeave(DiscordChannel channel) {
-            if (channel == null) return;
+                // Remove empty queue
+                if (tempTracks.SongItems.Any() == false || tempTracks.SongItems.FirstOrDefault() == null)
+                {
+                    if (Program.Settings.LoggingVerbose) logger.LogError(TLE.MBFin, "Removing empty temporary track queue.");
 
-            if (GuildStates.ContainsKey(channel.Guild.Id))
-                GuildStates.Remove(channel.Guild.Id);
-        }
+                    TemporaryTracks.Remove(guild.Id);
+                }
 
-        public static async Task<GuildQueueItem> CreateGuildQueueItem(
-                TavernContext db, Guild dbGuild,
-                LavalinkTrack track, DiscordChannel channel, DiscordMember requestedBy, GuildQueuePlaylist? playlist, ulong trackPosition
-        ) {
-            var requestedUser = await db.GetOrCreateCachedUser(dbGuild, requestedBy);
-            var qi = new GuildQueueItem() {
-                GuildId = channel.Guild.Id,
-                Length = track.Length,
-                Position = trackPosition,
-                RequestedById = requestedUser.Id,
-                Title = track.Title,
-                TrackString = track.TrackString,
-                PlaylistId = playlist?.Id
-            };
+                // Get the track
+                else
+                {
+                    dbTrack = tempTracks.SongItems.First()?.GetQueueItem();
+                    isTempTrack = dbTrack != null;
 
-            return qi;
-        }
+                    if (Program.Settings.LoggingVerbose) logger.LogError(TLE.MBFin, "Loading temporary track from queue: {trackTitle}", dbTrack?.Title ?? "<NULL>");
 
-        public async Task<ulong> enqueueMusicTrack(LavalinkTrack track, DiscordChannel channel, DiscordMember requestedBy, GuildQueuePlaylist? playlist, bool updateNextTrack) {
-            var db = new TavernContext();
-            var dbGuild = await db.GetOrCreateDiscordGuild(channel.Guild);
-
-            dbGuild.TrackCount = dbGuild.TrackCount + 1;
-            var trackPosition = dbGuild.TrackCount;
-            await db.SaveChangesAsync();
-
-            logger.LogInformation(TLE.Misc, $"Queue Music into {channel.Guild.Name}.{channel.Name} [{trackPosition}] from {requestedBy.Username}: {track.Title}, {track.Length.ToString(@"hh\:mm\:ss")}");
-
-            var qi = await CreateGuildQueueItem(db, dbGuild, track, channel, requestedBy, playlist, trackPosition);
-
-            if (updateNextTrack) {
-                dbGuild.NextTrack = trackPosition + 1;
-                logger.LogInformation(TLE.Misc, $"Setting next track to current position.");
+                    if (isTempTrack)
+                        tempTracks.IsPlaying = true;
+                }
             }
 
-            db.GuildQueueItems.Add(qi);
-            await db.SaveChangesAsync();
+            return (isTempTrack, dbTrack);
+        }
 
-            return trackPosition;
+
+        public void AnnounceJoin(ulong guildId, ulong channelId)
+        {
+            if (!GuildStates.ContainsKey(guildId))
+                GuildStates[guildId] = new GuildState(channelId);
+
+            if (GuildStates[guildId].TemporaryMusicChannelId == null)
+                GuildStates[guildId].TemporaryMusicChannelId = channelId;
+        }
+
+        public void AnnounceLeave(ulong guildId)
+        {
+            if (GuildStates.ContainsKey(guildId))
+                GuildStates.Remove(guildId);
+        }
+
+        public async Task<bool> DeletePastStatusMessage(Guild guild, DiscordChannel outputChannel)
+        {
+            try
+            {
+                if (guild.LastMessageStatusId != null && outputChannel != null)
+                {
+                    ulong lastMessageStatusId = guild.LastMessageStatusId.Value;
+                    var oldMessage = await outputChannel.GetMessageAsync(lastMessageStatusId, true);
+                    if (oldMessage != null)
+                    {
+                        guild.LastMessageStatusId = null;
+
+                        await oldMessage.DeleteAsync();
+                        return true;
+                    }
+                }
+            }
+            catch { }
+
+            return false;
         }
 
         public async Task<GuildQueueItem?> getNextTrackForGuild(DiscordGuild discordGuild, ulong? targetTrackId = null) {
@@ -174,54 +162,108 @@ namespace CCTavern {
             return await query.FirstAsync();
         }
 
-        public (bool isTempTrack, GuildQueueItem? dbTrack) GetNextTemporaryTrackForGuild(Guild guild) {
-            bool isTempTrack = false;
-            GuildQueueItem? dbTrack = null;
+        public string GenerateProgressBar(double value, double maxValue, int size)
+        {
+            var percentage = value / maxValue; // Calculate the percentage of the bar
+            var progress = (int)Math.Round(size * percentage); // Calculate the number of square caracters to fill the progress side.
+            var emptyProgress = size - progress; // Calculate the number of dash caracters to fill the empty progress side.
 
-            if (TemporaryTracks.ContainsKey(guild.Id)) {
-                if (Program.Settings.LoggingVerbose) logger.LogError(TLE.MBFin, "Temporary tarcks discovered");
+            var progressText = new string('─', progress - 1 < 0 ? 0 : progress - 1); // Repeat is creating a string with progress * caracters in it
+            var emptyProgressText = new string('─', emptyProgress); // Repeat is creating a string with empty progress * caracters in it
+            //var percentageText = (int)Math.Round((double)percentage * 100) + '%'; // Displaying the percentage of the bar
 
-                var tempTracks = TemporaryTracks[guild.Id];
-                tempTracks.SongItems.FirstOrDefault()?.FinishedPlaying(tempTracks);
+            // Creating the bar
+            string bar = progress >= 1
+                ? $@"[{progressText + "⊙" + emptyProgressText}]"
+                : $@"[{progressText + emptyProgressText}]";
 
-                // Remove empty queue
-                if (tempTracks.SongItems.Any() == false || tempTracks.SongItems.FirstOrDefault() == null) {
-                    if (Program.Settings.LoggingVerbose) logger.LogError(TLE.MBFin, "Removing empty temporary track queue.");
-
-                    TemporaryTracks.Remove(guild.Id);
-                }
-
-                // Get the track
-                else {
-                    dbTrack = tempTracks.SongItems.First()?.GetQueueItem();
-                    isTempTrack = dbTrack != null;
-
-                    if (Program.Settings.LoggingVerbose) logger.LogError(TLE.MBFin, "Loading temporary track from queue: {trackTitle}", dbTrack?.Title ?? "<NULL>");
-
-                    if (isTempTrack)
-                        tempTracks.IsPlaying = true;
-                }
-            }
-
-            return (isTempTrack, dbTrack);
+            return bar;
         }
 
-        public static async Task<bool> DeletePastStatusMessage(Guild guild, DiscordChannel outputChannel) {
-            try {
-                if (guild.LastMessageStatusId != null && outputChannel != null) {
-                    ulong lastMessageStatusId = guild.LastMessageStatusId.Value;
-                    var oldMessage = await outputChannel.GetMessageAsync(lastMessageStatusId, true);
-                    if (oldMessage != null) {
-                        guild.LastMessageStatusId = null;
+        public (string currentTime, string timeLeft) GetTrackRemaining(TimeSpan Current, TimeSpan Length) =>
+            (currentTime: Current.ToDynamicTimestamp(alwaysShowMinutes: true),
+                timeLeft: "-" + (Length - Current).ToDynamicTimestamp(alwaysShowMinutes: false));
 
-                        await oldMessage.DeleteAsync();
-                        return true;
-                    }
-                }
-            } catch { }
+        public async Task ParsePlaylist(ulong guildId, ulong currentTrack, string videoUrl) {
+            var (success, chapters) = await YoutubeChaptersParser.ParseChapters(videoUrl);
+            if (success == false) return;
 
-            return false;
+            var db = new TavernContext();
+            var guild = await db.GetGuild(guildId);
+
+            // Check if we are no longer on the same song, then dont update the chapter title.
+            if (guild?.CurrentTrack != currentTrack)
+                return;
+
+            GuildStates[guildId].TrackChapters = chapters;
         }
+
+        internal GuildState GetOrCreateGuildState(ulong guildId) {
+            if (this.GuildStates.ContainsKey(guildId))
+                return GuildStates[guildId];
+
+            GuildStates.Add(guildId, new GuildState(guildId));
+            return GuildStates[guildId];
+        }
+    }
+
+    /*
+
+    public class MusicBot {
+        private readonly DiscordClient client;
+        private readonly ILogger logger;
+        private readonly BotTimeoutHandler botTimeoutHandler;
+
+        public LavalinkExtension Lavalink { get; private set; }
+
+        private ConnectionEndpoint? _lavalinkEndpoint = null;
+        private LavalinkConfiguration? _lavalinkConfiguration = null;
+
+        internal Dictionary<ulong, TemporaryQueue> TemporaryTracks = new Dictionary<ulong, TemporaryQueue>();
+        internal static Dictionary<ulong, GuildState> GuildStates { get; set; } = new Dictionary<ulong, GuildState>();
+
+        public MusicBotHelpers(DiscordClient client, BotTimeoutHandler botTimeoutHandler) {
+            this.client = client;
+            this.logger = Program.LoggerFactory.CreateLogger("MusicBot");
+            this.botTimeoutHandler = botTimeoutHandler;
+        }
+
+        public async Task SetupLavalink() {
+            logger.LogInformation(TLE.MBSetup, "Setting up lavalink");
+
+            var lavalinkSettings = Program.Settings.Lavalink;
+
+            _lavalinkEndpoint = new ConnectionEndpoint {
+                Hostname = lavalinkSettings.Hostname,
+                Port = lavalinkSettings.Port
+            };
+
+            _lavalinkConfiguration = new LavalinkConfiguration {
+                Password = lavalinkSettings.Password,
+                RestEndpoint = _lavalinkEndpoint.Value,
+                SocketEndpoint = _lavalinkEndpoint.Value
+            };
+
+            Lavalink = client.UseLavalink();
+            var lavalinkNode = await Lavalink.ConnectAsync(_lavalinkConfiguration);
+
+            lavalinkNode.PlayerUpdated += LavalinkNode_PlayerUpdated;
+            lavalinkNode.PlaybackStarted += LavalinkNode_PlaybackStarted;
+            lavalinkNode.PlaybackFinished += LavalinkNode_PlaybackFinished;
+            lavalinkNode.TrackException += LavalinkNode_TrackException;
+            lavalinkNode.TrackStuck += LavalinkNode_TrackStuck;
+            lavalinkNode.Disconnected += LavalinkNode_Disconnected;
+
+            logger.LogInformation(TLE.MBSetup, "Lavalink successful");
+        }
+
+        
+
+
+
+        
+
+        
 
         private Task LavalinkNode_Disconnected(LavalinkNodeConnection sender, DSharpPlus.Lavalink.EventArgs.NodeDisconnectedEventArgs args) {
             logger.LogInformation(TLE.Misc, "LavalinkNode_Disconnected, IsCleanClose={IsCleanClose}", args.IsCleanClose);
@@ -232,7 +274,7 @@ namespace CCTavern {
             logger.LogInformation(TLE.Misc, "LavalinkNode_TrackStuck");
 
             // Check if we have a channel for the guild
-            var outputChannel = await GetMusicTextChannelFor(conn.Guild);
+            var outputChannel = await GetMusicTextChannelFor(client, conn.Guild);
             if (outputChannel == null) {
                 logger.LogError(TLE.MBLava, "Failed to get music channel for lavalink connection.");
             }
@@ -245,7 +287,7 @@ namespace CCTavern {
             logger.LogInformation(TLE.Misc, "LavalinkNode_TrackException");
 
             // Check if we have a channel for the guild
-            var outputChannel = await GetMusicTextChannelFor(conn.Guild);
+            var outputChannel = await GetMusicTextChannelFor(client, conn.Guild);
             if (outputChannel == null) {
                 logger.LogError(TLE.MBLava, "Failed to get music channel for lavalink connection.");
             }
@@ -259,7 +301,7 @@ namespace CCTavern {
             var guildState = GuildStates.ContainsKey(conn.Guild.Id) ? GuildStates[conn.Guild.Id] : null;
 
             if (args.Player.CurrentState.CurrentTrack != null && guildState != null && guildState.MusicEmbed != null) {
-                var outputChannel = await GetMusicTextChannelFor(conn.Guild);
+                var outputChannel = await GetMusicTextChannelFor(client, conn.Guild);
                 if (outputChannel == null) goto Finish;
 
                 // Check if the track exits early (maybe seeking?)
@@ -318,117 +360,14 @@ namespace CCTavern {
             }
 
         Finish:
-            await BotTimeoutHandler.Instance.UpdateMusicLastActivity(conn);
+            await botTimeoutHandler.UpdateMusicLastActivity(conn);
         }
 
         private async Task LavalinkNode_PlaybackStarted(LavalinkGuildConnection conn, DSharpPlus.Lavalink.EventArgs.TrackStartEventArgs args) {
-            logger.LogInformation(TLE.Misc, "LavalinkNode_PlaybackStarted");
-
-            // Check if we have a channel for the guild
-            var db = new TavernContext();
-            var guild = await db.GetOrCreateDiscordGuild(conn.Guild);
-            var guildState = GuildStates[guild.Id];
-            guildState.TrackChapters = null; // Reset playlist tracks to null
-
-            if (guildState == null) {
-                guildState = new GuildState(guild.Id);
-                GuildStates.Add(guild.Id, guildState);
-            }
-
-            var outputChannel = await GetMusicTextChannelFor(conn.Guild);
-            if (outputChannel == null) {
-                logger.LogError(TLE.MBLava, "Failed to get music channel for lavalink connection.");
-            } else {
-                await DeletePastStatusMessage(guild, outputChannel);
-            }
-
-            GuildQueueItem? dbTrack = null;
-
-            var currentTrackIdx = guild.CurrentTrack;
-
-            var requestedBy = "<#ERROR>";
-            var currentTrackQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(x => x.GuildId == guild.Id && x.Position == currentTrackIdx);
-            if (currentTrackQuery.Any()) {
-                dbTrack = await currentTrackQuery.FirstAsync();
-                requestedBy = (dbTrack?.RequestedBy == null) ? "<#NULL>" : dbTrack?.RequestedBy.DisplayName;
-            }
-
-            string? thumbnail = null;
-            bool isYoutubeUrl = (args.Track.Uri.Host == "youtube.com" || args.Track.Uri.Host == "www.youtube.com");
-            if (isYoutubeUrl) {
-                var uriQuery = HttpUtility.ParseQueryString(args.Track.Uri.Query);
-                var videoId = uriQuery["v"];
-
-                thumbnail = $"https://img.youtube.com/vi/{videoId}/0.jpg";
-            }
-
-            DiscordEmbedBuilder embed = new DiscordEmbedBuilder() {
-                Url = $"https://youtube.com/watch?v={args.Track.Identifier}",
-                Color = DiscordColor.SpringGreen,
-                Title = args.Track.Title,
-            };
-
-            if (thumbnail != null)
-                embed.WithThumbnail(thumbnail);
-
-            embed.WithAuthor(args.Track.Author);
-            //embed.AddField("Player Panel", "[Manage bot through web panel (not added)](https://callumcarmicheal.com/#)", false);
-
-            if (dbTrack == null)
-                embed.AddField("Position", "<TRX Nil>", true);
-            else embed.AddField("Position", dbTrack.Position.ToString(), true);
-
-            embed.AddField("Duration", args.Track.Length.ToString(@"hh\:mm\:ss"), true);
-            embed.AddField("Requested by", requestedBy, true);
-
-            if (guildState.ShuffleEnabled)
-                embed.AddField("Shuffle", "Enabled", true);
-
-            if (guildState.RepeatEnabled)
-                embed.AddField("Repeat", $"Repeated `{guildState.TimesRepeated}` times.", true);
-
-            if (dbTrack != null)
-                embed.AddField("Date", Formatter.Timestamp(dbTrack.CreatedAt, TimestampFormat.LongDateTime), true);
-
-            var embedIndex = embed.Fields.Count;
-            var progressBar = GenerateProgressBar(0, args.Track.Length.TotalSeconds, 20);
-            var (currentTime, timeLeft) = GetTrackRemaining(TimeSpan.FromSeconds(0), args.Track.Length);
-            embed.AddField("Progress", $"```{progressBar} {timeLeft}```");
-
-            // 
-            embed.WithFooter($"gb:callums-basement@{Program.VERSION_Full}");
-
-            var message = await client.SendMessageAsync(outputChannel, embed: embed);
-            guild.LastMessageStatusId = message.Id;
-            guild.IsPlaying = true;
-            await db.SaveChangesAsync();
-
-            guildState.MusicEmbed = new MusicEmbedState() {
-                Message = message,
-                Embed = embed,
-                FieldIndex = embedIndex
-            };
-
-            if (isYoutubeUrl && Program.Settings.YoutubeIntegration.Enabled && args.Track.Length.TotalMinutes >= 5) 
-                _ = Task.Run(() => ParsePlaylist(guild.Id, currentTrackIdx, args.Track.Identifier));
-
-            logger.LogInformation(TLE.Misc, "LavalinkNode_PlaybackStarted <-- Done processing");
+            
         }
 
-        private async Task ParsePlaylist(ulong guildId, ulong currentTrack, string videoUrl) {
-            var (success, chapters) = await YoutubeChaptersParser.ParseChapters(videoUrl);
-            if (success == false) return;
-
-            var db = new TavernContext();
-            var guild = await db.GetGuild(guildId);
-
-            // Check if we are no longer on the same song, then dont update the chapter title.
-            if (guild?.CurrentTrack != currentTrack) 
-                return;
-
-            GuildStates[guildId].TrackChapters = chapters;
-        }
-
+        
 
         private async Task LavalinkNode_PlaybackFinished(LavalinkGuildConnection conn, DSharpPlus.Lavalink.EventArgs.TrackFinishEventArgs args) {
             logger.LogInformation(TLE.MBFin, "-------------PlaybackFinished : {reason}", args.Reason.ToString());
@@ -450,7 +389,7 @@ namespace CCTavern {
             dbGuild.IsPlaying = false;
             await db.SaveChangesAsync();
 
-            var outputChannel = await GetMusicTextChannelFor(conn.Guild);
+            var outputChannel = await GetMusicTextChannelFor(client, conn.Guild);
             if (outputChannel == null) {
                 logger.LogError(TLE.MBFin, "Failed to get music channel for lavalink connection.");
             } else {
@@ -623,25 +562,8 @@ namespace CCTavern {
             return true;
         }
 
-        private string GenerateProgressBar(double value, double maxValue, int size) {
-            var percentage = value / maxValue; // Calculate the percentage of the bar
-            var progress = (int)Math.Round((size * percentage)); // Calculate the number of square caracters to fill the progress side.
-            var emptyProgress = size - progress; // Calculate the number of dash caracters to fill the empty progress side.
 
-            var progressText = new string('─', progress - 1 < 0 ? 0 : progress - 1); // Repeat is creating a string with progress * caracters in it
-            var emptyProgressText = new string('─', emptyProgress); // Repeat is creating a string with empty progress * caracters in it
-            //var percentageText = (int)Math.Round((double)percentage * 100) + '%'; // Displaying the percentage of the bar
-
-            // Creating the bar
-            string bar = (progress >= 1)
-                ? $@"[{progressText + "⊙" + emptyProgressText}]"
-                : $@"[{progressText + emptyProgressText}]";
-
-            return bar;
-        }
-
-        private (string currentTime, string timeLeft) GetTrackRemaining(TimeSpan Current, TimeSpan Length) =>
-            (currentTime: Current.ToDynamicTimestamp(alwaysShowMinutes: true), 
-                timeLeft: "-" + (Length - Current).ToDynamicTimestamp(alwaysShowMinutes: false));
     }
+
+    //*/
 }

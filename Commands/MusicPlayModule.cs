@@ -2,14 +2,20 @@
 
 using CCTavern.Database;
 using CCTavern.Logger;
+using CCTavern.Player;
 
 using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
 using DSharpPlus.Interactivity.Extensions;
-using DSharpPlus.Lavalink;
 
+using Lavalink4NET;
+using Lavalink4NET.Clients;
+using Lavalink4NET.Rest.Entities.Tracks;
+using Lavalink4NET.Tracks;
+
+using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using Microsoft.EntityFrameworkCore.Update;
 using Microsoft.Extensions.Logging;
 
@@ -18,21 +24,35 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
+using static System.Net.WebRequestMethods;
+
 namespace CCTavern.Commands {
-    internal class MusicPlayModule : BaseCommandModule {
+    enum TrackRequestedPlayMode {
+        Single,
+        Playlist,
+        Expired
+    }
 
-        public MusicBot Music { private get; set; }
+    internal class MusicPlayModule : BaseAudioCommandModule {
+        private readonly ILogger<MusicPlayModule> logger;
+        private readonly MusicBotHelper mbHelper;
+        private readonly BotTimeoutHandler botTimeoutHandler;
 
-        private ILogger _logger;
-        private ILogger logger {
-            get {
-                if (_logger == null) _logger = Program.LoggerFactory.CreateLogger<MusicPlayModule>();
-                return _logger;
-            }
+        public MusicPlayModule(MusicBotHelper mbHelper, BotTimeoutHandler botTimeoutHandler, ILogger<MusicPlayModule> logger
+                , IAudioService audioService) : base(audioService) {
+            this.mbHelper = mbHelper;
+            this.botTimeoutHandler = botTimeoutHandler;
+            this.logger = logger;
         }
 
+        static bool IsUrl(string input) {
+            return Uri.TryCreate(input, UriKind.Absolute, out var uriResult)
+                   && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps);
+        }
 
         [Command("play"), Aliases("p")]
         [Description("Play music using a search")]
@@ -40,193 +60,197 @@ namespace CCTavern.Commands {
         public async Task Play(CommandContext ctx, [RemainingText] string search) {
             logger.LogInformation(TLE.MBPlay, "Play Music: " + search);
 
-            // Check if we have a valid voice state
-            if (ctx.Member?.VoiceState == null || ctx.Member.VoiceState.Channel == null) {
-                await ctx.RespondAsync("You are not in a voice channel.");
+            var voiceState = ctx.Member?.VoiceState;
+            if (voiceState == null || voiceState.Channel == null || ctx.Member == null) {
+                await ctx.RespondAsync("Not a valid voice channel.");
                 return;
             }
 
-            var voiceState = ctx.Member.VoiceState;
-            var channel = voiceState.Channel;
             if (voiceState.Channel.GuildId != ctx.Guild.Id) {
                 await ctx.RespondAsync("Not in voice channel of this guild.");
                 return;
             }
-            if (channel.Type != ChannelType.Voice) {
-                await ctx.RespondAsync("Impossible error but I dunno we got here somehow, Not a valid voice channel.");
+
+            var guild = ctx.Guild;
+            var voiceChannel = voiceState.Channel;
+            var playerResult = await GetPlayerAsync(ctx.Guild.Id, voiceChannel.Id, true).ConfigureAwait(false);
+            if (playerResult.IsSuccess == false) {
+                await ctx.RespondAsync(GetPlayerErrorMessage(playerResult.Status));
                 return;
             }
 
-            var lava = ctx.Client.GetLavalink();
-            if (!lava.ConnectedNodes.Any()) {
-                // Attempt reconnection, if fails exit function.
-                if (false == await Music.AttemptReconnectionWithCommandContext(ctx))
+            var db = new TavernContext();
+            var player = playerResult.Player;
+            TrackLoadResult? trackQueryResults;
+
+            if (IsUrl(search)) {
+                trackQueryResults = await audioService.Tracks
+                    .LoadTracksAsync(search, TrackSearchMode.None)
+                    .ConfigureAwait(false);
+            } else {
+                trackQueryResults = await audioService.Tracks
+                    .LoadTracksAsync(search, TrackSearchMode.YouTube)
+                    .ConfigureAwait(false);
+            }
+
+            if (trackQueryResults.HasValue && trackQueryResults.Value.IsPlaylist) {
+                var prompt = await _Play_PromptForPlaylist(ctx);
+
+                switch (prompt) {
+                case TrackRequestedPlayMode.Single:
+                    await _Play_Single(ctx, db, player, trackQueryResults.Value);
                     return;
+                case TrackRequestedPlayMode.Playlist:
+                    await _Play_Playlist(ctx, db, player, trackQueryResults.Value);
+                    return;
+                case TrackRequestedPlayMode.Expired: break;
+                }
             }
 
-            // Check if the bot is connected
-            var conn = lava.GetGuildConnection(ctx.Member.VoiceState.Guild);
-            var node = lava.ConnectedNodes.Values.First();
-            bool isPlayEvent = false;
-
-            if (conn == null) {
-                // Connect the bot
-                conn = await node.ConnectAsync(channel);
-                MusicBot.AnnounceJoin(channel);
-
-                await ctx.RespondAsync($"Connected to <#{channel.Id}>.");
-                isPlayEvent = true;
-            }
-
-            isPlayEvent = isPlayEvent ? true : conn.CurrentState.CurrentTrack == null;
-
-            LavalinkLoadResult loadResult;
-            loadResult = Uri.TryCreate(search, UriKind.Absolute, out Uri? uri)
-                ? await node.Rest.GetTracksAsync(uri)
-                : await node.Rest.GetTracksAsync(search);
-
-            // If something went wrong on Lavalink's end                          
-            if (loadResult.LoadResultType == LavalinkLoadResultType.LoadFailed
-                    //or it just couldn't find anything.
-                    || loadResult.LoadResultType == LavalinkLoadResultType.NoMatches) {
+            if (trackQueryResults.HasValue == false || trackQueryResults.Value.HasMatches == false) {
                 await ctx.RespondAsync($"Track search failed for {search}.");
                 return;
             }
 
-            LavalinkTrack track;
-            var db = new TavernContext();
+            await _Play_Single(ctx, db, player, trackQueryResults.Value);
+        }
 
-            if (loadResult.LoadResultType == LavalinkLoadResultType.PlaylistLoaded) {
-                // Set a static time 30 seconds from now so if the message needs to be reset
-                // it still waits 30 seconds from the original message.
-                var waitTimespan = TimeSpan.FromSeconds(30);
+        private async Task<TrackRequestedPlayMode> _Play_PromptForPlaylist(CommandContext ctx) {
+            // Set a static time 30 seconds from now so if the message needs to be reset
+            // it still waits 30 seconds from the original message.
+            var waitTimespan = TimeSpan.FromSeconds(30);
+            var btnExpired = DateTime.Now.Add(waitTimespan);
 
-            waitForButton:
-                long ticks = DateTime.Now.Ticks;
-                byte[] bytes = BitConverter.GetBytes(ticks);
-                string interactionId = Convert.ToBase64String(bytes).Replace('+', '_').Replace('/', '-').TrimEnd('=');
+        waitForButton:
+            long ticks = DateTime.Now.Ticks;
+            byte[] bytes = BitConverter.GetBytes(ticks);
+            string interactionId = Convert.ToBase64String(bytes).Replace('+', '_').Replace('/', '-').TrimEnd('=');
 
-                var singleButton = new DiscordButtonComponent(ButtonStyle.Success, $"single{interactionId}", "Add single song");
-                var playlistButton = new DiscordButtonComponent(ButtonStyle.Danger, $"playlist{interactionId}", "Add playlist");
+            var singleButton = new DiscordButtonComponent(ButtonStyle.Success, $"single{interactionId}", "Add single song");
+            var playlistButton = new DiscordButtonComponent(ButtonStyle.Danger, $"playlist{interactionId}", "Add playlist");
 
-                var builder = new DiscordMessageBuilder()
-                    .WithContent("You added a playlist, do you want to add the whole thing?")
-                    .AddComponents(singleButton, playlistButton);
+            var builder = new DiscordMessageBuilder()
+                .WithContent("You added a playlist, do you want to add the whole thing?")
+                .AddComponents(singleButton, playlistButton);
 
-                var buttonMessage = await ctx.RespondAsync(builder);
-                var interactivity = ctx.Client.GetInteractivity();
-                var result = await interactivity.WaitForButtonAsync(buttonMessage, waitTimespan);
-                
-                if (result.TimedOut) {
-                    await buttonMessage.DeleteAsync();
-                    await ctx.RespondAsync("Track was not added to queue, interactive buttons timed out. (30+ seconds with no response).");
-                    return;
-                } 
+            var buttonMessage = await ctx.RespondAsync(builder);
+            var interactivity = ctx.Client.GetInteractivity();
+            var result = await interactivity.WaitForButtonAsync(buttonMessage, waitTimespan);
 
-                // Dirty hack to ensure only the message sender clicks the button.
-                if (result.Result.User.Id != ctx.User.Id) {
-                    await buttonMessage.DeleteAsync();
-                    goto waitForButton;
-                }
-
-                if (result.Result.Id == $"single{interactionId}") {
-                    track = loadResult.Tracks.ElementAt(loadResult.PlaylistInfo.SelectedTrack);
-                    await buttonMessage.DeleteAsync();
-                } 
-                else if (result.Result.Id == $"playlist{interactionId}") {
-                    var dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
-                    var requestedBy = await db.GetOrCreateCachedUser(new Guild { Id = ctx.Guild.Id }, ctx.Member);
-
-                    // Add all the tracks to the queue
-                    var list = loadResult.Tracks.ToList();
-                    await buttonMessage.DeleteAsync();
-                    var addingMessage = await ctx.RespondAsync($"Adding `0`/`{list.Count()}` tracks to playlist...");
-
-                    // Create the queue 
-                    var playlist = new GuildQueuePlaylist();
-                    playlist.Title = loadResult.PlaylistInfo.Name;
-                    playlist.CreatedById = requestedBy.Id;
-                    playlist.PlaylistSongCount = list.Count();
-                    db.GuildQueuePlaylists.Add(playlist);
-                    await db.SaveChangesAsync();
-
-                    // Loop the tracks
-                    for (int x = 0; x < list.Count(); x++) {
-                        var lt = list[x];
-                        var trackIdx = await Music.enqueueMusicTrack(lt, ctx.Channel, ctx.Member, playlist, (x == 0 && isPlayEvent));
-
-                        // If we are the first track and join event then start playing it.
-                        if (x == 0 && isPlayEvent) {
-                            dbGuild ??= await db.GetOrCreateDiscordGuild(conn.Guild);
-                            dbGuild.CurrentTrack = trackIdx;
-                            await db.SaveChangesAsync();
-                            await conn.PlayAsync(lt);
-                            logger.LogInformation("Loading playlist, Playing first track.");
-                        }
-
-                        // Every 5 tracks update the index
-                        if (x % 15 == 0) 
-                            await addingMessage.ModifyAsync($"Adding `{x}`/`{list.Count()}` tracks to playlist...");
-                    }
-                    
-                    await addingMessage.ModifyAsync($"Successfully added `{list.Count()}` tracks to playlist...");
-                    return;
-                } 
-                else {
-                    await buttonMessage.DeleteAsync();
-                    await ctx.RespondAsync("Track was not added to queue, unable to determine selected button.");
-                    return;
-                }
-            } 
-            else {
-                track = loadResult.Tracks.First();
+            if (result.TimedOut) {
+                await buttonMessage.DeleteAsync();
+                await ctx.RespondAsync("Track was not added to queue, interactive buttons timed out. (30+ seconds with no response).");
+                return TrackRequestedPlayMode.Expired;
             }
 
-            var trackPosition = await Music.enqueueMusicTrack(track, ctx.Channel, ctx.Member, null, isPlayEvent);
-            await ctx.RespondAsync($"Enqueued `{track.Title}` in position `{trackPosition}`.");
+            // Dirty hack to ensure only the message sender clicks the button.
+            if (result.Result.User.Id != ctx.User.Id) {
+                await buttonMessage.DeleteAsync();
 
-            if (isPlayEvent) {
-                var dbGuild = await db.GetOrCreateDiscordGuild(conn.Guild);
-                dbGuild.CurrentTrack = trackPosition;
-                await db.SaveChangesAsync();
+                if (DateTime.Now >= btnExpired) {
+                    await ctx.RespondAsync("Track was not added to queue, interactive buttons timed out. (30+ seconds with no response).");
+                    return TrackRequestedPlayMode.Expired;
+                }
 
-                await conn.PlayAsync(track);
-                logger.LogInformation("Play Music: Playing song...");
+                goto waitForButton;
+            }
+
+            if (result.Result.Id == $"single{interactionId}") {
+                return TrackRequestedPlayMode.Single;
+            } else if (result.Result.Id == $"playlist{interactionId}") {
+                return TrackRequestedPlayMode.Playlist;
+            } else {
+                return TrackRequestedPlayMode.Expired;
             }
         }
 
+        private async Task _Play_Single(CommandContext ctx, TavernContext db, TavernPlayer player, TrackLoadResult trackResults) {
+            var track = trackResults.Track;
+            if (track is null) {
+                await ctx.RespondAsync($"Failed to parse track .");
+                return;
+            }
+
+            bool isPlayEvent = player.State == Lavalink4NET.Players.PlayerState.NotPlaying;
+            var trackPosition = await player.enqueueMusicTrack(track, ctx.Channel, ctx.Member, null, isPlayEvent);
+            await ctx.RespondAsync($"Enqueued `{track.Title}` in position `{trackPosition}`.");
+
+            if (isPlayEvent) {
+                var dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
+                dbGuild.CurrentTrack = trackPosition;
+                await db.SaveChangesAsync();
+
+                await player.PlayAsync(track).ConfigureAwait(false);
+            }
+        }
+
+        private async Task _Play_Playlist(CommandContext ctx, TavernContext db, TavernPlayer player, TrackLoadResult trackResults) {
+            bool isPlayEvent = player.State == Lavalink4NET.Players.PlayerState.NotPlaying;
+
+            var dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
+            var requestedBy = await db.GetOrCreateCachedUser(new Guild { Id = ctx.Guild.Id }, ctx.Member);
+
+            // Add all the tracks to the queue
+            var list = trackResults.Tracks.ToList();
+            var addingMessage = await ctx.RespondAsync($"Adding `0`/`{list.Count()}` tracks to playlist...");
+
+            // Create the queue 
+            var playlist = new GuildQueuePlaylist();
+            playlist.Title = trackResults.Playlist.Name;
+            playlist.CreatedById = requestedBy.Id;
+            playlist.PlaylistSongCount = list.Count();
+            db.GuildQueuePlaylists.Add(playlist);
+            await db.SaveChangesAsync();
+
+            // Loop the tracks
+            for (int x = 0; x < list.Count(); x++) {
+                var lt = list[x];
+                var trackIdx = await player.enqueueMusicTrack(lt, ctx.Channel, ctx.Member, playlist, (x == 0 && isPlayEvent));
+
+                // If we are the first track and join event then start playing it.
+                if (x == 0 && isPlayEvent) {
+                    dbGuild ??= await db.GetOrCreateDiscordGuild(ctx.Guild);
+                    dbGuild.CurrentTrack = trackIdx;
+                    await db.SaveChangesAsync();
+
+                    await player.PlayAsync(lt).ConfigureAwait(false);
+                    logger.LogInformation("Loading playlist, Playing first track.");
+                }
+
+                // Every 5 tracks update the index
+                if (x % 15 == 0) {
+                    // TODO: Check if the bot is finished on the queue, then make it continue playing on the next track
+                    await addingMessage.ModifyAsync($"Adding `{x}`/`{list.Count()}` tracks to playlist...");
+                }
+            }
+
+            await addingMessage.ModifyAsync($"Successfully added `{list.Count()}` tracks to playlist...");
+        }
 
         [Command("join")]
         [Description("Join the current voice channel and do nothing.")]
         [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
         public async Task JoinVoice(CommandContext ctx,
-                [Description("True values [yes, 1, true, resume, start]")]
-                string flag_str = "f"
+            [Description("True values [yes, 1, true, resume, start]")]
+            string flag_str = "f"
         ) {
             var flag_str_lwr = flag_str.ToLower();
-            bool flag = flag_str_lwr[0] == 'y' || flag_str_lwr[0] == '1' 
+            bool resumePlaylist = flag_str_lwr[0] == 'y' || flag_str_lwr[0] == '1'
                 || flag_str_lwr[0] == 't' || flag_str_lwr[0] == 'r'
                 || (flag_str_lwr[0] == 'o' && flag_str_lwr[1] == 'n');
 
             if (flag_str_lwr[0] == 's') {
                 if (flag_str_lwr == "stop")
-                    flag = false;
+                    resumePlaylist = false;
 
                 if (flag_str_lwr == "start")
-                    flag = true;
+                    resumePlaylist = true;
             }
 
-            logger.LogInformation(TLE.Misc, "Join voice: Continue = {continuePlaying}", flag);
-
-            var lava = ctx.Client.GetLavalink();
-            if (!lava.ConnectedNodes.Any()) {
-                // Attempt reconnection, if fails exit function.
-                if (false == await Music.AttemptReconnectionWithCommandContext(ctx))
-                    return;
-            }
+            logger.LogInformation(TLE.Misc, "Join voice: Continue = {continuePlaying}", resumePlaylist);
 
             var voiceState = ctx.Member?.VoiceState;
-            if (voiceState == null) {
+            if (voiceState == null || voiceState.Channel == null || ctx.Member == null) {
                 await ctx.RespondAsync("Not a valid voice channel.");
                 return;
             }
@@ -236,42 +260,48 @@ namespace CCTavern.Commands {
                 return;
             }
 
-            var channel = voiceState.Channel;
-            var conn = lava.GetGuildConnection(ctx.Member?.VoiceState.Guild);
-            var node = lava.ConnectedNodes.Values.First();
+            var voiceChannel = voiceState.Channel;
+            var playerResult = await GetPlayerAsync(ctx.Guild.Id, voiceChannel.Id, connectToVoiceChannel: false).ConfigureAwait(false);
 
-            if (channel.Type != ChannelType.Voice) {
-                await ctx.RespondAsync("Not a valid voice channel.");
+            // If we failed to get the music bot but the error was not BotNotConnected.
+            if (playerResult.Status != Lavalink4NET.Players.PlayerRetrieveStatus.BotNotConnected && playerResult.IsSuccess == false) {
+                await ctx.RespondAsync(GetPlayerErrorMessage(playerResult.Status));
                 return;
             }
 
-            if (conn == null) {
-                // Connect the bot
-                conn = await node.ConnectAsync(channel);
-                MusicBot.AnnounceJoin(channel);
-                await ctx.RespondAsync($"Joined <#{channel.Id}>!");
+            // If the music bot is already connected
+            else if (playerResult.Status != Lavalink4NET.Players.PlayerRetrieveStatus.BotNotConnected) {
+                await ctx.RespondAsync("Bot is already connected to a voice channel.");
+                return;
+            }
 
-                if (flag) {
-                    var db = new TavernContext();
-                    var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
-                    var nextTrack = await Music.getNextTrackForGuild(ctx.Guild);
+            // Connect the music bot 
+            playerResult = await GetPlayerAsync(ctx.Guild.Id, voiceChannel.Id, connectToVoiceChannel: true).ConfigureAwait(false);
+            if (playerResult.IsSuccess == false) {
+                await ctx.RespondAsync(GetPlayerErrorMessage(playerResult.Status));
+                return;
+            }
 
-                    if (nextTrack != null) {
-                        LavalinkTrack? track = await conn.Node.Rest.DecodeTrackAsync(nextTrack.TrackString);
-                        track.TrackString = nextTrack.TrackString;
+            await ctx.RespondAsync($"Joined <#{voiceChannel.Id}>!");
 
-                        if (track != null) {
-                            guild.CurrentTrack = nextTrack.Position;
-                            guild.NextTrack    = nextTrack.Position + 1;
-                            await db.SaveChangesAsync();
-                        }
+            if (resumePlaylist && playerResult.Player?.State == Lavalink4NET.Players.PlayerState.NotPlaying) {
+                var db = new TavernContext();
+                var dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
+                var nextTrack = await mbHelper.getNextTrackForGuild(ctx.Guild);
 
-                        await conn.PlayAsync(track);
+                if (nextTrack != null) {
+                    var track = LavalinkTrack.Parse(nextTrack.TrackString, provider: null);
+
+                    if (track != null) {
+                        dbGuild.CurrentTrack = nextTrack.Position;
+                        dbGuild.NextTrack    = nextTrack.Position + 1;
+                        await db.SaveChangesAsync();
+
+                        await playerResult.Player.PlayAsync(track).ConfigureAwait(false);
+                        return;
                     }
                 }
             }
-
-            await BotTimeoutHandler.Instance.UpdateMusicLastActivity(conn);
         }
     }
 }

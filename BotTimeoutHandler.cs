@@ -1,7 +1,7 @@
 ﻿using CCTavern.Database;
 using CCTavern.Logger;
 
-using DSharpPlus.Lavalink;
+using DSharpPlus;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -17,24 +17,19 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace CCTavern {
-    internal class BotTimeoutHandler {
+    public class BotTimeoutHandler {
 
         public TimeSpan TsTimeout = TimeSpan.FromMinutes(5);
-
-        private static BotTimeoutHandler _instance;
-        public static BotTimeoutHandler Instance { 
-            get {
-                if (_instance == null)
-                    _instance = new BotTimeoutHandler();
-                return _instance;
-            } 
-        }
 
         private static Dictionary<ulong, DateTime> lastActivityTracker = new();
         private CancellationTokenSource cancelToken;
         private ILogger<BotTimeoutHandler> logger;
+        private DiscordClient discordClient;
 
-        internal async Task UpdateMusicLastActivity(LavalinkGuildConnection conn) {
+        internal async Task UpdateMusicLastActivity(object conn) {
+            throw new NotImplementedException(); // TODO: Figure this out.
+
+            /*
             var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(conn.Guild);
 
@@ -49,13 +44,16 @@ namespace CCTavern {
             }
 
             logger.LogDebug(TLE.MBTimeout, "Guild {guildId}, Updated timeout!", guild.Id);
+            */
         }
 
-        public BotTimeoutHandler() {
+        public BotTimeoutHandler(DiscordClient discordClient, ILogger<BotTimeoutHandler> logger) {
             cancelToken = new CancellationTokenSource();
 
-            logger = Program.LoggerFactory.CreateLogger<BotTimeoutHandler>();
+            this.logger = logger;
             logger.LogInformation(TLE.MBTimeout, "Timeout handler starting.");
+
+            this.discordClient = discordClient;
 
             _ = PeriodicAsync(handleBotTimeouts, TimeSpan.FromMinutes(1), cancelToken.Token);
         }
@@ -65,13 +63,19 @@ namespace CCTavern {
         }
 
         private async Task handleBotTimeouts() {
+            throw new NotImplementedException(); // TODO: Implement
+        }
+        
+
+        /*
+        private async Task handleBotTimeouts() {
+            throw new NotImplementedException(); // TODO: Figure this out.
+
             logger.LogDebug(TLE.MBTimeout, "Timeout clearup starting...");
             var sw = new Stopwatch();
             sw.Start();
 
-            var db = new TavernContext();   
-            var client = Program.Client;
-
+            var db = new TavernContext();
             List<ulong> removals = new List<ulong>();
 
             for (int index = 0; index < lastActivityTracker.Count; index++) {
@@ -90,8 +94,8 @@ namespace CCTavern {
                     logger.LogInformation(TLE.MBTimeout, "Guild {guildId} has timedout, getting information...", guildId);
 
                     // Handle the timeout
-                    var guild = await client.GetGuildAsync(guildId);
-                    var con = client.GetLavalink().GetGuildConnection(guild);
+                    var guild = await discordClient.GetGuildAsync(guildId);
+                    var con = discordClient.GetLavalink().GetGuildConnection(guild);
 
                     // If we don't have a connection remove it from the dictionary
                     if (con == null) {
@@ -99,7 +103,7 @@ namespace CCTavern {
                         continue;
                     }
 
-                    var outputChannel = await MusicBot.GetMusicTextChannelFor(guild);
+                    var outputChannel = await MusicBotHelper.GetMusicTextChannelFor(discordClient, guild);
                     var voiceChannel  = con.Channel;
 
                     // Check if we still want the timeout, to avoid a timetime condition
@@ -111,11 +115,11 @@ namespace CCTavern {
                         logger.LogInformation(TLE.MBTimeout, "Guild {guildId} still timedout, disconnecting. ({timeout})", guildId, swTimeout.Elapsed.ToString("mm\\:ss\\.ff"));
 
                         if (outputChannel != null) {
-                            await client.SendMessageAsync(outputChannel, "Left the voice channel <#" + voiceChannel.Id + "> due to inactivity.");
-                            await MusicBot.DeletePastStatusMessage(dbGuild, outputChannel);
+                            await discordClient.SendMessageAsync(outputChannel, "Left the voice channel <#" + voiceChannel.Id + "> due to inactivity.");
+                            await MusicBotHelper.DeletePastStatusMessage(dbGuild, outputChannel);
                         }
 
-                        var lava = client.GetLavalink();
+                        var lava = discordClient.GetLavalink();
                         if (!lava.ConnectedNodes.Any()) {
                             removals.Add(timeout.Key);
                             continue;
@@ -129,7 +133,7 @@ namespace CCTavern {
                         }
 
                         await conn.DisconnectAsync();
-                        MusicBot.AnnounceLeave(voiceChannel);
+                        MusicBotHelper.AnnounceLeave(voiceChannel);
 
                         removals.Add(timeout.Key);
                     } else {
@@ -145,7 +149,7 @@ namespace CCTavern {
             sw.Stop();
             logger.LogDebug(TLE.MBTimeout, "Timeout clearup finished, clearup took ({sw})...", sw.Elapsed.ToString());
         }
-
+        //*/
 
         public static async Task PeriodicAsync(Func<Task> action, TimeSpan interval,
                 CancellationToken cancellationToken = default) {

@@ -6,14 +6,12 @@ using System.Linq;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
-
-using CCTavern;
 using CCTavern.Commands;
-using CCTavern.Commands.Test;
 using CCTavern.Database;
 using CCTavern.Logger;
-
+using CCTavern.Player;
 using Config.Net;
 
 using DSharpPlus;
@@ -23,45 +21,48 @@ using DSharpPlus.Interactivity;
 using DSharpPlus.Interactivity.Enums;
 using DSharpPlus.Interactivity.Extensions;
 
+using Lavalink4NET;
+using Lavalink4NET.Extensions;
+using Lavalink4NET.InactivityTracking.Extensions;
+using Lavalink4NET.InactivityTracking.Trackers.Idle;
+using Lavalink4NET.InactivityTracking.Trackers.Users;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using Microsoft.Identity.Client;
 
+using MySqlX.XDevAPI;
+
 using Org.BouncyCastle.Asn1.Pkcs;
+using Org.BouncyCastle.Asn1.X509.Qualified;
 
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace CCTavern
 {
-    // We're sealing it because nothing will be inheriting this class
-    public sealed class Program
-    {
+
+
+    public sealed class Program {
         public static string DotNetConfigurationMode { get => get_VarDotNetConfigurationMode(); }
-
-
-        internal static Logger.TavernLoggerFactory LoggerFactory { get; private set; } = new CCTavern.Logger.TavernLoggerFactory();
-        
         internal static ITavernSettings Settings { get; private set; }
 
-        public static Dictionary<ulong, IEnumerable<string>> ServerPrefixes = new Dictionary<ulong, IEnumerable<string>>();
-        private static IEnumerable<string> g_DefaultPrefixes;
-
-        private static ILogger logger;
+        internal static Logger.TavernLoggerFactory LoggerFactory { get; private set; } = new CCTavern.Logger.TavernLoggerFactory();
+        internal static Dictionary<ulong, IEnumerable<string>> ServerPrefixes = new Dictionary<ulong, IEnumerable<string>>();
+        internal static IEnumerable<string> g_DefaultPrefixes;
 
         public static string VERSION_Full { get; private set; }
         public static string VERSION_Git { get; private set; } = "??";
         public static string VERSION_Git_WithBuild { get; private set; } = "??";
 
-        internal static DiscordClient Client { get; private set; }
+        private static ILogger logger;
 
-        // Remember to make your main method async! You no longer need to have both a Main and MainAsync method in the same class.
-        public static async Task Main() 
-        {
+        public static async Task Main(string[] args) {
             await SetupEnvironment();
 
-            // For the sake of examples, we're going to load our Discord token from an environment variable.
+            // Verify the discord token
             if (string.IsNullOrWhiteSpace(Settings.DiscordToken)) {
                 Console.WriteLine("Please specify a token in the DISCORD_TOKEN environment variable.");
                 Environment.Exit(1);
@@ -77,69 +78,49 @@ namespace CCTavern
                 Token = Settings.DiscordToken,
                 TokenType = TokenType.Bot,
 
-                Intents = DiscordIntents.AllUnprivileged | DiscordIntents.MessageContents 
+                Intents = DiscordIntents.AllUnprivileged | DiscordIntents.MessageContents
                     | DiscordIntents.GuildVoiceStates | DiscordIntents.DirectMessageReactions
             };
 
-            Client = new(config);
+            var builder = new HostApplicationBuilder(args);
+            builder.Services.AddSingleton<ILoggerFactory>(LoggerFactory);
 
-            Client.UseInteractivity(new InteractivityConfiguration() {
-                PollBehaviour = PollBehaviour.KeepEmojis,
-                Timeout = TimeSpan.FromSeconds(30)
+            builder.Services.AddSingleton<ITavernSettings>(Settings);
+            builder.Services.AddSingleton<DiscordConfiguration>(config);
+            builder.Services.AddSingleton<DiscordClient>();
+            builder.Services.AddSingleton<MusicBotHelper>();
+            builder.Services.AddSingleton<BotTimeoutHandler>();
+
+            builder.Services.AddLavalink();
+            builder.Services.ConfigureLavalink(config => {
+                config.BaseAddress = new Uri($"http://{Settings.Lavalink.Hostname}:{Settings.Lavalink.Port}");
+                config.Passphrase = Settings.Lavalink.Password;
+
+                config.ReadyTimeout = TimeSpan.FromSeconds(10);
+                config.ResumptionOptions = new LavalinkSessionResumptionOptions(TimeSpan.FromSeconds(60));
             });
 
-            // We can specify a status for our bot. Let's set it to "online" and set the activity to "with fire".
-            DiscordActivity status = new("Loading :)", ActivityType.Playing);
-
-            // Now we connect and log in.
-            await Client.ConnectAsync(status, UserStatus.DoNotDisturb);
-
-            MusicBot music = new MusicBot(Client);
-
-            var services = new ServiceCollection();
-            services.AddSingleton(music);
-
-            var commands = Client.UseCommandsNext(new CommandsNextConfiguration() {
-                CaseSensitive = Settings.PrefixesCaseSensitive,
-                PrefixResolver = DiscordPrefixResolver,
-                EnableMentionPrefix = true,
-                DmHelp = false,
-                Services = services.BuildServiceProvider()
+            builder.Services.Configure<IdleInactivityTrackerOptions>(config => {
+                config.Timeout = TimeSpan.FromSeconds(10);
             });
 
-            logger.LogInformation(TLE.Startup, "Registering commands");
+            builder.Services.Configure<UsersInactivityTrackerOptions>(config => {
+                config.Timeout = TimeSpan.FromSeconds(10);
+            });
 
-#if (ARCHIVAL_MODE)
-            // Archival import mode
-            commands.RegisterCommands<ArchiveImportModule>();
-            commands.RegisterCommands<BotCommandsModule>();
-            commands.RegisterCommands<MusicQueueModule>();
-#else
-            commands.RegisterCommands<MusicCommandModule>();
-            commands.RegisterCommands<MusicPlayModule>();
-            commands.RegisterCommands<GuildSettingsModule>();
-            commands.RegisterCommands<BotCommandsModule>();
-            commands.RegisterCommands<MusicQueueModule>();
-#endif
+            builder.Services.ConfigureInactivityTracking(options => {
+                options.DefaultTimeout = TimeSpan.FromSeconds(30);
+                options.DefaultPollInterval = TimeSpan.FromSeconds(5);
+            });
 
-            // Setup the lavalink connection
-            await music.SetupLavalink();
+            builder.Services.AddHostedService<ApplicationHost>();
 
-            //await connectionDebug();
+            // Logging
+            builder.Services.AddLogging(s => s.AddConsole().SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Trace));
 
-            var date = DateTime.Now;
-            var datefmt = $"({date:dd/MM/yyyy HH:mm:ss})";
-
-            status = new("Ready (" + datefmt + ")", ActivityType.Playing);
-            await Client.UpdateStatusAsync(status, UserStatus.Online);
-
-            // _ = YoutubeHelper.Instance; // Load the Youtube Service.
-
-            logger.LogInformation(TLE.Startup, "Ready :)");
-
-            // And now we wait infinitely so that our bot actually stays connected.
-            await Task.Delay(-1);
+            builder.Build().Run();
         }
+
 
         public static async Task SetupEnvironment(bool exitOnError = true) {
             loadVersionString();
@@ -160,53 +141,31 @@ namespace CCTavern
             await setupDatabase();
         }
 
-        private static async Task connectionDebug() {
+        private static async Task setupDatabase() {
+            logger.LogInformation(LoggerEvents.Startup, "Setting up database");
 
-            var dbgSettings = Settings.ConnectionDebugging;
-            if (dbgSettings == null 
-                || dbgSettings?.DiscordChannelId == null 
-                || dbgSettings?.DiscordThreadId == null 
-                || dbgSettings?.DiscordMessageId == null)
-                return;
-            
+            var ctx = new TavernContext();
 
-            var channel = await Client.GetChannelAsync(dbgSettings.DiscordChannelId.Value);
-            try {
-                if (channel.Threads == null) {
-                    logger.LogInformation(TLE.Startup, "Couldn't find debug thread. (channel.Threads == null)");
-                    return;
-                }
-            } catch {
-                logger.LogInformation(TLE.Startup, "Couldn't find debug thread. (exception on channel.Threads == null)");
-                return;
-            }
-            
-
-            var threads = channel.Threads.ToArray();
-            await Task.Delay(300);
-            var threadQuery = channel.Threads.Where(x => x.Id == Settings.ConnectionDebugging?.DiscordThreadId);
-            if (threadQuery.Any() == false || threadQuery.First() == null) {
-                logger.LogInformation(TLE.Startup, "Couldn't find debug thread.");
-                return;
+            var migrations = await ctx.Database.GetPendingMigrationsAsync();
+            if (migrations.Any()) {
+                logger.LogInformation(LoggerEvents.Startup, "Migrations required: " + string.Join(", ", migrations) + ".");
+                await ctx.Database.MigrateAsync();
+                await ctx.SaveChangesAsync();
             }
 
-            var thread = threadQuery.First();
+            ctx = new TavernContext();
+            await ctx.Database.EnsureCreatedAsync();
 
-            DiscordMessage? msg = null;
-            try { msg = await thread.GetMessageAsync(dbgSettings.DiscordMessageId.Value, false); } catch { }
-            
-            if (msg == null) {
-                logger.LogInformation(TLE.Startup, "Couldn't find debug message in thread.");
-                return;
-            }
+            // Load the server prefixes
+            var prefixes = ctx.Guilds.Select(x => new { GuildId = x.Id, x.Prefixes }).ToList();
 
-            try {
-                var date = DateTime.Now;
-                var datefmt = $"`{date:dd/MM/yyyy HH:mm:ss}` ({Formatter.Timestamp(date, TimestampFormat.RelativeTime)})";
-                await msg.ModifyAsync("CCTavern started at " + datefmt);
-                logger.LogInformation(TLE.Startup, "Couldn't find debug message in thread.");
-            } catch (Exception ex) {
-                logger.LogError(TLE.Startup, ex, "Failed to update startup message in discord thread.");
+            foreach (var pfx in prefixes) {
+                // Check if the prefix is not entered or is invalid.
+                if (pfx.Prefixes == null || string.IsNullOrWhiteSpace(pfx.Prefixes))
+                    continue;
+
+                var list = pfx.Prefixes.SplitWithTrim(Constants.PREFIX_SEPERATOR, '\\', true).ToList();
+                ServerPrefixes.Add(pfx.GuildId, list);
             }
         }
 
@@ -233,79 +192,6 @@ namespace CCTavern
 #endif
 
             VERSION_Git_WithBuild = gitHash;
-        }
-
-#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-        private static async Task<int> DiscordPrefixResolver(DiscordMessage msg) {
-            //var c = msg.Content; var trimmed = c.Length > 4 ? c.Substring(0, 4) : c;
-            //logger.LogInformation(TLE.CmdDbg, $"Discord Prefix Resolver, {msg.Author.Username} : {trimmed}");
-
-#if (ARCHIVAL_MODE)
-            const string archivalPrefix = "ccArchive?";
-            int mpos = msg.GetStringPrefixLength(archivalPrefix, StringComparison.OrdinalIgnoreCase);
-            return mpos;
-#else
-            const string debugPrefix = "cc?";
-            int mpos = msg.GetStringPrefixLength(debugPrefix, StringComparison.OrdinalIgnoreCase);
-#endif
-
-#if (DEBUG && !ARCHIVAL_MODE)
-            // Get the prefix here, dont forget to have a default one.
-            return mpos;// Task.FromResult(mpos);
-
-#elif (ARCHIVAL_MODE == false)
-            // If we are using the debugging prefix then we want to ignore this message in prod.
-            if (mpos != -1) 
-                return -1;
-
-            // If direct message
-            if (msg.Channel.IsPrivate) 
-                return 0;
-
-            var guildId = msg.Channel.Guild.Id;
-            IEnumerable<string> prefixes = ServerPrefixes.ContainsKey(guildId)
-                ? ServerPrefixes[guildId] : g_DefaultPrefixes;
-
-            foreach (var pfix in prefixes) {
-                if (mpos == -1 && !string.IsNullOrWhiteSpace(pfix)) {
-                    mpos = msg.GetStringPrefixLength(pfix, Settings.PrefixesCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase);
-
-                    if (mpos != -1)
-                        break;
-                }
-            }
-
-            return mpos;
-#endif
-        }
-#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
-
-        private static async Task setupDatabase() {
-            logger.LogInformation(LoggerEvents.Startup, "Setting up database");
-
-            var ctx = new TavernContext();
-
-            var migrations = await ctx.Database.GetPendingMigrationsAsync();
-            if (migrations.Any()) {
-                logger.LogInformation(LoggerEvents.Startup, "Migrations required: " + string.Join(", ", migrations) + ".");
-                await ctx.Database.MigrateAsync();
-                await ctx.SaveChangesAsync();
-            }
-
-            ctx = new TavernContext();
-            await ctx.Database.EnsureCreatedAsync();
-
-            // Load the server prefixes
-            var prefixes = ctx.Guilds.Select(x => new { GuildId = x.Id, x.Prefixes }).ToList();
-
-            foreach (var pfx in prefixes) {
-                // Check if the prefix is not entered or is invalid.
-                if (pfx.Prefixes == null || string.IsNullOrWhiteSpace(pfx.Prefixes)) 
-                    continue;
-
-                var list = pfx.Prefixes.SplitWithTrim(Constants.PREFIX_SEPERATOR, '\\', true).ToList();
-                ServerPrefixes.Add(pfx.GuildId, list);
-            }
         }
 
         public static void ReloadSettings() {
@@ -335,7 +221,7 @@ namespace CCTavern
                 jsonFile = Path.Join(Directory.GetCurrentDirectory(), folder, "Configuration.json");
             }
 
-            Console.WriteLine("Configuration File: " + jsonFile);
+            logger.LogInformation("Configuration File: " + jsonFile);
 
             // Load our settings
             Settings = new ConfigurationBuilder<ITavernSettings>()
@@ -349,8 +235,6 @@ namespace CCTavern
         private static string get_VarDotNetConfigurationMode() {
             if (string.IsNullOrWhiteSpace(_dnMode) == false)
                 return _dnMode;
-
-
 
 #if (DEBUG && ARCHIVAL_MODE)
             // Archival_Debug
