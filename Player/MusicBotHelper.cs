@@ -15,20 +15,26 @@ using DSharpPlus.CommandsNext;
 using System.Runtime.CompilerServices;
 using Lavalink4NET.Tracks;
 using System.Threading;
+using Lavalink4NET.Events.Players;
+using Lavalink4NET.Players;
+using Lavalink4NET;
+using Microsoft.Extensions.Options;
+using System.Reflection;
 
 namespace CCTavern.Player
 {
     public class MusicBotHelper
     {
+        private readonly IAudioService audioService;
         private readonly ILogger<MusicBotHelper> logger;
         private readonly DiscordClient discordClient;
 
         internal Dictionary<ulong, GuildState> GuildStates { get; set; } = new Dictionary<ulong, GuildState>();
         internal Dictionary<ulong, TemporaryQueue> TemporaryTracks { get; set; } = new Dictionary<ulong, TemporaryQueue>();
 
-
-        public MusicBotHelper(DiscordClient client, ILogger<MusicBotHelper> logger)
+        public MusicBotHelper(IAudioService audioService, DiscordClient client, ILogger<MusicBotHelper> logger)
         {
+            this.audioService = audioService;
             this.logger = logger;
             discordClient = client;
         }
@@ -126,6 +132,20 @@ namespace CCTavern.Player
             return false;
         }
 
+        //
+        // Summary:
+        //     Asynchronously retrieves the next track for a specific Discord guild.
+        //
+        // Parameters:
+        //   discordGuild:
+        //     The Discord guild for which to retrieve the next track.
+        //
+        //   targetTrackId:
+        //     (Optional) The position index of the track to retrieve
+        //
+        // Returns:
+        //     The next available queue item or null if there is none to be found.
+        //
         public async Task<GuildQueueItem?> getNextTrackForGuild(DiscordGuild discordGuild, ulong? targetTrackId = null) {
             var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(discordGuild);
@@ -133,7 +153,8 @@ namespace CCTavern.Player
             if (GuildStates.ContainsKey(discordGuild.Id)) {
                 var guildState = GuildStates[discordGuild.Id];
 
-                if (guildState != null && guildState.ShuffleEnabled) {
+                // Check if we are shuffling and there is no target track specified.
+                if (guildState != null && targetTrackId != null && guildState.ShuffleEnabled) {
                     var guildQueueQuery = db.GuildQueueItems
                         .Where(x => x.GuildId == guild.Id && x.IsDeleted == false)
                         .OrderByDescending(x => x.Position);
@@ -144,13 +165,16 @@ namespace CCTavern.Player
                         var largestTrackNumber = await guildQueueQuery.Select(x => x.Position).FirstOrDefaultAsync();
                         targetTrackId = Convert.ToUInt64(rnd.ULongNext(0, largestTrackNumber));
                     } else {
-                        if (guildState != null) guildState.ShuffleEnabled = false;
+                        if (guildState != null) 
+                            guildState.ShuffleEnabled = false;
                     }
                 }
             }
 
+            // Set the next target track if not specified
             targetTrackId ??= guild.NextTrack;
 
+            // Get the track from the database
             var query = db.GuildQueueItems
                 .Include(x => x.RequestedBy)
                 .Where(
@@ -158,6 +182,7 @@ namespace CCTavern.Player
                       && x.Position >= targetTrackId
                       && x.IsDeleted == false);
 
+            // Return the track or null.
             if (query.Any() == false)
                 return null;
 
@@ -249,10 +274,79 @@ namespace CCTavern.Player
 
             return trackPosition;
         }
+
+        static ValueTask<TavernPlayer> CreatePlayerAsync(IPlayerProperties<TavernPlayer, TavernPlayerOptions> properties, CancellationToken cancellationToken = default) {
+            cancellationToken.ThrowIfCancellationRequested();
+            ArgumentNullException.ThrowIfNull(properties);
+
+            var player = new TavernPlayer(properties);
+            return ValueTask.FromResult(player);
+        }
+
+        public async ValueTask<(PlayerResult<TavernPlayer>, bool isPlayerConnected)> GetPlayerAsync(ulong guildId, ulong? voiceChannelId = null, bool connectToVoiceChannel = true) {
+            var channelBehavior = connectToVoiceChannel
+                ? PlayerChannelBehavior.Join
+            : PlayerChannelBehavior.None;
+
+            var retrieveOptions = new PlayerRetrieveOptions(ChannelBehavior: channelBehavior);
+
+            var result = await audioService.Players
+                .RetrieveAsync<TavernPlayer, TavernPlayerOptions>(
+                    guildId: guildId,
+                    memberVoiceChannel: voiceChannelId,
+                    playerFactory: CreatePlayerAsync,
+                    options: Options.Create(new TavernPlayerOptions() {
+                        VoiceChannelId = voiceChannelId
+                    }),
+                    retrieveOptions: retrieveOptions
+                )
+                .ConfigureAwait(false);
+
+            if (!result.IsSuccess) {
+                return (result, false);
+            }
+
+            if (result.Player != null && connectToVoiceChannel) {
+                if (voiceChannelId != null)
+                    AnnounceJoin(guildId, voiceChannelId.Value);
+
+                var playerManager = audioService.Players;
+                var pmType = playerManager.GetType();
+
+                var eventInfo = pmType.GetEvent("PlayerStateChanged", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                var eventDelegate = pmType.GetField("PlayerStateChanged", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(playerManager) as MulticastDelegate;
+                if (eventDelegate != null) {
+                    var eventArgs = new PlayerStateChangedEventArgs(result.Player, PlayerState.NotPlaying);
+
+                    foreach (var handler in eventDelegate.GetInvocationList()) {
+                        var task = handler.Method.Invoke(handler.Target, [playerManager, eventArgs]) as Task;
+
+                        if (task != null)
+                            await task.ConfigureAwait(false);
+                    }
+                }
+            }
+
+            return (result, result.IsSuccess && result.Player != null && result.Player.ConnectionState.IsConnected
+                && result.Player.State != PlayerState.Destroyed);
+        }
+
+        public string GetPlayerErrorMessage(PlayerRetrieveStatus status) {
+            var errorMessage = status switch {
+                PlayerRetrieveStatus.Success => "Success",
+                PlayerRetrieveStatus.UserNotInVoiceChannel => "You are not connected to a voice channel.",
+                PlayerRetrieveStatus.VoiceChannelMismatch => "You are not in the same channel as the Music Bot!",
+                PlayerRetrieveStatus.UserInSameVoiceChannel => "Same voice channel?",
+                PlayerRetrieveStatus.BotNotConnected => "The bot is currently not connected.",
+                PlayerRetrieveStatus.PreconditionFailed => "A unknown error happened: Precondition Failed.",
+                _ => "A unknown error happened"
+            };
+
+            return errorMessage;
+        }
     }
 
     /*
-
     public class MusicBot {
         private readonly DiscordClient client;
         private readonly ILogger logger;
