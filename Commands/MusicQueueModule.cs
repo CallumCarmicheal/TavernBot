@@ -21,15 +21,14 @@ using System.Threading.Tasks;
 
 namespace CCTavern.Commands
 {
-    internal class MusicQueueModule : BaseCommandModule {
+    internal class MusicQueueModule : BaseAudioCommandModule {
         private readonly ILogger<MusicQueueModule> logger;
-        private readonly MusicBotHelper mbHelpers;
 
         const int ITEMS_PER_PAGE = 10;
 
-        public MusicQueueModule(MusicBotHelper mbHelpers, ILogger<MusicQueueModule> logger) {
+        public MusicQueueModule(MusicBotHelper mbHelper, IAudioService audioService, ILogger<MusicQueueModule> logger) 
+                : base(audioService, mbHelper) {
             this.logger = logger;
-            this.mbHelpers = mbHelpers;
         }
 
         [Command("shuffle"), Aliases("sh")]
@@ -49,12 +48,12 @@ namespace CCTavern.Commands
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
             if (string.IsNullOrWhiteSpace(flag_str_lwr) || flag_str_lwr[0] == '?') {
-                if (mbHelpers.GuildStates.ContainsKey(guild.Id) == false) {
+                if (mbHelper.GuildStates.ContainsKey(guild.Id) == false) {
                     await ctx.RespondAsync("Shuffle disabled.");
                     return;
                 }
 
-                await ctx.RespondAsync(mbHelpers.GuildStates[guild.Id].ShuffleEnabled ? "Shuffle enabled." : "Shuffle disabled.");
+                await ctx.RespondAsync(mbHelper.GuildStates[guild.Id].ShuffleEnabled ? "Shuffle enabled." : "Shuffle disabled.");
                 return;
             }
 
@@ -66,17 +65,17 @@ namespace CCTavern.Commands
                 return;
             }
 
-            if (mbHelpers.GuildStates.ContainsKey(guild.Id) == false) 
-                mbHelpers.GuildStates[guild.Id] = new GuildState(guild.Id);
+            if (mbHelper.GuildStates.ContainsKey(guild.Id) == false) 
+                mbHelper.GuildStates[guild.Id] = new GuildState(guild.Id);
 
             // Check if the flag is empty then we are to toggle.
             if (string.IsNullOrWhiteSpace(flag_str)) {
-                mbHelpers.GuildStates[guild.Id].ShuffleEnabled = !mbHelpers.GuildStates[guild.Id].ShuffleEnabled;
+                mbHelper.GuildStates[guild.Id].ShuffleEnabled = !mbHelper.GuildStates[guild.Id].ShuffleEnabled;
             } else {
-                mbHelpers.GuildStates[guild.Id].ShuffleEnabled = flag;
+                mbHelper.GuildStates[guild.Id].ShuffleEnabled = flag;
             }
             
-            await ctx.RespondAsync(mbHelpers.GuildStates[guild.Id].ShuffleEnabled ? "Shuffle enabled." : "Shuffle disabled.");
+            await ctx.RespondAsync(mbHelper.GuildStates[guild.Id].ShuffleEnabled ? "Shuffle enabled." : "Shuffle disabled.");
         }
 
         [Command("queue"), Aliases("q")]
@@ -94,7 +93,7 @@ namespace CCTavern.Commands
             string queueContent = "";
 
             // Check if the current guild has temporary music
-            if (mbHelpers.TemporaryTracks.ContainsKey(ctx.Guild.Id))
+            if (mbHelper.TemporaryTracks.ContainsKey(ctx.Guild.Id))
                 queueContent += "*** Temporary queue exists, pleasue use \"queuetemp\" to view temporary queue.";
 
             // Get the guild
@@ -316,25 +315,20 @@ namespace CCTavern.Commands
                 return;
             }
 
-            //var lava = ctx.Client.GetLavalink();
-            //if (!lava.ConnectedNodes.Any()) return;
-            //
-            //var conn = lava.GetGuildConnection(ctx.Member?.VoiceState.Guild);
-            //if (conn == null) {
-            //    await ctx.RespondAsync("Music bot is not currently in voice channel.");
-            //    return;
-            //}
-            // TODO: Test if the music bot is connected
-            throw new NotImplementedException(); // TODO: Implement
+            (var playerQuery, var isPlayerConnected) = await GetPlayerAsync(ctx.Guild.Id, ctx.Member?.VoiceState.Channel.Id, connectToVoiceChannel: false);
+            if (isPlayerConnected == false || playerQuery.Player == null) {
+                await ctx.RespondAsync("Music bot is not connected.");
+                return;
+            }
 
             // Get the guild
             var db = new TavernContext();
             var dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
             GuildState guildState;
 
-            if (mbHelpers.GuildStates.ContainsKey(dbGuild.Id) == false)
-                 mbHelpers.GuildStates.Add(dbGuild.Id, guildState = new GuildState(dbGuild.Id));
-            else guildState = mbHelpers.GuildStates[dbGuild.Id];
+            if (mbHelper.GuildStates.ContainsKey(dbGuild.Id) == false)
+                 mbHelper.GuildStates.Add(dbGuild.Id, guildState = new GuildState(dbGuild.Id));
+            else guildState = mbHelper.GuildStates[dbGuild.Id];
 
             // Check if the flag is empty then we are to toggle.
             if (string.IsNullOrWhiteSpace(flag_str)) {

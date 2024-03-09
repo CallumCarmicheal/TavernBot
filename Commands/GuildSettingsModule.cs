@@ -1,5 +1,6 @@
 ﻿using CCTavern.Database;
 using CCTavern.Logger;
+using CCTavern.Player;
 
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
@@ -20,7 +21,8 @@ namespace CCTavern.Commands {
     internal class GuildSettingsModule : BaseAudioCommandModule {
         private readonly ILogger<MusicCommandModule> logger;
 
-        public GuildSettingsModule(ILogger<MusicCommandModule> logger, IAudioService audioService) : base(audioService) {
+        public GuildSettingsModule(ILogger<MusicCommandModule> logger, IAudioService audioService, MusicBotHelper mbHelper) 
+                : base(audioService, mbHelper) {
             this.logger = logger;
         }
 

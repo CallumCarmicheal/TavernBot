@@ -29,11 +29,10 @@ using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 namespace CCTavern.Commands
 {
     internal class MusicCommandModule : BaseAudioCommandModule {
-        private readonly MusicBotHelper mbHelper;
         private readonly ILogger<MusicCommandModule> logger;
         
-        public MusicCommandModule(MusicBotHelper bot, ILogger<MusicCommandModule> logger, IAudioService audioService) : base(audioService) {
-            this.mbHelper = bot;
+        public MusicCommandModule(MusicBotHelper mbHelper, ILogger<MusicCommandModule> logger, IAudioService audioService) 
+                : base(audioService, mbHelper) {
             this.logger = logger;
         }
 

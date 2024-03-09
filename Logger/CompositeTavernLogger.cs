@@ -30,7 +30,12 @@ namespace CCTavern.Logger {
                 logger.Log(logLevel, eventId, state, exception, formatter);
         }
 
-        public IDisposable BeginScope<TState>(TState state) => null; //throw new NotImplementedException();
+        public IDisposable BeginScope<TState>(TState state) 
+            => new DisposableStim();
+
+        private class DisposableStim : IDisposable {
+            public void Dispose() {  }
+        }
     }
 }
 

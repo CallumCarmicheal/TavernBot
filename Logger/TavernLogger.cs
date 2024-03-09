@@ -96,7 +96,12 @@ namespace CCTavern.Logger {
             => logLevel >= this.MinimumLevel;
 
 #pragma warning disable CS8633 // Nullability in constraints for type parameter doesn't match the constraints for type parameter in implicitly implemented interface method'.
-        public IDisposable BeginScope<TState>(TState state) => null; //throw new NotImplementedException();
+        public IDisposable BeginScope<TState>(TState state)
+            => new DisposableStim(); //throw new NotImplementedException();
+
+        private class DisposableStim : IDisposable {
+            public void Dispose() { }
+        } 
 #pragma warning restore CS8633 // Nullability in constraints for type parameter doesn't match the constraints for type parameter in implicitly implemented interface method'.
     }
 }

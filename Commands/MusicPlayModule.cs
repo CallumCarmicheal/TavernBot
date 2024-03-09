@@ -27,11 +27,9 @@ namespace CCTavern.Commands {
 
     internal class MusicPlayModule : BaseAudioCommandModule {
         private readonly ILogger<MusicPlayModule> logger;
-        private readonly MusicBotHelper mbHelper;
 
         public MusicPlayModule(MusicBotHelper mbHelper, ILogger<MusicPlayModule> logger
-                , IAudioService audioService) : base(audioService) {
-            this.mbHelper = mbHelper;
+                , IAudioService audioService) : base(audioService, mbHelper) {
             this.logger = logger;
         }
 
