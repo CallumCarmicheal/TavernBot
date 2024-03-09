@@ -90,7 +90,6 @@ namespace CCTavern
             builder.Services.AddSingleton<DiscordConfiguration>(config);
             builder.Services.AddSingleton<DiscordClient>();
             builder.Services.AddSingleton<MusicBotHelper>();
-            builder.Services.AddSingleton<BotTimeoutHandler>();
 
             builder.Services.AddLavalink();
             builder.Services.ConfigureLavalink(config => {

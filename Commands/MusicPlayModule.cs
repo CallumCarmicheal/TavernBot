@@ -40,12 +40,10 @@ namespace CCTavern.Commands {
     internal class MusicPlayModule : BaseAudioCommandModule {
         private readonly ILogger<MusicPlayModule> logger;
         private readonly MusicBotHelper mbHelper;
-        private readonly BotTimeoutHandler botTimeoutHandler;
 
-        public MusicPlayModule(MusicBotHelper mbHelper, BotTimeoutHandler botTimeoutHandler, ILogger<MusicPlayModule> logger
+        public MusicPlayModule(MusicBotHelper mbHelper, ILogger<MusicPlayModule> logger
                 , IAudioService audioService) : base(audioService) {
             this.mbHelper = mbHelper;
-            this.botTimeoutHandler = botTimeoutHandler;
             this.logger = logger;
         }
 
