@@ -99,16 +99,20 @@ namespace CCTavern
                 config.ReadyTimeout = TimeSpan.FromSeconds(10);
                 config.ResumptionOptions = new LavalinkSessionResumptionOptions(TimeSpan.FromSeconds(60));
             });
+
             builder.Services.Configure<IdleInactivityTrackerOptions>(config => {
                 config.Timeout = TimeSpan.FromMinutes(5);
             });
+
             builder.Services.Configure<UsersInactivityTrackerOptions>(config => {
                 config.Timeout = TimeSpan.FromMinutes(5);
             });
+
             builder.Services.ConfigureInactivityTracking(options => {
                 options.DefaultTimeout      = TimeSpan.FromMinutes(5);
                 options.DefaultPollInterval = TimeSpan.FromSeconds(5);
             });
+
             builder.Services.AddInactivityTracking();
 
             builder.Services.AddHostedService<ApplicationHost>();

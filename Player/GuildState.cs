@@ -6,10 +6,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using static CCTavern.YoutubeChaptersParser;
+using static CCTavern.Player.YoutubeChaptersParser;
 
-namespace CCTavern {
-    internal class GuildState {
+namespace CCTavern.Player
+{
+    internal class GuildState
+    {
 
         public ulong GuildId { get; set; }
 
@@ -24,12 +26,14 @@ namespace CCTavern {
         public SortedList<TimeSpan, IVideoChapter>? TrackChapters { get; set; }
 
 
-        public GuildState(ulong guildId) {
-            this.GuildId = guildId;
+        public GuildState(ulong guildId)
+        {
+            GuildId = guildId;
         }
     }
 
-    internal class MusicEmbedState {
+    internal class MusicEmbedState
+    {
         //public ulong MessageId { get; set; } 
 
         public DiscordEmbedBuilder Embed { get; set; }
