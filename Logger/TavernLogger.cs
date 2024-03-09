@@ -10,6 +10,8 @@ using CCTavern;
 namespace CCTavern.Logger {
     public class TavernLogger : ILogger<Program> {
         private static readonly object _lock = new();
+        private const int CATEGORY_MAX_LENGTH = 12;
+
 
         private string CategoryName { get; }
         private LogLevel MinimumLevel { get; }
@@ -36,9 +38,9 @@ namespace CCTavern.Logger {
 
             lock (_lock) {
                 var ename = eventId.Name;
-                ename = ename?.Length > 12 ? ename?.Substring(0, 12) : ename;
+                ename = ename?.Length > CATEGORY_MAX_LENGTH ? ename?.Substring(0, CATEGORY_MAX_LENGTH) : ename;
 
-                Console.Write($"[{DateTimeOffset.Now.ToString(this.TimestampFormat)}] [{eventId.Id,-4}/{ename,-12}] ");
+                Console.Write($"[{DateTimeOffset.Now.ToString(this.TimestampFormat)}] [{eventId.Id,-4}/{ename,-CATEGORY_MAX_LENGTH}] ");
 
                 switch (logLevel) {
                     case LogLevel.Trace:

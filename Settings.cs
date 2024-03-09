@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 
 namespace CCTavern {
     public interface ITavernSettings {
+        [Option(Alias = "logLevel", DefaultValue = Microsoft.Extensions.Logging.LogLevel.Information)]
+        public Microsoft.Extensions.Logging.LogLevel LogLevel { get; }
 
         [Option(Alias = "defaultPrefixes", DefaultValue = "!!")]
         public string DefaultPrefixes { get; }

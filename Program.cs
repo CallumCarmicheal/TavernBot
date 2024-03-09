@@ -24,6 +24,7 @@ using DSharpPlus.Interactivity.Extensions;
 using Lavalink4NET;
 using Lavalink4NET.Extensions;
 using Lavalink4NET.InactivityTracking.Extensions;
+using Lavalink4NET.InactivityTracking.Trackers;
 using Lavalink4NET.InactivityTracking.Trackers.Idle;
 using Lavalink4NET.InactivityTracking.Trackers.Users;
 
@@ -99,19 +100,17 @@ namespace CCTavern
                 config.ReadyTimeout = TimeSpan.FromSeconds(10);
                 config.ResumptionOptions = new LavalinkSessionResumptionOptions(TimeSpan.FromSeconds(60));
             });
-
             builder.Services.Configure<IdleInactivityTrackerOptions>(config => {
                 config.Timeout = TimeSpan.FromSeconds(10);
             });
-
             builder.Services.Configure<UsersInactivityTrackerOptions>(config => {
                 config.Timeout = TimeSpan.FromSeconds(10);
             });
-
             builder.Services.ConfigureInactivityTracking(options => {
-                options.DefaultTimeout = TimeSpan.FromSeconds(30);
+                options.DefaultTimeout      = TimeSpan.FromSeconds(30);
                 options.DefaultPollInterval = TimeSpan.FromSeconds(5);
             });
+            builder.Services.AddInactivityTracking();
 
             builder.Services.AddHostedService<ApplicationHost>();
 
@@ -124,9 +123,10 @@ namespace CCTavern
 
         public static async Task SetupEnvironment(bool exitOnError = true) {
             loadVersionString();
+            ReloadSettings();
 
             LoggerFactory = new CCTavern.Logger.TavernLoggerFactory();
-            LoggerFactory.AddProvider(new CCTavern.Logger.TavernLoggerProvider());
+            LoggerFactory.AddProvider(new CCTavern.Logger.TavernLoggerProvider( Settings?.LogLevel ?? Microsoft.Extensions.Logging.LogLevel.Information ));
 
             logger = LoggerFactory.CreateLogger<Program>();
             logger.LogInformation(TLE.Startup, "Application starting, Version = {version}", VERSION_Full);
@@ -134,8 +134,6 @@ namespace CCTavern
 #if (ARCHIVAL_MODE)
             logger.LogInformation("!!! ARCHIVE MODE ONLY !!!");
 #endif
-
-            ReloadSettings();
 
             // Setup database and load defaults
             await setupDatabase();
@@ -221,7 +219,11 @@ namespace CCTavern
                 jsonFile = Path.Join(Directory.GetCurrentDirectory(), folder, "Configuration.json");
             }
 
-            logger.LogInformation("Configuration File: " + jsonFile);
+            if (logger == null) {
+                logger?.LogInformation("Loading/Reloading configuration file: {file}", jsonFile);
+            } else {
+                Console.WriteLine("Loading/Reloading configuration file: " + jsonFile);
+            }
 
             // Load our settings
             Settings = new ConfigurationBuilder<ITavernSettings>()

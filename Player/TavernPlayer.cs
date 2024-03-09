@@ -48,6 +48,12 @@ namespace CCTavern.Player
 
             _cancellationTokenSource = new CancellationTokenSource();
             _timer = new Timer(ProgressBarTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
+
+            logger.LogDebug("TavernPlayer <<<<<<<<< Constructor");
+        }
+
+        ~TavernPlayer() {
+            logger.LogDebug("TavernPlayer <<<<<<<<< Destructor");
         }
 
         public void Dispose() {
@@ -56,6 +62,8 @@ namespace CCTavern.Player
             _timer.Dispose();
 
             mbHelper.AnnounceLeave(GuildId);
+
+            logger.LogDebug("TavernPlayer <<<<<<<<< Disposed");
         }
 
         public void StartProgressTimer(TimeSpan? interval = null) {
@@ -465,14 +473,20 @@ namespace CCTavern.Player
         #region Tracking
 
         public async ValueTask NotifyPlayerActiveAsync(PlayerTrackingState trackingState, CancellationToken cancellationToken = default) {
+            logger.LogInformation(TLE.MBTimeout, "<================== NotifyPlayerActiveAsync @ {trackingState}", trackingState);
+
             // This method is called when the player was previously inactive and is now active again.
             // For example: All users in the voice channel left and now a user joined the voice channel again.
             cancellationToken.ThrowIfCancellationRequested();
 
             // return default; // do nothing
+
+            logger.LogInformation(TLE.MBTimeout, "<<<<<<<<<<<<<<<<<<< NotifyPlayerActiveAsync @ {trackingState}", trackingState);
         }
 
         public async ValueTask NotifyPlayerInactiveAsync(PlayerTrackingState trackingState, CancellationToken cancellationToken = default) {
+            logger.LogInformation(TLE.MBTimeout, "<================== NotifyPlayerInactiveAsync @ {trackingState}", trackingState);
+            
             // This method is called when the player reached the inactivity deadline.
             // For example: All users in the voice channel left and the player was inactive for longer than 30 seconds.
             cancellationToken.ThrowIfCancellationRequested();
@@ -481,19 +495,29 @@ namespace CCTavern.Player
 
             var guild = await GetGuildAsync();
             var outputChannel = await mbHelper.GetMusicTextChannelFor(guild);
-            if (outputChannel == null) return;
+            if (outputChannel == null) {
+                logger.LogInformation(TLE.MBTimeout, "<<<<<<<<<<<<<<<<<<< NotifyPlayerInactiveAsync @ {trackingState} : outputChannel == null", trackingState);
+                return;
+            }
 
             var db = new TavernContext();
             var dbGuild = await db.GetOrCreateDiscordGuild(guild);
 
             await discordClient.SendMessageAsync(outputChannel, "Left the voice channel <#" + VoiceChannelId + "> due to inactivity.");
             await mbHelper.DeletePastStatusMessage(dbGuild, outputChannel);
+
+            logger.LogInformation(TLE.MBTimeout, "<<<<<<<<<<<<<<<<<<< NotifyPlayerInactiveAsync");
+
         }
 
         public async ValueTask NotifyPlayerTrackedAsync(PlayerTrackingState trackingState, CancellationToken cancellationToken = default) {
+            logger.LogInformation(TLE.MBTimeout, "<================== NotifyPlayerTrackedAsync @ {trackingState}", trackingState);
+            
             // This method is called when the player was previously active and is now inactive.
             // For example: A user left the voice channel and now all users left the voice channel.
             cancellationToken.ThrowIfCancellationRequested();
+
+            logger.LogInformation(TLE.MBTimeout, "<<<<<<<<<<<<<<<<<<< NotifyPlayerTrackedAsync @ {trackingState}", trackingState);
 
             // return default; // do nothing
         }
