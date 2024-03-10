@@ -1,10 +1,11 @@
 ﻿using CCTavern.Database;
-
+using CCTavern.Player;
 using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
-using DSharpPlus.Lavalink;
+
+using Lavalink4NET;
 
 using LinqKit;
 
@@ -20,18 +21,16 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CCTavern.Commands {
-    internal class MusicQueueModule : BaseCommandModule {
+namespace CCTavern.Commands
+{
+    internal class MusicQueueModule : BaseAudioCommandModule {
+        private readonly ILogger<MusicQueueModule> logger;
+
         const int ITEMS_PER_PAGE = 10;
 
-        public MusicBot Music { private get; set; }
-
-        private ILogger _logger;
-        private ILogger logger {
-            get {
-                if (_logger == null) _logger = Program.LoggerFactory.CreateLogger<MusicQueueModule>();
-                return _logger;
-            }
+        public MusicQueueModule(MusicBotHelper mbHelper, IAudioService audioService, ILogger<MusicQueueModule> logger) 
+                : base(audioService, mbHelper) {
+            this.logger = logger;
         }
 
         [Command("shuffle"), Aliases("sh")]
@@ -51,12 +50,12 @@ namespace CCTavern.Commands {
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
             if (string.IsNullOrWhiteSpace(flag_str_lwr) || flag_str_lwr[0] == '?') {
-                if (MusicBot.GuildStates.ContainsKey(guild.Id) == false) {
+                if (mbHelper.GuildStates.ContainsKey(guild.Id) == false) {
                     await ctx.RespondAsync("Shuffle disabled.");
                     return;
                 }
 
-                await ctx.RespondAsync(MusicBot.GuildStates[guild.Id].ShuffleEnabled ? "Shuffle enabled." : "Shuffle disabled.");
+                await ctx.RespondAsync(mbHelper.GuildStates[guild.Id].ShuffleEnabled ? "Shuffle enabled." : "Shuffle disabled.");
                 return;
             }
 
@@ -68,17 +67,17 @@ namespace CCTavern.Commands {
                 return;
             }
 
-            if (MusicBot.GuildStates.ContainsKey(guild.Id) == false) 
-                MusicBot.GuildStates[guild.Id] = new GuildState(guild.Id);
+            if (mbHelper.GuildStates.ContainsKey(guild.Id) == false) 
+                mbHelper.GuildStates[guild.Id] = new GuildState(guild.Id);
 
             // Check if the flag is empty then we are to toggle.
             if (string.IsNullOrWhiteSpace(flag_str)) {
-                MusicBot.GuildStates[guild.Id].ShuffleEnabled = !MusicBot.GuildStates[guild.Id].ShuffleEnabled;
+                mbHelper.GuildStates[guild.Id].ShuffleEnabled = !mbHelper.GuildStates[guild.Id].ShuffleEnabled;
             } else {
-                MusicBot.GuildStates[guild.Id].ShuffleEnabled = flag;
+                mbHelper.GuildStates[guild.Id].ShuffleEnabled = flag;
             }
             
-            await ctx.RespondAsync(MusicBot.GuildStates[guild.Id].ShuffleEnabled ? "Shuffle enabled." : "Shuffle disabled.");
+            await ctx.RespondAsync(mbHelper.GuildStates[guild.Id].ShuffleEnabled ? "Shuffle enabled." : "Shuffle disabled.");
         }
 
         [Command("queue"), Aliases("q")]
@@ -86,7 +85,7 @@ namespace CCTavern.Commands {
         [RequireGuild]
         public async Task GetQueue(CommandContext ctx,
             [Description("Page number to view, if blank then the page containing the current track is shown. (Supports relative +1, -12) ")]
-            string TargetPageString = null!,
+            string targetPageString = null!,
             [Description("Show date")]
             bool showDate = false,
             [Description("Show time")]
@@ -96,7 +95,7 @@ namespace CCTavern.Commands {
             string queueContent = "";
 
             // Check if the current guild has temporary music
-            if (Music.TemporaryTracks.ContainsKey(ctx.Guild.Id))
+            if (mbHelper.TemporaryTracks.ContainsKey(ctx.Guild.Id))
                 queueContent += "*** Temporary queue exists, pleasue use \"queuetemp\" to view temporary queue.";
 
             // Get the guild
@@ -107,22 +106,22 @@ namespace CCTavern.Commands {
             var targetPage = (int)Math.Ceiling((decimal)currentPosition / ITEMS_PER_PAGE);
 
             // Parse user's target page
-            if (TargetPageString != null) {
-                TargetPageString = TargetPageString.Trim();
+            if (targetPageString != null) {
+                targetPageString = targetPageString.Trim();
                 int output;
 
                 try {
-                    if (TargetPageString.StartsWith("+")) {
-                        string strToConvert = TargetPageString[1..];
+                    if (targetPageString.StartsWith("+")) {
+                        string strToConvert = targetPageString[1..];
                         if (int.TryParse(strToConvert, out output)) {
                             targetPage += output;
                         }
-                    } else if (TargetPageString.StartsWith("-")) {
-                        string strToConvert = TargetPageString[1..];
+                    } else if (targetPageString.StartsWith("-")) {
+                        string strToConvert = targetPageString[1..];
                         if (int.TryParse(strToConvert, out output)) {
                             targetPage -= output;
                         }
-                    } else if (int.TryParse(TargetPageString, out output)) {
+                    } else if (int.TryParse(targetPageString, out output)) {
                         targetPage = output;
                     }
                 } catch { }
@@ -204,7 +203,7 @@ namespace CCTavern.Commands {
             [Description("Page number to view, if blank then the page containing the current track is shown.")]
             string TargetPageString = null!
         ) {
-            await GetQueue(ctx, TargetPageString, true, false);
+            await GetQueue(ctx, TargetPageString, showDate: true, showTime: false);
         }
 
         [Command("queuedt"), Aliases("qdt")]
@@ -214,7 +213,7 @@ namespace CCTavern.Commands {
             [Description("Page number to view, if blank then the page containing the current track is shown.")]
             string TargetPageString = null!
         ) {
-            await GetQueue(ctx, TargetPageString, true, true);
+            await GetQueue(ctx, TargetPageString, showDate: true, showTime: true);
         }
 
         [Command("queuet"), Aliases("qt")]
@@ -224,7 +223,7 @@ namespace CCTavern.Commands {
             [Description("Page number to view, if blank then the page containing the current track is shown.")]
             string TargetPageString = null!
         ) {
-            await GetQueue(ctx, TargetPageString, false, true);
+            await GetQueue(ctx, TargetPageString, showDate: false, showTime: true);
         }
 
         [Command("remove"), Aliases("delete")]
@@ -318,13 +317,9 @@ namespace CCTavern.Commands {
                 return;
             }
 
-
-            var lava = ctx.Client.GetLavalink();
-            if (!lava.ConnectedNodes.Any()) return;
-
-            var conn = lava.GetGuildConnection(ctx.Member?.VoiceState.Guild);
-            if (conn == null) {
-                await ctx.RespondAsync("Music bot is not currently in voice channel.");
+            (var playerQuery, var isPlayerConnected) = await GetPlayerAsync(ctx.Guild.Id, ctx.Member?.VoiceState.Channel.Id, connectToVoiceChannel: false);
+            if (isPlayerConnected == false || playerQuery.Player == null) {
+                await ctx.RespondAsync("Music bot is not connected.");
                 return;
             }
 
@@ -333,9 +328,9 @@ namespace CCTavern.Commands {
             var dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
             GuildState guildState;
 
-            if (MusicBot.GuildStates.ContainsKey(dbGuild.Id) == false)
-                 MusicBot.GuildStates.Add(dbGuild.Id, guildState = new GuildState(dbGuild.Id));
-            else guildState = MusicBot.GuildStates[dbGuild.Id];
+            if (mbHelper.GuildStates.ContainsKey(dbGuild.Id) == false)
+                 mbHelper.GuildStates.Add(dbGuild.Id, guildState = new GuildState(dbGuild.Id));
+            else guildState = mbHelper.GuildStates[dbGuild.Id];
 
             // Check if the flag is empty then we are to toggle.
             if (string.IsNullOrWhiteSpace(flag_str)) {
