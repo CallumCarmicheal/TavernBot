@@ -68,7 +68,11 @@ namespace CCTavern.Commands {
             var player = playerResult.Player;
             TrackLoadResult? trackQueryResults;
 
+            bool isYoutubeUrl = false;
+
             if (IsUrl(search)) {
+                isYoutubeUrl = true;
+
                 trackQueryResults = await audioService.Tracks
                     .LoadTracksAsync(search, TrackSearchMode.None)
                     .ConfigureAwait(false);
@@ -83,7 +87,19 @@ namespace CCTavern.Commands {
 
                 switch (prompt) {
                 case TrackRequestedPlayMode.Single:
-                    await _Play_Single(ctx, db, player, trackQueryResults.Value);
+                    if (isYoutubeUrl) {
+                        // Strip the list, t and index from the url so that Lavalink can resolve the youtube video.
+                        var singleUrl = mbHelper.StripYoutubePlaylistFromUrl(search).Replace("youtube.com:443", "youtube.com");
+
+                        var singleQuery = await audioService.Tracks
+                            .LoadTrackAsync(singleUrl, TrackSearchMode.None)
+                            .ConfigureAwait(false);
+
+                        await _Play_Single(ctx, db, player, singleQuery);
+                    } else {
+                        await _Play_Single(ctx, db, player, trackQueryResults.Value.Track);
+                    }
+                    
                     return;
                 case TrackRequestedPlayMode.Playlist:
                     await _Play_Playlist(ctx, db, player, trackQueryResults.Value);
@@ -97,7 +113,7 @@ namespace CCTavern.Commands {
                 return;
             }
 
-            await _Play_Single(ctx, db, player, trackQueryResults.Value);
+            await _Play_Single(ctx, db, player, trackQueryResults.Value.Track);
         }
 
         private async Task<TrackRequestedPlayMode> _Play_PromptForPlaylist(CommandContext ctx) {
@@ -120,7 +136,7 @@ namespace CCTavern.Commands {
 
             var buttonMessage = await ctx.RespondAsync(builder);
             var interactivity = ctx.Client.GetInteractivity();
-            var result = await interactivity.WaitForButtonAsync(buttonMessage, waitTimespan);
+            var result        = await interactivity.WaitForButtonAsync(buttonMessage, waitTimespan);
 
             if (result.TimedOut) {
                 await buttonMessage.DeleteAsync();
@@ -140,6 +156,9 @@ namespace CCTavern.Commands {
                 goto waitForButton;
             }
 
+            // Delete the button message.
+            await buttonMessage.DeleteAsync();
+
             if (result.Result.Id == $"single{interactionId}") {
                 return TrackRequestedPlayMode.Single;
             } else if (result.Result.Id == $"playlist{interactionId}") {
@@ -149,8 +168,7 @@ namespace CCTavern.Commands {
             }
         }
 
-        private async Task _Play_Single(CommandContext ctx, TavernContext db, TavernPlayer player, TrackLoadResult trackResults) {
-            var track = trackResults.Track;
+        private async Task _Play_Single(CommandContext ctx, TavernContext db, TavernPlayer player, LavalinkTrack? track) {
             if (track is null) {
                 await ctx.RespondAsync($"Failed to parse track.");
                 return;
