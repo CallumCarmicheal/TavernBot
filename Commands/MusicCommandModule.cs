@@ -351,9 +351,6 @@ namespace CCTavern.Commands
             }
 
             (var playerQuery, var playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, connectToVoiceChannel: false).ConfigureAwait(false);
-                await ctx.RespondAsync("Music bot is not connected.");
-                return;
-            }
 
             // If the player is not connected, connect the music bot.
             if (playerIsConnected == false) {
