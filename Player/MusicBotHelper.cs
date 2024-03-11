@@ -1,28 +1,26 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-
-using DSharpPlus.Net;
-using DSharpPlus;
-using Microsoft.Extensions.Logging;
+﻿using CCTavern.Database;
 using CCTavern.Logger;
+
+using DSharpPlus;
 using DSharpPlus.Entities;
-using CCTavern.Database;
-using Microsoft.EntityFrameworkCore;
-using System.Web;
-using DSharpPlus.CommandsNext;
-using System.Runtime.CompilerServices;
-using Lavalink4NET.Tracks;
-using System.Threading;
+
+using Lavalink4NET;
 using Lavalink4NET.Events.Players;
 using Lavalink4NET.Players;
-using Lavalink4NET;
-using Microsoft.Extensions.Options;
-using System.Reflection;
+using Lavalink4NET.Tracks;
 
-namespace CCTavern.Player
-{
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace CCTavern.Player {
     public class MusicBotHelper
     {
         private readonly IAudioService audioService;
@@ -286,7 +284,7 @@ namespace CCTavern.Player
         public async ValueTask<(PlayerResult<TavernPlayer>, bool isPlayerConnected)> GetPlayerAsync(ulong guildId, ulong? voiceChannelId = null, bool connectToVoiceChannel = true) {
             var channelBehavior = connectToVoiceChannel
                 ? PlayerChannelBehavior.Join
-            : PlayerChannelBehavior.None;
+                : PlayerChannelBehavior.None;
 
             var retrieveOptions = new PlayerRetrieveOptions(ChannelBehavior: channelBehavior);
 
@@ -327,8 +325,10 @@ namespace CCTavern.Player
                 }
             }
 
-            return (result, result.IsSuccess && result.Player != null && result.Player.ConnectionState.IsConnected
-                && result.Player.State != PlayerState.Destroyed);
+            bool isConnected = result.IsSuccess && result.Player != null //&& result.Player.ConnectionState.IsConnected
+                && result.Player.State != PlayerState.Destroyed;
+
+            return (result, isConnected);
         }
 
         public string GetPlayerErrorMessage(PlayerRetrieveStatus status) {
@@ -343,6 +343,27 @@ namespace CCTavern.Player
             };
 
             return errorMessage;
+        }
+
+        public string StripYoutubePlaylistFromUrl(string url) {
+            Uri originalUri = new Uri(url);
+            string queryString = originalUri.Query;
+
+            // Remove parameter from query string
+            string newQueryString = string.Join("&",
+                queryString.Split('&')
+                            .Where(x => 
+                                !x.StartsWith("list=", StringComparison.OrdinalIgnoreCase)
+                                && !x.StartsWith("index=", StringComparison.OrdinalIgnoreCase)
+                                && !x.StartsWith("t=", StringComparison.OrdinalIgnoreCase)
+                            )
+                            .ToArray());
+
+            // Reconstruct the URL with the modified query string
+            UriBuilder uriBuilder = new UriBuilder(originalUri);
+            uriBuilder.Query = newQueryString;
+
+            return uriBuilder.ToString();
         }
     }
 
