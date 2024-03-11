@@ -281,14 +281,8 @@ namespace CCTavern.Commands {
             var voiceChannel = voiceState.Channel;
             (var playerResult, var playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, voiceChannel.Id, connectToVoiceChannel: false).ConfigureAwait(false);
 
-            // If we failed to get the music bot but the error was not BotNotConnected.
-            if (playerIsConnected == false || playerResult.Player == null) {
-                await ctx.RespondAsync(GetPlayerErrorMessage(playerResult.Status));
-                return;
-            }
-
             // If the music bot is already connected
-            else if (playerResult.Status != Lavalink4NET.Players.PlayerRetrieveStatus.BotNotConnected) {
+            if (playerIsConnected && playerResult.Status != Lavalink4NET.Players.PlayerRetrieveStatus.BotNotConnected) {
                 await ctx.RespondAsync("Bot is already connected to a voice channel.");
                 return;
             }
