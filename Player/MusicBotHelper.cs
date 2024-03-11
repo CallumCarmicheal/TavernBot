@@ -152,12 +152,12 @@ namespace CCTavern.Player {
                 var guildState = GuildStates[discordGuild.Id];
 
                 // Check if we are shuffling and there is no target track specified.
-                if (guildState != null && targetTrackId != null && guildState.ShuffleEnabled) {
+                if (guildState != null && targetTrackId == null && guildState.ShuffleEnabled) {
                     var guildQueueQuery = db.GuildQueueItems
                         .Where(x => x.GuildId == guild.Id && x.IsDeleted == false)
                         .OrderByDescending(x => x.Position);
 
-                    if (await guildQueueQuery.CountAsync() >= 10) {
+                    if (await guildQueueQuery.CountAsync() >= 4) {
                         var rnd = new Random();
 
                         var largestTrackNumber = await guildQueueQuery.Select(x => x.Position).FirstOrDefaultAsync();
@@ -177,7 +177,7 @@ namespace CCTavern.Player {
                 .Include(x => x.RequestedBy)
                 .Where(
                     x => x.GuildId == guild.Id
-                      && x.Position >= targetTrackId
+                      && x.Position >= targetTrackId // Get target track or the next available track
                       && x.IsDeleted == false);
 
             // Return the track or null.

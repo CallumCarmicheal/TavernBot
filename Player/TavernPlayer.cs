@@ -337,6 +337,7 @@ namespace CCTavern.Player
 
             ulong nextTrackNumber = dbGuild.NextTrack;
 
+            // Attempt to get next available track
             while (track == null && attempts++ < MAX_ATTEMPTS) {
                 logger.LogInformation(TLE.MBFin, "Error, Failed to parse next track `{Title}` at position `{Position}`.", dbTrack?.Title, dbTrack?.Position);
                 if (outputChannel != null && nextTrackNumber <= dbGuild.TrackCount)
@@ -401,7 +402,7 @@ namespace CCTavern.Player
 
             if (isTempTrack == false && dbTrack != null) {
                 dbGuild.CurrentTrack = dbTrack.Position;
-                dbGuild.NextTrack = dbTrack.Position + 1;
+                dbGuild.NextTrack    = dbTrack.Position + 1;
             }
 
             await db.SaveChangesAsync();
