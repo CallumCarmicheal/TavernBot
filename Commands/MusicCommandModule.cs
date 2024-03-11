@@ -351,7 +351,6 @@ namespace CCTavern.Commands
             }
 
             (var playerQuery, var playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, connectToVoiceChannel: false).ConfigureAwait(false);
-            if (playerIsConnected == false || playerQuery.Player == null) {
                 await ctx.RespondAsync("Music bot is not connected.");
                 return;
             }
@@ -397,7 +396,6 @@ namespace CCTavern.Commands
                 dbTrack = await guildQueueQuery.Skip(rand.Next(startPosition, endPosition)).FirstAsync();
 
             // TODO: Maybe find the nearest track using the position above.
-
             if (dbTrack == null) {
                 await ctx.RespondAsync("***Bot got hurt in the confusion***. For some reason or another (ᴾʳᵒᵇᵃᵇˡʸ ᶜᵃˡˡᵘᵐˢ ᵇᵃᵈ ᵖʳᵒᵍʳᵃᵐᵐᶦⁿᵍ)"
                     + " I cant find a track to play. Try again... maybe!?");
