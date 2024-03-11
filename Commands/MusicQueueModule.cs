@@ -101,7 +101,8 @@ namespace CCTavern.Commands
             // Get the guild
             var db    = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
-            var currentPosition = await db.GuildQueueItems.Where(qi => qi.Position <= guild.CurrentTrack).CountAsync(); 
+            var guildQueueQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(qi => qi.GuildId == guild.Id && qi.IsDeleted == false);
+            var currentPosition = await guildQueueQuery.Where(qi => qi.Position <= guild.CurrentTrack).CountAsync(); 
 
             var targetPage = (int)Math.Ceiling((decimal)currentPosition / ITEMS_PER_PAGE);
 
@@ -129,7 +130,6 @@ namespace CCTavern.Commands
 
             if (targetPage < 1) targetPage = 1;
 
-            var guildQueueQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(x => x.GuildId == guild.Id && x.IsDeleted == false);
             var guildQueueCount = await guildQueueQuery.CountAsync();
             var pages = (int)Math.Ceiling(guildQueueCount / (double)ITEMS_PER_PAGE);
             targetPage = pages == 0 ? 0 : Math.Clamp(targetPage, 1, pages);
@@ -145,7 +145,7 @@ namespace CCTavern.Commands
 
             List<GuildQueueItem> pageContents = guildQueueQuery
                 .OrderBy(x => x.Position)
-                .Include(x => x.Playlist)
+                    .Include(x => x.Playlist)
                 .Page(targetPage, ITEMS_PER_PAGE)
                 .ToList();
             ulong? currentPlaylist = null;
