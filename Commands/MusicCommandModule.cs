@@ -55,6 +55,9 @@ namespace CCTavern.Commands
                 await playerState.Player.DisconnectAsync().ConfigureAwait(false);
 
                 await ctx.RespondAsync($"Left <#{ctx?.Member?.VoiceState.Channel.Id}>!");
+
+                if (ctx?.Guild != null) 
+                    mbHelper.AnnounceLeave(ctx.Guild.Id);
             } else {
                 await ctx.RespondAsync("Music bot is not connected.");
             }
@@ -353,7 +356,7 @@ namespace CCTavern.Commands
             (var playerQuery, var playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, connectToVoiceChannel: false).ConfigureAwait(false);
 
             // If the player is not connected, connect the music bot.
-            if (playerIsConnected == false) {
+            if (playerIsConnected == false || playerQuery.Player == null) {
                 // Connect the music bot
                 (playerQuery, playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, ctx.Member?.VoiceState.Channel.Id, connectToVoiceChannel: true).ConfigureAwait(false);
 

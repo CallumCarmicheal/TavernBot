@@ -152,19 +152,26 @@ namespace CCTavern.Player {
                 var guildState = GuildStates[discordGuild.Id];
 
                 // Check if we are shuffling and there is no target track specified.
+                //    and the SetNext flag is not set, if its been set the next track is specified.
                 if (guildState != null && targetTrackId == null && guildState.ShuffleEnabled) {
-                    var guildQueueQuery = db.GuildQueueItems
-                        .Where(x => x.GuildId == guild.Id && x.IsDeleted == false)
-                        .OrderByDescending(x => x.Position);
-
-                    if (await guildQueueQuery.CountAsync() >= 4) {
-                        var rnd = new Random();
-
-                        var largestTrackNumber = await guildQueueQuery.Select(x => x.Position).FirstOrDefaultAsync();
-                        targetTrackId = Convert.ToUInt64(rnd.ULongNext(0, largestTrackNumber));
+                    // If we specifically set the next track then skip this 
+                    if (guildState.SetNextFlag) {
+                        // Clear the SetNextFlag
+                        guildState.SetNextFlag = false;
                     } else {
-                        if (guildState != null) 
-                            guildState.ShuffleEnabled = false;
+                        var guildQueueQuery = db.GuildQueueItems
+                            .Where(x => x.GuildId == guild.Id && x.IsDeleted == false)
+                            .OrderByDescending(x => x.Position);
+
+                        if (await guildQueueQuery.CountAsync() >= 4) {
+                            var rnd = new Random();
+
+                            var largestTrackNumber = await guildQueueQuery.Select(x => x.Position).FirstOrDefaultAsync();
+                            targetTrackId = Convert.ToUInt64(rnd.ULongNext(0, largestTrackNumber));
+                        } else {
+                            if (guildState != null)
+                                guildState.ShuffleEnabled = false;
+                        }
                     }
                 }
             }

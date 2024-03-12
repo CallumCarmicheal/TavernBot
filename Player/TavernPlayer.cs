@@ -114,7 +114,7 @@ namespace CCTavern.Player
             var remainingText = mbHelper.GetTrackRemaining(Position, CurrentTrack.Duration);
 
             var embed    = guildState.MusicEmbed.Embed;
-            var fieldIdx = guildState.MusicEmbed.FieldIndex;
+            var fieldIdx = guildState.MusicEmbed.ProgressFieldIdx;
 
             var progressText = $"```{remainingText.currentTime} {progressBar} {remainingText.timeLeft}```";
 
@@ -258,7 +258,7 @@ namespace CCTavern.Player
             guildState.MusicEmbed = new MusicEmbedState() {
                 Message = message,
                 Embed = embed,
-                FieldIndex = embedIndex
+                ProgressFieldIdx = embedIndex
             };
 
             if (isYoutubeUrl && Program.Settings.YoutubeIntegration.Enabled && track.Duration.TotalMinutes >= 5)
@@ -360,7 +360,8 @@ namespace CCTavern.Player
                                 mbHelper.TemporaryTracks.Remove(dbGuild.Id);
 
                             messageText = "Disconnected after finished queue.";
-                            await DisconnectAsync();
+                            await DisconnectAsync().ConfigureAwait(false);
+                            mbHelper.AnnounceLeave(dbGuild.Id);
                         }
 
                         await outputChannel.SendMessageAsync(messageText);
@@ -389,7 +390,9 @@ namespace CCTavern.Player
                         mbHelper.TemporaryTracks.Remove(dbGuild.Id);
 
                     // Disconnecting
-                    await DisconnectAsync();
+                    await DisconnectAsync().ConfigureAwait(false);
+                    mbHelper.AnnounceLeave(dbGuild.Id);
+
                     if (outputChannel != null)
                         await outputChannel.SendMessageAsync("Disconnected after finished queue.");
                 }
@@ -448,7 +451,7 @@ namespace CCTavern.Player
             // For example: All users in the voice channel left and the player was inactive for longer than 30 seconds.
             cancellationToken.ThrowIfCancellationRequested();
 
-            await DisconnectAsync();
+            await DisconnectAsync().ConfigureAwait(false);
 
             var guild = await GetGuildAsync();
             var outputChannel = await mbHelper.GetMusicTextChannelFor(guild);
@@ -460,8 +463,9 @@ namespace CCTavern.Player
             var db = new TavernContext();
             var dbGuild = await db.GetOrCreateDiscordGuild(guild);
 
-            await discordClient.SendMessageAsync(outputChannel, "Left the voice channel <#" + VoiceChannelId + "> due to inactivity.");
+            await discordClient.SendMessageAsync(outputChannel, $"Left the voice channel <#{VoiceChannelId}> due to inactivity, E({trackingState}).");
             await mbHelper.DeletePastStatusMessage(dbGuild, outputChannel);
+            mbHelper.AnnounceLeave(dbGuild.Id);
 
             //logger.LogInformation(TLE.MBTimeout, "<<<<<<<<<<<<<<<<<<< NotifyPlayerInactiveAsync");
         }

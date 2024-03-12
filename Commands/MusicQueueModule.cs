@@ -279,15 +279,34 @@ namespace CCTavern.Commands
             // Clamp to 1
             if (songIndex <= 0) songIndex = 1;
 
-            var db = new TavernContext();
-            var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
-
-            if (songIndex > guild.TrackCount) {
-                await ctx.Message.RespondAsync($"Unable to set next song to `{songIndex}`, Maximum available track number is `{guild.TrackCount}`.");
+            // Check if the user is in the voice channel
+            if (ctx.Member?.VoiceState == null || ctx.Member.VoiceState.Channel == null) {
+                await ctx.RespondAsync("You are not in a voice channel.");
                 return;
             }
 
-            guild.NextTrack = songIndex;
+            (var playerQuery, var playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, connectToVoiceChannel: false).ConfigureAwait(false);
+            if (playerIsConnected == false || playerQuery.Player == null) {
+                await ctx.RespondAsync("Music bot is not connected.");
+                return;
+            }
+
+            var db = new TavernContext();
+            var dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
+
+            if (songIndex > dbGuild.TrackCount) {
+                await ctx.Message.RespondAsync($"Unable to set next song to `{songIndex}`, Maximum available track number is `{dbGuild.TrackCount}`.");
+                return;
+            }
+
+            GuildState guildState;
+
+            if (mbHelper.GuildStates.ContainsKey(dbGuild.Id) == false)
+                 mbHelper.GuildStates.Add(dbGuild.Id, guildState = new GuildState(dbGuild.Id));
+            else guildState = mbHelper.GuildStates[dbGuild.Id];
+
+            guildState.SetNextFlag = true;
+            dbGuild.NextTrack = songIndex;
             await db.SaveChangesAsync();
         }
 

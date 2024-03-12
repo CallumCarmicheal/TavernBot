@@ -17,10 +17,10 @@ namespace CCTavern.Player
 
         public ulong? TemporaryMusicChannelId { get; set; } = null;
 
+        public bool SetNextFlag { get; set; } = false;
         public bool ShuffleEnabled { get; set; } = false;
         public bool RepeatEnabled { get; internal set; } = false;
-        public int TimesRepeated { get; set; } = 0;
-
+        public int  TimesRepeated { get; set; } = 0;
 
         public MusicEmbedState? MusicEmbed { get; set; } = null;
         public SortedList<TimeSpan, IVideoChapter>? TrackChapters { get; set; }
@@ -38,7 +38,7 @@ namespace CCTavern.Player
 
         public DiscordEmbedBuilder Embed { get; set; }
 
-        public int FieldIndex { get; set; }
+        public int ProgressFieldIdx { get; set; }
 
         // public DateTime NextUpdate { get; set; }
 
