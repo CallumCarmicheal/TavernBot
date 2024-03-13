@@ -463,7 +463,7 @@ namespace CCTavern.Player
             var db = new TavernContext();
             var dbGuild = await db.GetOrCreateDiscordGuild(guild);
 
-            await discordClient.SendMessageAsync(outputChannel, $"Left the voice channel <#{VoiceChannelId}> due to inactivity, E({trackingState}).");
+            await discordClient.SendMessageAsync(outputChannel, $"Left the voice channel <#{VoiceChannelId}> due to inactivity.");
             await mbHelper.DeletePastStatusMessage(dbGuild, outputChannel);
             mbHelper.AnnounceLeave(dbGuild.Id);
 
