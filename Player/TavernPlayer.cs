@@ -27,6 +27,9 @@ using Lavalink4NET.Tracks;
 using Org.BouncyCastle.Asn1.Cms;
 using Lavalink4NET.InactivityTracking.Players;
 using Lavalink4NET.InactivityTracking.Trackers;
+using Lavalink4NET;
+using MySqlX.XDevAPI.Common;
+using System.Reflection;
 
 namespace CCTavern.Player
 {
@@ -35,6 +38,7 @@ namespace CCTavern.Player
         private readonly ILogger<TavernPlayer> logger;
         private readonly MusicBotHelper mbHelper;
         private readonly DiscordClient discordClient;
+        private readonly IAudioService audioService;
 
         private Timer _timer;
         private CancellationTokenSource _cancellationTokenSource;
@@ -45,6 +49,7 @@ namespace CCTavern.Player
             logger = properties.ServiceProvider!.GetRequiredService<ILogger<TavernPlayer>>();
             mbHelper = properties.ServiceProvider!.GetRequiredService<MusicBotHelper>();
             discordClient = properties.ServiceProvider!.GetRequiredService<DiscordClient>();
+            audioService = properties.ServiceProvider!.GetRequiredService<IAudioService>();
 
             _cancellationTokenSource = new CancellationTokenSource();
             _timer = new Timer(callback: ProgressBarTimerCallback, state: null, dueTime: Timeout.Infinite, period: Timeout.Infinite);
@@ -418,6 +423,10 @@ namespace CCTavern.Player
             // Play the next track.
             await Task.Delay(500);
             await PlayAsync(track).ConfigureAwait(false);
+
+            // Dirty hack to stop the bot from disconnecting mid song.
+            this.InvokePlayerStateChanged(PlayerState.Playing);
+
             logger.LogInformation(TLE.Misc, "-------------PlaybackFinished ### Finished processing");
         }
 
@@ -427,6 +436,24 @@ namespace CCTavern.Player
         private DiscordGuild _guild;
         private async Task<DiscordGuild> GetGuildAsync() {
             return _guild ??= await discordClient.GetGuildAsync(GuildId);
+        }
+
+        private async void InvokePlayerStateChanged(PlayerState playerState) {
+            var playerManager = this.audioService.Players;
+            var pmType = playerManager.GetType();
+
+            var eventInfo = pmType.GetEvent("PlayerStateChanged", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            var eventDelegate = pmType.GetField("PlayerStateChanged", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(playerManager) as MulticastDelegate;
+            if (eventDelegate != null) {
+                var eventArgs = new PlayerStateChangedEventArgs(this, PlayerState.Playing);
+
+                foreach (var handler in eventDelegate.GetInvocationList()) {
+                    var task = handler.Method.Invoke(handler.Target, [playerManager, eventArgs]) as Task;
+
+                    if (task != null)
+                        await task.ConfigureAwait(false);
+                }
+            }
         }
 
         #endregion
