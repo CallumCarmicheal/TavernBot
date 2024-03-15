@@ -87,15 +87,8 @@ namespace CCTavern.Commands {
 
                 switch (prompt) {
                 case TrackRequestedPlayMode.Single:
-                    if (isYoutubeUrl) {
-                        // Strip the list, t and index from the url so that Lavalink can resolve the youtube video.
-                        var singleUrl = mbHelper.StripYoutubePlaylistFromUrl(search).Replace("youtube.com:443", "youtube.com");
-
-                        var singleQuery = await audioService.Tracks
-                            .LoadTrackAsync(singleUrl, TrackSearchMode.None)
-                            .ConfigureAwait(false);
-
-                        await _Play_Single(ctx, db, player, singleQuery);
+                    if (trackQueryResults.Value.Playlist != null) {
+                        await _Play_Single(ctx, db, player, trackQueryResults.Value.Playlist.SelectedTrack);
                     } else {
                         await _Play_Single(ctx, db, player, trackQueryResults.Value.Track);
                     }
@@ -145,7 +138,7 @@ namespace CCTavern.Commands {
             }
 
             // Dirty hack to ensure only the message sender clicks the button.
-            if (result.Result.User.Id != ctx.User.Id) {
+            else if (result.Result.User.Id != ctx.User.Id) {
                 await buttonMessage.DeleteAsync();
 
                 if (DateTime.Now >= btnExpired) {
