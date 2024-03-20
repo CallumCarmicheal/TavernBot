@@ -288,7 +288,7 @@ namespace CCTavern.Player {
             return ValueTask.FromResult(player);
         }
 
-        public async ValueTask<(PlayerResult<TavernPlayer>, bool isPlayerConnected)> GetPlayerAsync(ulong guildId, ulong? voiceChannelId = null, bool connectToVoiceChannel = true) {
+        public async ValueTask<(PlayerResult<TavernPlayer> playerResult, bool isPlayerConnected)> GetPlayerAsync(ulong guildId, ulong? voiceChannelId = null, bool connectToVoiceChannel = true) {
             var channelBehavior = connectToVoiceChannel
                 ? PlayerChannelBehavior.Join
                 : PlayerChannelBehavior.None;

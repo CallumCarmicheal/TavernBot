@@ -29,7 +29,6 @@
     <PackageReference Include="Humanizer" Version="2.14.1" />
     <PackageReference Include="Lavalink4NET" Version="4.0.13" />
     <PackageReference Include="Lavalink4NET.DSharpPlus" Version="4.0.13" />
-    <PackageReference Include="Lavalink4NET.InactivityTracking" Version="4.0.13" />
     <PackageReference Include="Lavalink4NET.Integrations.ExtraFilters" Version="4.0.13" />
     <PackageReference Include="LinqKit.Core" Version="1.2.5" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.2" />

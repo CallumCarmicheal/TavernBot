@@ -23,10 +23,6 @@ using DSharpPlus.Interactivity.Extensions;
 
 using Lavalink4NET;
 using Lavalink4NET.Extensions;
-using Lavalink4NET.InactivityTracking.Extensions;
-using Lavalink4NET.InactivityTracking.Trackers;
-using Lavalink4NET.InactivityTracking.Trackers.Idle;
-using Lavalink4NET.InactivityTracking.Trackers.Users;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -89,6 +85,7 @@ namespace CCTavern
             builder.Services.AddSingleton<ITavernSettings>(Settings);
             builder.Services.AddSingleton<DiscordConfiguration>(config);
             builder.Services.AddSingleton<DiscordClient>();
+            builder.Services.AddSingleton<BotInactivityManager>();
             builder.Services.AddSingleton<MusicBotHelper>();
 
             builder.Services.AddLavalink();
@@ -99,21 +96,6 @@ namespace CCTavern
                 config.ReadyTimeout = TimeSpan.FromSeconds(10);
                 config.ResumptionOptions = new LavalinkSessionResumptionOptions(TimeSpan.FromSeconds(60));
             });
-
-            builder.Services.Configure<IdleInactivityTrackerOptions>(config => {
-                config.Timeout = TimeSpan.FromMinutes(5);
-            });
-
-            builder.Services.Configure<UsersInactivityTrackerOptions>(config => {
-                config.Timeout = TimeSpan.FromMinutes(5);
-            });
-
-            builder.Services.ConfigureInactivityTracking(options => {
-                options.DefaultTimeout      = TimeSpan.FromMinutes(5);
-                options.DefaultPollInterval = TimeSpan.FromSeconds(5);
-            });
-
-            builder.Services.AddInactivityTracking();
 
             builder.Services.AddHostedService<ApplicationHost>();
 

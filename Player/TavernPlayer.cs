@@ -25,20 +25,19 @@ using System.Web;
 using Microsoft.EntityFrameworkCore;
 using Lavalink4NET.Tracks;
 using Org.BouncyCastle.Asn1.Cms;
-using Lavalink4NET.InactivityTracking.Players;
-using Lavalink4NET.InactivityTracking.Trackers;
 using Lavalink4NET;
 using MySqlX.XDevAPI.Common;
 using System.Reflection;
 
 namespace CCTavern.Player
 {
-    public sealed class TavernPlayer : LavalinkPlayer, IInactivityPlayerListener, IDisposable 
+    public sealed class TavernPlayer : LavalinkPlayer, IDisposable 
     {
         private readonly ILogger<TavernPlayer> logger;
         private readonly MusicBotHelper mbHelper;
         private readonly DiscordClient discordClient;
         private readonly IAudioService audioService;
+        private readonly BotInactivityManager botInactivityManager;
 
         private Timer _timer;
         private CancellationTokenSource _cancellationTokenSource;
@@ -50,6 +49,7 @@ namespace CCTavern.Player
             mbHelper = properties.ServiceProvider!.GetRequiredService<MusicBotHelper>();
             discordClient = properties.ServiceProvider!.GetRequiredService<DiscordClient>();
             audioService = properties.ServiceProvider!.GetRequiredService<IAudioService>();
+            botInactivityManager = properties.ServiceProvider!.GetRequiredService<BotInactivityManager>();
 
             _cancellationTokenSource = new CancellationTokenSource();
             _timer = new Timer(callback: ProgressBarTimerCallback, state: null, dueTime: Timeout.Infinite, period: Timeout.Infinite);
@@ -97,23 +97,23 @@ namespace CCTavern.Player
             var guild = await GetGuildAsync();
 
             // If we dont have a guildState somehow, it means we did not create an embed.
-            if (mbHelper.GuildStates[guild.Id] == null) return;
+            if (mbHelper.GuildStates[guild.Id] == null) goto Finish;
 
             GuildState guildState = mbHelper.GuildStates[guild.Id];
 
             // Dont process this tick if the MusicEmbed is null or if there is no track.
             if (mbHelper.GuildStates[guild.Id] == null || guildState.MusicEmbed == null || CurrentTrack == null)
-                return;
+                goto Finish;
 
             var outputChannel = await mbHelper.GetMusicTextChannelFor(guild);
-            if (outputChannel == null) return;
-            if (this.Position.HasValue == false) return;
+            if (outputChannel == null) goto Finish;
+            if (this.Position.HasValue == false) goto Finish;
 
             var Position = this.Position.Value.Position;
 
             // Check if the track exits early (maybe seeking?) 
             if (Position.TotalSeconds > CurrentTrack.Duration.TotalSeconds)
-                return;
+                goto Finish;
 
             var progressBar   = mbHelper.GenerateProgressBar(Position.TotalSeconds, CurrentTrack.Duration.TotalSeconds, 20);
             var remainingText = mbHelper.GetTrackRemaining(Position, CurrentTrack.Duration);
@@ -164,6 +164,9 @@ namespace CCTavern.Player
                     guildState.MusicEmbed = null;
                 }
             }
+
+        Finish:
+            botInactivityManager.UpdateMusicLastActivity(guild.Id);
         }
 
         protected override async ValueTask NotifyTrackStartedAsync(ITrackQueueItem tqi
@@ -174,7 +177,7 @@ namespace CCTavern.Player
 
             var track = tqi.Track;
             if (track == null) {
-                // TODO: Handle null track?
+                // No track is playing, just ignore it.
                 return;
             }
 
@@ -270,6 +273,7 @@ namespace CCTavern.Player
                 _ = Task.Run(() => mbHelper.ParseYoutubeChaptersPlaylist(dbGuild.Id, currentTrackIdx, track.Identifier, _cancellationTokenSource.Token), _cancellationTokenSource.Token);
 
             StartProgressTimer();
+            botInactivityManager.UpdateMusicLastActivity(dbGuild.Id);
             logger.LogInformation(TLE.Misc, "NotifyTrackStartedAsync <-- Done processing");
         }
 
@@ -423,10 +427,6 @@ namespace CCTavern.Player
             // Play the next track.
             await Task.Delay(500);
             await PlayAsync(track).ConfigureAwait(false);
-
-            // Dirty hack to stop the bot from disconnecting mid song.
-            this.InvokePlayerStateChanged(PlayerState.Playing);
-
             logger.LogInformation(TLE.Misc, "-------------PlaybackFinished ### Finished processing");
         }
 
@@ -438,78 +438,6 @@ namespace CCTavern.Player
             return _guild ??= await discordClient.GetGuildAsync(GuildId);
         }
 
-        private async void InvokePlayerStateChanged(PlayerState playerState) {
-            var playerManager = this.audioService.Players;
-            var pmType = playerManager.GetType();
-
-            var eventInfo = pmType.GetEvent("PlayerStateChanged", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            var eventDelegate = pmType.GetField("PlayerStateChanged", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(playerManager) as MulticastDelegate;
-            if (eventDelegate != null) {
-                var eventArgs = new PlayerStateChangedEventArgs(this, PlayerState.Playing);
-
-                foreach (var handler in eventDelegate.GetInvocationList()) {
-                    var task = handler.Method.Invoke(handler.Target, [playerManager, eventArgs]) as Task;
-
-                    if (task != null)
-                        await task.ConfigureAwait(false);
-                }
-            }
-        }
-
         #endregion
-
-        #region Tracking
-
-        public ValueTask NotifyPlayerActiveAsync(PlayerTrackingState trackingState, CancellationToken cancellationToken = default) {
-            //logger.LogInformation(TLE.MBTimeout, "<================== NotifyPlayerActiveAsync @ {trackingState}", trackingState);
-
-            // This method is called when the player was previously inactive and is now active again.
-            // For example: All users in the voice channel left and now a user joined the voice channel again.
-            cancellationToken.ThrowIfCancellationRequested();
-
-            return default; // do nothing
-            //logger.LogInformation(TLE.MBTimeout, "<<<<<<<<<<<<<<<<<<< NotifyPlayerActiveAsync @ {trackingState}", trackingState);
-        }
-
-        public async ValueTask NotifyPlayerInactiveAsync(PlayerTrackingState trackingState, CancellationToken cancellationToken = default) {
-            //logger.LogInformation(TLE.MBTimeout, "<================== NotifyPlayerInactiveAsync @ {trackingState}", trackingState);
-            
-            // This method is called when the player reached the inactivity deadline.
-            // For example: All users in the voice channel left and the player was inactive for longer than 30 seconds.
-            cancellationToken.ThrowIfCancellationRequested();
-
-            await DisconnectAsync().ConfigureAwait(false);
-
-            var guild = await GetGuildAsync();
-            var outputChannel = await mbHelper.GetMusicTextChannelFor(guild);
-            if (outputChannel == null) {
-                logger.LogInformation(TLE.MBTimeout, "<<<<<<<<<<<<<<<<<<< NotifyPlayerInactiveAsync @ {trackingState} : outputChannel == null", trackingState);
-                return;
-            }
-
-            var db = new TavernContext();
-            var dbGuild = await db.GetOrCreateDiscordGuild(guild);
-
-            await discordClient.SendMessageAsync(outputChannel, $"Left the voice channel <#{VoiceChannelId}> due to inactivity.");
-            await mbHelper.DeletePastStatusMessage(dbGuild, outputChannel);
-            mbHelper.AnnounceLeave(dbGuild.Id);
-
-            //logger.LogInformation(TLE.MBTimeout, "<<<<<<<<<<<<<<<<<<< NotifyPlayerInactiveAsync");
-        }
-
-        public ValueTask NotifyPlayerTrackedAsync(PlayerTrackingState trackingState, CancellationToken cancellationToken = default) {
-            //logger.LogInformation(TLE.MBTimeout, "<================== NotifyPlayerTrackedAsync @ {trackingState}", trackingState);
-            
-            // This method is called when the player was previously active and is now inactive.
-            // For example: A user left the voice channel and now all users left the voice channel.
-            cancellationToken.ThrowIfCancellationRequested();
-
-            //logger.LogInformation(TLE.MBTimeout, "<<<<<<<<<<<<<<<<<<< NotifyPlayerTrackedAsync @ {trackingState}", trackingState);
-
-            return default; // do nothing
-        }
-        #endregion
-
-        // 
     }
 }

@@ -34,7 +34,7 @@ namespace CCTavern.Commands {
             this.mbHelper = mbHelper;
         }
 
-        protected async ValueTask< (PlayerResult<TavernPlayer>, bool isPlayerConnected) > GetPlayerAsync(ulong guildId, ulong? voiceChannelId = null, bool connectToVoiceChannel = true) {
+        protected async ValueTask< (PlayerResult<TavernPlayer> playerResult, bool isPlayerConnected) > GetPlayerAsync(ulong guildId, ulong? voiceChannelId = null, bool connectToVoiceChannel = true) {
             return await mbHelper.GetPlayerAsync(guildId, voiceChannelId, connectToVoiceChannel);
         }
 
