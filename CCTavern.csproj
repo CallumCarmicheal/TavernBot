@@ -16,6 +16,11 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'" />
   <ItemGroup>
+    <Compile Remove="Utility\**" />
+    <EmbeddedResource Remove="Utility\**" />
+    <None Remove="Utility\**" />
+  </ItemGroup>
+  <ItemGroup>
     <Compile Remove="Commands\ArchiveImportModule.cs" />
     <Compile Remove="Migrations\20231018012150_CreateInitialDatabaseMsSQL.cs" />
     <Compile Remove="Migrations\20231018012150_CreateInitialDatabaseMsSQL.Designer.cs" />
@@ -55,9 +60,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="C:\Programming\CSharp\Discord Music Bot\CCMusique\.editorconfig" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Utility\" />
   </ItemGroup>
   <Target Name="SetSourceRevisionId" BeforeTargets="InitializeSourceControlInformation">
     <Exec Command="git describe --long --always --dirty --exclude=* --abbrev=8" ConsoleToMSBuild="True" IgnoreExitCode="False">

@@ -17,6 +17,9 @@ namespace CCTavern {
         [Option(Alias = "prefixesCaseSensitive", DefaultValue = false)]
         public bool PrefixesCaseSensitive { get; }
 
+        [Option(Alias = "inactivityTimerTimeoutInMinutes", DefaultValue = 5)]
+        public int InactivityTimerTimeoutInMinutes { get; }
+
 
         [Option(Alias = "discordToken", DefaultValue = "")]
         public string DiscordToken { get; }

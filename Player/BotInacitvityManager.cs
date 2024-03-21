@@ -26,7 +26,7 @@ namespace CCTavern.Player {
         /// <summary>
         /// The amount of time of inactivity for the bot to disconnect after.
         /// </summary>
-        public TimeSpan TsTimeout = TimeSpan.FromMinutes(5);
+        public TimeSpan TsTimeout;
 
         private static Dictionary<ulong, DateTime> lastActivityTracker = new();
         private CancellationTokenSource cancelToken;
@@ -34,14 +34,18 @@ namespace CCTavern.Player {
         private readonly DiscordClient client;
         private readonly MusicBotHelper mbHelper;
         private readonly IAudioService audioService;
+        private readonly ITavernSettings settings;
 
-        public BotInactivityManager(DiscordClient client, MusicBotHelper mbHelper, IAudioService audioService, ILogger<BotInactivityManager> logger) {
+        public BotInactivityManager(DiscordClient client, MusicBotHelper mbHelper, IAudioService audioService, ITavernSettings settings, ILogger<BotInactivityManager> logger) {
             this.logger = logger;
             this.client = client;
             this.mbHelper = mbHelper;
             this.audioService = audioService;
+            this.settings = settings;
 
             cancelToken = new CancellationTokenSource();
+            TsTimeout = TimeSpan.FromMinutes(settings.InactivityTimerTimeoutInMinutes);
+
             logger.LogInformation(TLE.MBTimeout, "Timeout handler starting.");
 
             _ = PeriodicAsync(handleBotTimeouts, TimeSpan.FromMinutes(1), cancelToken.Token);
@@ -111,20 +115,8 @@ namespace CCTavern.Player {
                             await mbHelper.DeletePastStatusMessage(dbGuild, outputChannel);
                         }
 
-                        var lava = client.GetLavalink();
-                        if (!lava.ConnectedNodes.Any()) {
-                            removals.Add(timeout.Key);
-                            continue;
-                        }
-
-                        var node = lava.ConnectedNodes.Values.First();
-                        var conn = node?.GetGuildConnection(guild);
-                        if (conn == null) {
-                            removals.Add(timeout.Key);
-                            continue;
-                        }
-
-                        await conn.DisconnectAsync();
+                        // Disconnect the bot
+                        await playerQuery.playerResult.Player.DisconnectAsync().ConfigureAwait(false);
                         mbHelper.AnnounceLeave(guildId);
 
                         removals.Add(timeout.Key);
