@@ -21,20 +21,22 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace CCTavern.Player {
-    public class MusicBotHelper
+    internal class MusicBotHelper
     {
         private readonly IAudioService audioService;
         private readonly ILogger<MusicBotHelper> logger;
         private readonly DiscordClient discordClient;
+        private readonly BotInactivityManager inactivityManager;
 
         internal Dictionary<ulong, GuildState> GuildStates { get; set; } = new Dictionary<ulong, GuildState>();
         internal Dictionary<ulong, TemporaryQueue> TemporaryTracks { get; set; } = new Dictionary<ulong, TemporaryQueue>();
 
-        public MusicBotHelper(IAudioService audioService, DiscordClient client, ILogger<MusicBotHelper> logger)
+        public MusicBotHelper(DiscordClient client, BotInactivityManager inactivityManager, IAudioService audioService, ILogger<MusicBotHelper> logger)
         {
+            this.discordClient = client;
+            this.inactivityManager = inactivityManager;
             this.audioService = audioService;
             this.logger = logger;
-            discordClient = client;
         }
 
         public async Task<DiscordChannel?> GetMusicTextChannelFor(DiscordGuild guild)
@@ -45,8 +47,7 @@ namespace CCTavern.Player {
             // Check if we have that in the database
             ulong? discordChannelId = null;
 
-            if (dbGuild.MusicChannelId == null)
-            {
+            if (dbGuild.MusicChannelId == null) {
                 if (GuildStates.ContainsKey(guild.Id) && GuildStates[guild.Id].TemporaryMusicChannelId != null)
                     discordChannelId = GuildStates[guild.Id].TemporaryMusicChannelId;
             }
@@ -315,21 +316,8 @@ namespace CCTavern.Player {
                 if (voiceChannelId != null)
                     AnnounceJoin(guildId, voiceChannelId.Value);
 
-                var playerManager = audioService.Players;
-                var pmType = playerManager.GetType();
-
-                var eventInfo = pmType.GetEvent("PlayerStateChanged", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                var eventDelegate = pmType.GetField("PlayerStateChanged", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(playerManager) as MulticastDelegate;
-                if (eventDelegate != null) {
-                    var eventArgs = new PlayerStateChangedEventArgs(result.Player, PlayerState.NotPlaying);
-
-                    foreach (var handler in eventDelegate.GetInvocationList()) {
-                        var task = handler.Method.Invoke(handler.Target, [playerManager, eventArgs]) as Task;
-
-                        if (task != null)
-                            await task.ConfigureAwait(false);
-                    }
-                }
+                // Update inactivity manager, so if !join is used instead of !play it disconnects the bot after inactivity
+                inactivityManager.UpdateMusicLastActivity(guildId);
             }
 
             bool isConnected = result.IsSuccess && result.Player != null //&& result.Player.ConnectionState.IsConnected
