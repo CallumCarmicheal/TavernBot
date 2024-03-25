@@ -56,23 +56,24 @@ namespace CCTavern.Commands {
             }
 
             var voiceChannel = voiceState.Channel;
+
+            (var oldPlayerResult, var wasPlayerConnected) = await GetPlayerAsync(ctx.Guild.Id, voiceChannel.Id, connectToVoiceChannel: false).ConfigureAwait(false);
             (var playerResult, var playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, voiceChannel.Id, connectToVoiceChannel: true).ConfigureAwait(false);
             if (playerIsConnected == false || playerResult.Player == null) {
                 await ctx.RespondAsync(GetPlayerErrorMessage(playerResult.Status));
                 return;
             }
 
-            await ctx.RespondAsync($"Connected to <#{ctx.Member?.VoiceState.Channel.Id}>.");
+            // Check if we are joining the channel
+            if (playerIsConnected && !wasPlayerConnected) {
+                await ctx.RespondAsync($"Connected to <#{ctx.Member?.VoiceState.Channel.Id}>.");
+            }
 
             var db = new TavernContext();
             var player = playerResult.Player;
             TrackLoadResult? trackQueryResults;
 
-            bool isYoutubeUrl = false;
-
             if (IsUrl(search)) {
-                isYoutubeUrl = true;
-
                 trackQueryResults = await audioService.Tracks
                     .LoadTracksAsync(search, TrackSearchMode.None)
                     .ConfigureAwait(false);
