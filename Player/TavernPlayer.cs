@@ -166,7 +166,7 @@ namespace CCTavern.Player
             }
 
         Finish:
-            botInactivityManager.UpdateMusicLastActivity(guild.Id);
+            botInactivityManager.GuildStateChanged(guild.Id);
         }
 
         protected override async ValueTask NotifyTrackStartedAsync(ITrackQueueItem tqi
@@ -273,7 +273,7 @@ namespace CCTavern.Player
                 _ = Task.Run(() => mbHelper.ParseYoutubeChaptersPlaylist(dbGuild.Id, currentTrackIdx, track.Identifier, _cancellationTokenSource.Token), _cancellationTokenSource.Token);
 
             StartProgressTimer();
-            botInactivityManager.UpdateMusicLastActivity(dbGuild.Id);
+            botInactivityManager.GuildStateChanged(dbGuild.Id);
             logger.LogInformation(TLE.Misc, "NotifyTrackStartedAsync <-- Done processing");
         }
 

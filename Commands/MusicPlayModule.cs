@@ -67,6 +67,7 @@ namespace CCTavern.Commands {
             // Check if we are joining the channel
             if (playerIsConnected && !wasPlayerConnected) {
                 await ctx.RespondAsync($"Connected to <#{ctx.Member?.VoiceState.Channel.Id}>.");
+                mbHelper.AnnounceJoin(voiceState.Channel.GuildId.Value, voiceChannel.Id);
             }
 
             var db = new TavernContext();
@@ -288,6 +289,7 @@ namespace CCTavern.Commands {
                 return;
             }
 
+            mbHelper.AnnounceJoin(voiceState.Channel.GuildId.Value, voiceChannel.Id);
             await ctx.RespondAsync($"Joined <#{voiceChannel.Id}>!");
 
             if (resumePlaylist && playerResult.Player?.State == Lavalink4NET.Players.PlayerState.NotPlaying) {

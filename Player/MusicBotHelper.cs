@@ -317,7 +317,7 @@ namespace CCTavern.Player {
                     AnnounceJoin(guildId, voiceChannelId.Value);
 
                 // Update inactivity manager, so if !join is used instead of !play it disconnects the bot after inactivity
-                inactivityManager.UpdateMusicLastActivity(guildId);
+                inactivityManager.GuildStateChanged(guildId);
             }
 
             bool isConnected = result.IsSuccess && result.Player != null //&& result.Player.ConnectionState.IsConnected

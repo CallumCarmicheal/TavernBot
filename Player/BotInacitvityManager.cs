@@ -21,43 +21,51 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace CCTavern.Player {
+    public delegate void DUpdateGuildPlayerState(ulong guildId);
+
     public class BotInactivityManager {
+        public event DUpdateGuildPlayerState OnGuildStateUpdated;
 
-        /// <summary>
-        /// The amount of time of inactivity for the bot to disconnect after.
-        /// </summary>
-        public TimeSpan TsTimeout;
+        public void GuildStateChanged(ulong guildId) => OnGuildStateUpdated?.Invoke(guildId);
+    }
 
-        private static Dictionary<ulong, DateTime> lastActivityTracker = new();
-        private CancellationTokenSource cancelToken;
-        private ILogger<BotInactivityManager> logger;
+    public class BotInactivityImplementation {
+        private readonly ILogger<BotInactivityManager> logger;
         private readonly DiscordClient client;
         private readonly MusicBotHelper mbHelper;
         private readonly IAudioService audioService;
         private readonly ITavernSettings settings;
+        private readonly BotInactivityManager inactivityManager;
 
-        public BotInactivityManager(DiscordClient client, MusicBotHelper mbHelper, IAudioService audioService, ITavernSettings settings, ILogger<BotInactivityManager> logger) {
+        private Dictionary<ulong, DateTime> lastActivityTracker = new();
+        private CancellationTokenSource cancelToken;
+        
+        public TimeSpan TsTimeout; /// The amount of time of inactivity for the bot to disconnect after.
+
+        public BotInactivityImplementation(DiscordClient client, MusicBotHelper mbHelper, BotInactivityManager inactivityManager, IAudioService audioService, ITavernSettings settings, ILogger<BotInactivityManager> logger) {
             this.logger = logger;
             this.client = client;
             this.mbHelper = mbHelper;
             this.audioService = audioService;
             this.settings = settings;
+            this.inactivityManager = inactivityManager;
 
             cancelToken = new CancellationTokenSource();
             TsTimeout = TimeSpan.FromMinutes(settings.InactivityTimerTimeoutInMinutes);
 
             logger.LogInformation(TLE.MBTimeout, "Timeout handler starting.");
-
             _ = PeriodicAsync(handleBotTimeouts, TimeSpan.FromMinutes(1), cancelToken.Token);
-        } 
 
-        internal void UpdateMusicLastActivity(ulong guildId) {
+            this.inactivityManager.OnGuildStateUpdated += InactivityManager_OnGuildStateUpdated;
+        }
+
+        private void InactivityManager_OnGuildStateUpdated(ulong guildId) {
             if (lastActivityTracker.ContainsKey(guildId))
                 lastActivityTracker[guildId] = DateTime.Now;
             else {
                 lock (lastActivityTracker) {
                     if (lastActivityTracker.ContainsKey(guildId))
-                         lastActivityTracker[guildId] = DateTime.Now;
+                        lastActivityTracker[guildId] = DateTime.Now;
                     else lastActivityTracker.Add(guildId, DateTime.Now);
                 }
             }
@@ -71,7 +79,6 @@ namespace CCTavern.Player {
             sw.Start();
 
             var db = new TavernContext();
-
             List<ulong> removals = new List<ulong>();
 
             for (int index = 0; index < lastActivityTracker.Count; index++) {
@@ -82,7 +89,6 @@ namespace CCTavern.Player {
                 if (dbGuild == null) continue;
 
                 var dt = timeout.Value.Add(TsTimeout);
-
                 if (dt <= DateTime.Now) {
                     Stopwatch swTimeout = new Stopwatch();
                     swTimeout.Start();
@@ -133,7 +139,6 @@ namespace CCTavern.Player {
             sw.Stop();
             logger.LogDebug(TLE.MBTimeout, "Timeout clearup finished, clearup took ({sw})...", sw.Elapsed.ToString());
         }
-
 
         public static async Task PeriodicAsync(Func<Task> action, TimeSpan interval,
                 CancellationToken cancellationToken = default) {
