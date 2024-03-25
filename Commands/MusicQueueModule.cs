@@ -152,7 +152,7 @@ namespace CCTavern.Commands
 
             string?[] dateFormatArr = new string?[] { null, null }; // "dd/MM/yy";
             if (showDate) dateFormatArr[0] = "dd/MM/yy";
-            if (showTime) dateFormatArr[1] = "hh:mm:ss";
+            if (showTime) dateFormatArr[1] = "HH:mm:ss";
 
             string? dateFormat = string.Join(" ", dateFormatArr.Where(x => !string.IsNullOrWhiteSpace(x)));
             if (string.IsNullOrWhiteSpace(dateFormat)) dateFormat = null;
