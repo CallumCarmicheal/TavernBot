@@ -21,7 +21,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace CCTavern.Player {
-    internal class MusicBotHelper
+    public class MusicBotHelper
     {
         private readonly IAudioService audioService;
         private readonly ILogger<MusicBotHelper> logger;

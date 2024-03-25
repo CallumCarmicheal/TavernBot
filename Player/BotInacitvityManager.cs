@@ -21,7 +21,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace CCTavern.Player {
-    internal class BotInactivityManager {
+    public class BotInactivityManager {
 
         /// <summary>
         /// The amount of time of inactivity for the bot to disconnect after.
