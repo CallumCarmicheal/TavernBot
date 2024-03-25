@@ -20,6 +20,9 @@ namespace CCTavern {
         [Option(Alias = "inactivityTimerTimeoutInMinutes", DefaultValue = 5)]
         public int InactivityTimerTimeoutInMinutes { get; }
 
+        [Option(Alias = "inactivityTimerTimeoutPausedInMinutes", DefaultValue = 20)]
+        public int InactivityTimerTimeoutPausedInMinutes { get; }
+
 
         [Option(Alias = "discordToken", DefaultValue = "")]
         public string DiscordToken { get; }

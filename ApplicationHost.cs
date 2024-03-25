@@ -75,6 +75,7 @@ namespace CCTavern {
             commands.RegisterCommands<GuildSettingsModule>();
             commands.RegisterCommands<BotCommandsModule>();
             commands.RegisterCommands<MusicQueueModule>();
+            commands.RegisterCommands<StatusCommandModule>();
 #endif
 
             // Initialize node connection

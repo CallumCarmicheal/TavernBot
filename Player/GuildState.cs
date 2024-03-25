@@ -39,6 +39,8 @@ namespace CCTavern.Player
         public DiscordEmbedBuilder Embed { get; set; }
 
         public int ProgressFieldIdx { get; set; }
+        public int StateFieldIdx { get; set; }
+
 
         // public DateTime NextUpdate { get; set; }
 

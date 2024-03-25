@@ -28,6 +28,7 @@ using Org.BouncyCastle.Asn1.Cms;
 using Lavalink4NET;
 using MySqlX.XDevAPI.Common;
 using System.Reflection;
+using Org.BouncyCastle.Asn1;
 
 namespace CCTavern.Player
 {
@@ -88,12 +89,11 @@ namespace CCTavern.Player
                 StopProgressTimer();
                 return;
             }
-            
+
             // Check if the player is not playing.
             if (this.State != PlayerState.Playing) 
                 return;
 
-            var track = CurrentTrack;
             var guild = await GetGuildAsync();
 
             // If we dont have a guildState somehow, it means we did not create an embed.
@@ -109,52 +109,14 @@ namespace CCTavern.Player
             if (outputChannel == null) goto Finish;
             if (this.Position.HasValue == false) goto Finish;
 
-            var Position = this.Position.Value.Position;
-
-            // Check if the track exits early (maybe seeking?) 
-            if (Position.TotalSeconds > CurrentTrack.Duration.TotalSeconds)
-                goto Finish;
-
-            var progressBar   = mbHelper.GenerateProgressBar(Position.TotalSeconds, CurrentTrack.Duration.TotalSeconds, 20);
-            var remainingText = mbHelper.GetTrackRemaining(Position, CurrentTrack.Duration);
-
-            var embed    = guildState.MusicEmbed.Embed;
-            var fieldIdx = guildState.MusicEmbed.ProgressFieldIdx;
-
-            var progressText = $"```{remainingText.currentTime} {progressBar} {remainingText.timeLeft}```";
-
-            if (guildState?.TrackChapters == null || guildState.TrackChapters?.Count <= 1) {
-                embed.Fields[fieldIdx].Value = progressText;
-            } else {
-                var result = guildState.TrackChapters?.GetNearestByItemTimeSpanWithTimespanRegion(Position);
-
-                if (result == null || result.Value.item == null) {
-                    embed.Fields[fieldIdx].Value = progressText;
-                } else {
-                    var posTotalSeconds = Position.TotalSeconds;
-                    //var trackTotalSeconds = args.Player.CurrentState.CurrentTrack.Length.TotalSeconds;
-                    var currentTrack = result.Value.item;
-                    var startTime    = result.Value.startTime;
-                    var endTime      = result.Value.endTime;
-
-                    if (endTime == null) {
-                        var trackLength = CurrentTrack.Duration;
-
-                        progressBar   = mbHelper.GenerateProgressBar(posTotalSeconds - startTime.TotalSeconds, trackLength.TotalSeconds - startTime.TotalSeconds, 20);
-                        remainingText = mbHelper.GetTrackRemaining(Position - startTime, trackLength - startTime);
-                    } else {
-                        progressBar   = mbHelper.GenerateProgressBar(posTotalSeconds - startTime.TotalSeconds, endTime.Value.TotalSeconds - startTime.TotalSeconds, 20);
-                        remainingText = mbHelper.GetTrackRemaining(Position - startTime, endTime.Value - startTime);
-                    }
-
-                    embed.Fields[fieldIdx].Name = "Current Track";
-                    embed.Fields[fieldIdx].Value = progressText + $"```{currentTrack.Title}\n{remainingText.currentTime} {progressBar} {remainingText.timeLeft}```";
-
-                    // Update the thumbnail
-                    if (currentTrack.Thumbnails.Any())
-                        embed.Thumbnail.Url = currentTrack.Thumbnails.OrderByDescending(x => x.Height).First().Url;
-                }
+            var embed = guildState.MusicEmbed.Embed;
+            if (embed == null) {
+                StopProgressTimer();
+                return;
             }
+
+            if (updateStateEmbed(guildState, embed) == false) 
+                goto Finish;
 
             var message = guildState?.MusicEmbed.Message;
             if (guildState != null && message != null) {
@@ -166,7 +128,7 @@ namespace CCTavern.Player
             }
 
         Finish:
-            botInactivityManager.GuildStateChanged(guild.Id);
+            botInactivityManager.GuildStateChanged(guild.Id, State);
         }
 
         protected override async ValueTask NotifyTrackStartedAsync(ITrackQueueItem tqi
@@ -246,10 +208,13 @@ namespace CCTavern.Player
             if (guildState.RepeatEnabled)
                 embed.AddField("Repeat", $"Repeated `{guildState.TimesRepeated}` times.", true);
 
-            if (dbTrack != null)
+            if (dbTrack != null) {
+                embed.AddField("State", "Playing", true);
                 embed.AddField("Date", Formatter.Timestamp(dbTrack.CreatedAt, TimestampFormat.LongDateTime), true);
+            } else {
+                embed.AddField("State", "Playing");
+            }
 
-            var embedIndex = embed.Fields.Count;
             var progressBar = mbHelper.GenerateProgressBar(0, track.Duration.TotalSeconds, 20);
             var (currentTime, timeLeft) = mbHelper.GetTrackRemaining(TimeSpan.FromSeconds(0), track.Duration);
             embed.AddField("Progress", $"```{progressBar} {timeLeft}```");
@@ -263,17 +228,20 @@ namespace CCTavern.Player
             dbGuild.IsPlaying = true;
             await db.SaveChangesAsync(cancellationToken);
 
+            var embedIndex = embed.Fields.FindIndex(x => x.Name == "Progress");
+            var stateIndex = embed.Fields.FindIndex(x => x.Name == "State");
             guildState.MusicEmbed = new MusicEmbedState() {
                 Message = message,
                 Embed = embed,
-                ProgressFieldIdx = embedIndex
+                ProgressFieldIdx = embedIndex,
+                StateFieldIdx = stateIndex
             };
 
             if (isYoutubeUrl && Program.Settings.YoutubeIntegration.Enabled && track.Duration.TotalMinutes >= 5)
                 _ = Task.Run(() => mbHelper.ParseYoutubeChaptersPlaylist(dbGuild.Id, currentTrackIdx, track.Identifier, _cancellationTokenSource.Token), _cancellationTokenSource.Token);
 
             StartProgressTimer();
-            botInactivityManager.GuildStateChanged(dbGuild.Id);
+            botInactivityManager.GuildStateChanged(dbGuild.Id, State);
             logger.LogInformation(TLE.Misc, "NotifyTrackStartedAsync <-- Done processing");
         }
 
@@ -430,6 +398,125 @@ namespace CCTavern.Player
             logger.LogInformation(TLE.Misc, "-------------PlaybackFinished ### Finished processing");
         }
 
+        public override async ValueTask PauseAsync(CancellationToken cancellationToken = default) {
+            // Pause the track
+            await base.PauseAsync(cancellationToken);
+
+            var discordGuild = await GetGuildAsync();
+            var db = new TavernContext();
+            var dbGuild = await db.GetOrCreateDiscordGuild(discordGuild);
+            var guildState = mbHelper.GetOrCreateGuildState(dbGuild.Id);
+
+            // Pause the update timer thread
+            StopProgressTimer();
+
+            // Update state
+            botInactivityManager.GuildStateChanged(dbGuild.Id, State);
+
+            // Update the embed
+            if (guildState == null || guildState.MusicEmbed == null)
+                return;
+
+            var updateMessage = updateStateEmbed(guildState, guildState.MusicEmbed.Embed);
+            if (updateMessage) {
+                var message = guildState?.MusicEmbed.Message;
+                if (guildState != null && message != null) {
+                    try {
+                        await message.ModifyAsync((DiscordEmbed)guildState.MusicEmbed.Embed);
+                    } catch (DSharpPlus.Exceptions.NotFoundException) {
+                        guildState.MusicEmbed = null;
+                    }
+                }
+            }
+        }
+
+        public override async ValueTask ResumeAsync(CancellationToken cancellationToken = default) {
+            await base.ResumeAsync(cancellationToken);
+
+            var discordGuild = await GetGuildAsync();
+            var db = new TavernContext();
+            var dbGuild = await db.GetOrCreateDiscordGuild(discordGuild);
+            var guildState = mbHelper.GetOrCreateGuildState(dbGuild.Id);
+
+            // Pause the update timer thread
+            StartProgressTimer();
+
+            // Update state
+            botInactivityManager.GuildStateChanged(dbGuild.Id, State);
+
+            // Update the embed
+            if (guildState == null || guildState.MusicEmbed == null)
+                return;
+
+            var updateMessage = updateStateEmbed(guildState, guildState.MusicEmbed.Embed);
+            if (updateMessage) {
+                var message = guildState?.MusicEmbed.Message;
+                if (guildState != null && message != null) {
+                    try {
+                        await message.ModifyAsync((DiscordEmbed)guildState.MusicEmbed.Embed);
+                    } catch (DSharpPlus.Exceptions.NotFoundException) {
+                        guildState.MusicEmbed = null;
+                    }
+                }
+            }
+        }
+
+
+        private bool updateStateEmbed(GuildState guildState, DiscordEmbedBuilder embedBuilder) {
+            if (guildState == null || guildState.MusicEmbed == null || this.Position == null || CurrentTrack == null) 
+                return false;
+
+            var progressFieldIdx = guildState.MusicEmbed.ProgressFieldIdx;
+            var Position         = this.Position.Value.Position;
+
+            // Check if the track exits early (maybe seeking?) 
+            if (Position.TotalSeconds > CurrentTrack.Duration.TotalSeconds)
+                return false;
+
+            // Update current progress bar
+            var progressBar   = mbHelper.GenerateProgressBar(Position.TotalSeconds, CurrentTrack.Duration.TotalSeconds, 20);
+            var remainingText = mbHelper.GetTrackRemaining(Position, CurrentTrack.Duration);
+            var progressText  = $"```{remainingText.currentTime} {progressBar} {remainingText.timeLeft}```";
+
+            // Update track chapter
+            if (guildState.TrackChapters == null || guildState.TrackChapters?.Count <= 1) {
+                embedBuilder.Fields[progressFieldIdx].Value = progressText;
+            } else {
+                var result = guildState.TrackChapters?.GetNearestByItemTimeSpanWithTimespanRegion(Position);
+
+                if (result == null || result.Value.item == null) {
+                    embedBuilder.Fields[progressFieldIdx].Value = progressText;
+                } else {
+                    var posTotalSeconds = Position.TotalSeconds;
+                    var currentTrack = result.Value.item;
+                    var startTime = result.Value.startTime;
+                    var endTime = result.Value.endTime;
+
+                    if (endTime == null) {
+                        var trackLength = CurrentTrack.Duration;
+
+                        progressBar = mbHelper.GenerateProgressBar(posTotalSeconds - startTime.TotalSeconds, trackLength.TotalSeconds - startTime.TotalSeconds, 20);
+                        remainingText = mbHelper.GetTrackRemaining(Position - startTime, trackLength - startTime);
+                    } else {
+                        progressBar = mbHelper.GenerateProgressBar(posTotalSeconds - startTime.TotalSeconds, endTime.Value.TotalSeconds - startTime.TotalSeconds, 20);
+                        remainingText = mbHelper.GetTrackRemaining(Position - startTime, endTime.Value - startTime);
+                    }
+
+                    embedBuilder.Fields[progressFieldIdx].Name = "Current Track";
+                    embedBuilder.Fields[progressFieldIdx].Value = progressText + $"```{currentTrack.Title}\n{remainingText.currentTime} {progressBar} {remainingText.timeLeft}```";
+
+                    // Update the thumbnail
+                    if (currentTrack.Thumbnails.Any())
+                        embedBuilder.Thumbnail.Url = currentTrack.Thumbnails.OrderByDescending(x => x.Height).First().Url;
+                }
+            }
+
+            // Update player state
+            var playerStateIdx = guildState.MusicEmbed.StateFieldIdx;
+            embedBuilder.Fields[playerStateIdx].Value = State.ToString();
+
+            return true;
+        }
 
         #region Guild and Track Functions
 

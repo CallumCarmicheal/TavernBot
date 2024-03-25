@@ -93,6 +93,5 @@ namespace CCTavern.Commands {
                 ? "disconnect after finished playing music."
                 : "disconnect after some time of inactivity."));
         }
-
     }
 }

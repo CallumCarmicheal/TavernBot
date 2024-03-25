@@ -5,10 +5,12 @@ using DSharpPlus;
 using DSharpPlus.Lavalink;
 
 using Lavalink4NET;
+using Lavalink4NET.Players;
 using Lavalink4NET.Protocol.Models.RoutePlanners;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.VisualBasic;
 
 using Org.BouncyCastle.Crypto.Prng;
 
@@ -21,12 +23,19 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace CCTavern.Player {
-    public delegate void DUpdateGuildPlayerState(ulong guildId);
+    public delegate void DUpdateGuildPlayerState(ulong guildId, PlayerState state);
 
     public class BotInactivityManager {
         public event DUpdateGuildPlayerState OnGuildStateUpdated;
 
-        public void GuildStateChanged(ulong guildId) => OnGuildStateUpdated?.Invoke(guildId);
+        public void GuildStateChanged(ulong guildId, PlayerState state) => OnGuildStateUpdated?.Invoke(guildId, state);
+    }
+
+    public class GuildActivityState {
+        public ulong GuildId { get; set; }
+        public PlayerState State { get; set; }
+        public DateTime LastActivity { get; set; }
+        public DateTime? PausedDate { get; set; }
     }
 
     public class BotInactivityImplementation {
@@ -37,10 +46,13 @@ namespace CCTavern.Player {
         private readonly ITavernSettings settings;
         private readonly BotInactivityManager inactivityManager;
 
-        private Dictionary<ulong, DateTime> lastActivityTracker = new();
+        internal Dictionary<ulong, GuildActivityState> lastActivityTracker = new();
         private CancellationTokenSource cancelToken;
-        
-        public TimeSpan TsTimeout; /// The amount of time of inactivity for the bot to disconnect after.
+
+        private static DateTime? LastTimerTick;
+
+        public TimeSpan TsTimeoutInactivity; /// The amount of time of inactivity for the bot to disconnect after.
+        public TimeSpan TsTimeoutPaused; /// The amount of time of paused before the bot disconnects.
 
         public BotInactivityImplementation(DiscordClient client, MusicBotHelper mbHelper, BotInactivityManager inactivityManager, IAudioService audioService, ITavernSettings settings, ILogger<BotInactivityManager> logger) {
             this.logger = logger;
@@ -51,24 +63,36 @@ namespace CCTavern.Player {
             this.inactivityManager = inactivityManager;
 
             cancelToken = new CancellationTokenSource();
-            TsTimeout = TimeSpan.FromMinutes(settings.InactivityTimerTimeoutInMinutes);
+            TsTimeoutInactivity = TimeSpan.FromMinutes(settings.InactivityTimerTimeoutInMinutes);
+            TsTimeoutPaused     = TimeSpan.FromMinutes(settings.InactivityTimerTimeoutPausedInMinutes);
 
             logger.LogInformation(TLE.MBTimeout, "Timeout handler starting.");
-            _ = PeriodicAsync(handleBotTimeouts, TimeSpan.FromMinutes(1), cancelToken.Token);
+            _ = PeriodicAsync(handleBotTimeouts, TimeSpan.FromSeconds(1), cancelToken.Token);
 
             this.inactivityManager.OnGuildStateUpdated += InactivityManager_OnGuildStateUpdated;
         }
 
-        private void InactivityManager_OnGuildStateUpdated(ulong guildId) {
-            if (lastActivityTracker.ContainsKey(guildId))
-                lastActivityTracker[guildId] = DateTime.Now;
-            else {
-                lock (lastActivityTracker) {
-                    if (lastActivityTracker.ContainsKey(guildId))
-                        lastActivityTracker[guildId] = DateTime.Now;
-                    else lastActivityTracker.Add(guildId, DateTime.Now);
-                }
+        private void InactivityManager_OnGuildStateUpdated(ulong guildId, PlayerState state) {
+            GuildActivityState activity;
+            bool trackerExists = lastActivityTracker.ContainsKey(guildId);
+            if (trackerExists) {
+                activity = lastActivityTracker[guildId];
+            } else {
+                activity = new GuildActivityState() { GuildId = guildId, State = state };
             }
+
+            // State changed
+            if (activity.State != state && state == PlayerState.Paused)
+                activity.PausedDate = DateTime.Now;
+
+            if (state != PlayerState.Paused)
+                activity.PausedDate = null;
+
+            activity.LastActivity = DateTime.Now;
+            activity.State = state;
+
+            if (!trackerExists)
+                lastActivityTracker.Add(guildId, activity);
 
             logger.LogDebug(TLE.MBTimeout, "Guild {guildId}, Updated timeout!", guildId);
         }
@@ -82,13 +106,17 @@ namespace CCTavern.Player {
             List<ulong> removals = new List<ulong>();
 
             for (int index = 0; index < lastActivityTracker.Count; index++) {
-                KeyValuePair<ulong, DateTime> timeout = lastActivityTracker.ElementAt(index);
+                var timeout = lastActivityTracker.ElementAt(index);
                 var guildId = timeout.Key;
 
                 var dbGuild = await db.Guilds.Where(x => x.Id == guildId).FirstOrDefaultAsync();
                 if (dbGuild == null) continue;
 
-                var dt = timeout.Value.Add(TsTimeout);
+                DateTime dt
+                    = timeout.Value.State == PlayerState.Paused
+                    ? timeout.Value.LastActivity.Add(TsTimeoutPaused)
+                    : timeout.Value.LastActivity.Add(TsTimeoutInactivity);
+
                 if (dt <= DateTime.Now) {
                     Stopwatch swTimeout = new Stopwatch();
                     swTimeout.Start();
@@ -117,7 +145,12 @@ namespace CCTavern.Player {
                         logger.LogInformation(TLE.MBTimeout, "Guild {guildId} still timedout, disconnecting. ({timeout})", guildId, swTimeout.Elapsed.ToString("mm\\:ss\\.ff"));
 
                         if (outputChannel != null) {
-                            await client.SendMessageAsync(outputChannel, "Left the voice channel <#" + voiceChannelId + "> due to inactivity.");
+                            var leaveMessage = "Left the voice channel <#" + voiceChannelId + "> due to inactivity";
+                            if (timeout.Value.State == PlayerState.Paused)
+                                 leaveMessage += " (Paused for too long).";
+                            else leaveMessage += ".";
+
+                            await client.SendMessageAsync(outputChannel, leaveMessage);
                             await mbHelper.DeletePastStatusMessage(dbGuild, outputChannel);
                         }
 
@@ -140,10 +173,15 @@ namespace CCTavern.Player {
             logger.LogDebug(TLE.MBTimeout, "Timeout clearup finished, clearup took ({sw})...", sw.Elapsed.ToString());
         }
 
+        public bool IsCancellationRequested()  => this.cancelToken.IsCancellationRequested;
+        public DateTime? GetLastTimerTick()    => LastTimerTick;
+
         public static async Task PeriodicAsync(Func<Task> action, TimeSpan interval,
                 CancellationToken cancellationToken = default) {
             using var timer = new PeriodicTimer(interval);
             while (true) {
+                LastTimerTick = DateTime.Now;
+
 #if (DEBUG)
                 await action();
 #else
@@ -151,6 +189,7 @@ namespace CCTavern.Player {
                     await action();
                 } catch { }
 #endif
+
                 await timer.WaitForNextTickAsync(cancellationToken);
             }
         }
