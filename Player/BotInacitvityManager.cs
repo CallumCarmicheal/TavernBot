@@ -67,7 +67,7 @@ namespace CCTavern.Player {
             TsTimeoutPaused     = TimeSpan.FromMinutes(settings.InactivityTimerTimeoutPausedInMinutes);
 
             logger.LogInformation(TLE.MBTimeout, "Timeout handler starting.");
-            _ = PeriodicAsync(handleBotTimeouts, TimeSpan.FromSeconds(1), cancelToken.Token);
+            _ = PeriodicAsync(handleBotTimeouts, TimeSpan.FromMinutes(1), cancelToken.Token);
 
             this.inactivityManager.OnGuildStateUpdated += InactivityManager_OnGuildStateUpdated;
         }
@@ -98,7 +98,7 @@ namespace CCTavern.Player {
         }
 
         private async Task handleBotTimeouts() {
-            logger.LogDebug(TLE.MBTimeout, "Timeout clearup starting...");
+            // logger.LogDebug(TLE.MBTimeout, "Timeout clearup starting...");
             var sw = new Stopwatch();
             sw.Start();
 
@@ -170,7 +170,7 @@ namespace CCTavern.Player {
                 lastActivityTracker.Remove(id);
 
             sw.Stop();
-            logger.LogDebug(TLE.MBTimeout, "Timeout clearup finished, clearup took ({sw})...", sw.Elapsed.ToString());
+            // logger.LogDebug(TLE.MBTimeout, "Timeout clearup finished, clearup took ({sw})...", sw.Elapsed.ToString());
         }
 
         public bool IsCancellationRequested()  => this.cancelToken.IsCancellationRequested;
