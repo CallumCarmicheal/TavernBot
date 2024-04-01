@@ -87,12 +87,32 @@ namespace CCTavern {
             status = new($"Ready ({date:dd/MM/yyyy HH:mm:ss})", ActivityType.Playing);
             await discordClient.UpdateStatusAsync(status, UserStatus.Online);
 
+            discordClient.Zombied += DiscordClient_Zombied;
+            discordClient.SocketClosed += DiscordClient_SocketClosed;
+
             logger.LogInformation(TLE.Startup, "Ready :)");
 
             //logger.LogInformation("Finished Loading!");
             // await _audioService.Players
             //     .JoinAsync(0, 0, playerOptions, stoppingToken) // Ids
             //     .ConfigureAwait(false);
+        }
+
+        private async Task DiscordClient_SocketClosed(DiscordClient sender, DSharpPlus.EventArgs.SocketCloseEventArgs e) {
+            logger.LogCritical(TLE.Disconnected, "Discord API disconnected (SocketClosed), Close code: {code}, message: {message}.", e.CloseCode, e.CloseMessage);
+
+            if (e.CloseCode <= 4003 || (e.CloseCode >= 4005 && e.CloseCode <= 4009) || e.CloseCode >= 5000) {
+                await Task.Delay(10000); // Wait 10 seconds.
+                await sender.ReconnectAsync().ConfigureAwait(false);
+            }
+        }
+
+        private Task DiscordClient_Zombied(DiscordClient sender, DSharpPlus.EventArgs.ZombiedEventArgs args) {
+            logger.LogCritical(TLE.Disconnected, "Discord API disconnected (Zombied), retry attempts: {attempts}.", args.Failures);
+            // await Task.Delay(10000); // Wait 10 seconds.
+            // await sender.ReconnectAsync().ConfigureAwait(false);
+
+            return Task.FromResult(true);
         }
 
 

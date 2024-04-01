@@ -26,7 +26,10 @@ namespace CCTavern.Logger {
         /// </summary>
         public static EventId Startup { get; } = new EventId(202, "Startup");
 
-  
+        /// <summary>
+        /// An error when ever the music bot gets zombied or disconnected.
+        /// </summary>
+        public static EventId Disconnected { get; } = new EventId(202, "Disconnected");
 
         /// <summary>
         /// Command debug
