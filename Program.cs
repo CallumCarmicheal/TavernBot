@@ -50,6 +50,8 @@ namespace CCTavern
         internal static Dictionary<ulong, IEnumerable<string>> ServerPrefixes = new Dictionary<ulong, IEnumerable<string>>();
         internal static IEnumerable<string> g_DefaultPrefixes;
 
+        private static CancellationTokenSource applicationCancelTokenSource = new CancellationTokenSource();
+
         public static string VERSION_Full { get; private set; }
         public static string VERSION_Git { get; private set; } = "??";
         public static string VERSION_Git_WithBuild { get; private set; } = "??";
@@ -103,9 +105,12 @@ namespace CCTavern
             // Logging
             builder.Services.AddLogging(s => s.AddConsole().SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Trace));
 
-            builder.Build().Run();
+            await builder.Build().RunAsync(applicationCancelTokenSource.Token);
         }
 
+        public static void Shutdown() {
+            applicationCancelTokenSource.Cancel();
+        }
 
         public static async Task SetupEnvironment(bool exitOnError = true) {
             loadVersionString();

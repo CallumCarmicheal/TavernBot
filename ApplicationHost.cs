@@ -98,31 +98,39 @@ namespace CCTavern {
             //     .ConfigureAwait(false);
         }
 
+        public override async Task StopAsync(CancellationToken cancellationToken) {
+            logger.LogCritical(TLE.Disconnected, "Disconnecting ApplicationHost, StopAsync.");
+
+            try { await discordClient.DisconnectAsync(); } catch { }
+            try { await audioService.StopAsync(); } catch { }
+
+            await base.StopAsync(cancellationToken);
+        }
+
         private async Task DiscordClient_SocketClosed(DiscordClient sender, DSharpPlus.EventArgs.SocketCloseEventArgs e) {
             logger.LogCritical(TLE.Disconnected, "Discord API disconnected (SocketClosed), Close code: {code}, message: {message}.", e.CloseCode, e.CloseMessage);
 
             if (e.CloseCode == 4002) {
-                logger.LogCritical(TLE.Disconnected, "Attempting to reconnect the bot in 10 seconds.");
-                await Task.Delay(10000); // Wait 10 seconds.
+                logger.LogCritical(TLE.Disconnected, "Restarting the bot in 20 seconds.");
+                try { await sender.DisconnectAsync().ConfigureAwait(false); } catch { }
 
-                logger.LogCritical(TLE.Disconnected, "Reconnecting the bot as a new session.");
-                await sender.ReconnectAsync(true).ConfigureAwait(false);
+                await Task.Delay(20000); // Wait 20 seconds.
+                logger.LogCritical(TLE.Disconnected, "Shutting down...");
+
+                Program.Shutdown();
             }
 
-            else if (e.CloseCode <= 4003 || (e.CloseCode >= 4005 && e.CloseCode <= 4009) || e.CloseCode >= 5000) {
-                logger.LogCritical(TLE.Disconnected, "Attempting to reconnect the bot in 10 seconds.");
-                await Task.Delay(10000); // Wait 10 seconds.
-
-                logger.LogCritical(TLE.Disconnected, "Reconnecting the bot.");
-                await sender.ReconnectAsync(true).ConfigureAwait(false);
-            }
+            //else if (e.CloseCode <= 4003 || (e.CloseCode >= 4005 && e.CloseCode <= 4009) || e.CloseCode >= 5000) {
+            //    logger.LogCritical(TLE.Disconnected, "Attempting to reconnect the bot in 10 seconds.");
+            //    await Task.Delay(20000); // Wait 20 seconds.
+            //
+            //    logger.LogCritical(TLE.Disconnected, "Reconnecting the bot.");
+            //    await sender.ReconnectAsync().ConfigureAwait(false);
+            //}
         }
 
         private Task DiscordClient_Zombied(DiscordClient sender, DSharpPlus.EventArgs.ZombiedEventArgs args) {
             logger.LogCritical(TLE.Disconnected, "Discord API disconnected (Zombied), retry attempts: {attempts}.", args.Failures);
-            // await Task.Delay(10000); // Wait 10 seconds.
-            // await sender.ReconnectAsync().ConfigureAwait(false);
-
             return Task.FromResult(true);
         }
 
