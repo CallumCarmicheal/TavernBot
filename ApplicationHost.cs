@@ -101,8 +101,15 @@ namespace CCTavern {
         private async Task DiscordClient_SocketClosed(DiscordClient sender, DSharpPlus.EventArgs.SocketCloseEventArgs e) {
             logger.LogCritical(TLE.Disconnected, "Discord API disconnected (SocketClosed), Close code: {code}, message: {message}.", e.CloseCode, e.CloseMessage);
 
+            //if (e.CloseCode == 4002) {
+            //     // Exit and restart the application
+            //}
+
             if (e.CloseCode <= 4003 || (e.CloseCode >= 4005 && e.CloseCode <= 4009) || e.CloseCode >= 5000) {
+                logger.LogCritical(TLE.Disconnected, "Attempting to reconnect the bot in 10 seconds.");
                 await Task.Delay(10000); // Wait 10 seconds.
+
+                logger.LogCritical(TLE.Disconnected, "Reconnecting the bot as a new session.");
                 await sender.ReconnectAsync().ConfigureAwait(false);
             }
         }
