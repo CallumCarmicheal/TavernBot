@@ -105,7 +105,8 @@ namespace CCTavern
             // Logging
             builder.Services.AddLogging(s => s.AddConsole().SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Trace));
 
-            await builder.Build().RunAsync(applicationCancelTokenSource.Token);
+            builder.Build().RunAsync(applicationCancelTokenSource.Token).GetAwaiter().GetResult();
+            //await builder.Build().RunAsync(applicationCancelTokenSource.Token);
         }
 
         public static void Shutdown() {
