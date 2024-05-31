@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Microsoft.Extensions.DependencyInjection;
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -140,5 +142,14 @@ namespace CCTavern {
         ///<param name="item">The item to find.</param>
         ///<returns>The index of the first matching item, or -1 if the item was not found.</returns>
         public static int IndexOf<T>(this IEnumerable<T> items, T item) { return items.FindIndex(i => EqualityComparer<T>.Default.Equals(item, i)); }
+
+
+        public static T? GetInstance<T>(this IServiceProvider serviceProvider) {
+            return ActivatorUtilities.CreateInstance<T>(serviceProvider);
+        }
+
+        public static T? GetInstance<T>(this IServiceProvider serviceProvider, params object[] parameters) {
+            return ActivatorUtilities.CreateInstance<T>(serviceProvider, parameters);
+        }
     }
 }

@@ -78,7 +78,7 @@ namespace CCTavern
                 TokenType = TokenType.Bot,
 
                 Intents = DiscordIntents.AllUnprivileged | DiscordIntents.MessageContents
-                    | DiscordIntents.GuildVoiceStates | DiscordIntents.DirectMessageReactions
+                          | DiscordIntents.GuildVoiceStates | DiscordIntents.DirectMessageReactions
             };
 
             var builder = new HostApplicationBuilder(args);
@@ -105,7 +105,14 @@ namespace CCTavern
             // Logging
             builder.Services.AddLogging(s => s.AddConsole().SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Trace));
 
-            builder.Build().RunAsync(applicationCancelTokenSource.Token).GetAwaiter().GetResult();
+            var services = builder.Build();
+            var serviceProvider = services.Services;
+
+            var webServer = new WebServer(serviceProvider);
+            var webServerStartTask = webServer.StartServer(applicationCancelTokenSource.Token).ConfigureAwait(false);
+
+            // Run the application
+            services.RunAsync(applicationCancelTokenSource.Token).GetAwaiter().GetResult();
             //await builder.Build().RunAsync(applicationCancelTokenSource.Token);
         }
 
