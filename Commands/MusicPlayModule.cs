@@ -33,7 +33,7 @@ namespace CCTavern.Commands {
             this.logger = logger;
         }
 
-        static bool IsUrl(string input) {
+        static bool IsWebUrl(string input) {
             return Uri.TryCreate(input, UriKind.Absolute, out var uriResult)
                    && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps);
         }
@@ -74,14 +74,38 @@ namespace CCTavern.Commands {
             var player = playerResult.Player;
             TrackLoadResult? trackQueryResults;
 
-            if (IsUrl(search)) {
+            if (IsWebUrl(search)) {
                 trackQueryResults = await audioService.Tracks
                     .LoadTracksAsync(search, TrackSearchMode.None)
                     .ConfigureAwait(false);
             } else {
-                trackQueryResults = await audioService.Tracks
-                    .LoadTracksAsync(search, TrackSearchMode.YouTube)
-                    .ConfigureAwait(false);
+#if (SERVER_FILESTORAGE)
+                if (search.StartsWith("srv://")) {
+#if (DEBUG)
+                    var path = System.IO.Path.Combine("C:\\Users\\callu\\Music\\FFXIV", string.Join("", search.Split("srv://")));
+                    if (path.StartsWith("C:\\Users\\callu\\Music\\FFXIV")) {
+#else
+                    var path = System.IO.Path.Combine("/srv/media/", string.Join("", search.Split("srv://")));
+                    if (path.StartsWith("/srv/media/")) {
+#endif
+                        search = path;
+                        trackQueryResults = await audioService.Tracks
+                            .LoadTracksAsync(search, new TrackSearchMode("file:///"))
+                            .ConfigureAwait(false);
+                    } else {
+                        trackQueryResults = await audioService.Tracks
+                           .LoadTracksAsync(search, TrackSearchMode.None)
+                           .ConfigureAwait(false);
+                    }
+                }
+                else {
+#endif
+                    trackQueryResults = await audioService.Tracks
+                        .LoadTracksAsync(search, TrackSearchMode.YouTube)
+                        .ConfigureAwait(false);
+#if (SERVER_FILESTORAGE)
+                }
+#endif
             }
 
             if (trackQueryResults.HasValue && trackQueryResults.Value.IsPlaylist) {
