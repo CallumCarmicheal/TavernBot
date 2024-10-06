@@ -67,6 +67,7 @@ dotnet_style_prefer_simplified_interpolation = true:suggestion
 dotnet_style_namespace_match_folder = true:suggestion
 dotnet_style_readonly_field = true:suggestion
 dotnet_style_predefined_type_for_locals_parameters_members = true:silent
+dotnet_style_prefer_collection_expression = when_types_loosely_match:suggestion
 
 [*.cs]
 csharp_indent_labels = one_less_than_current
@@ -101,3 +102,4 @@ csharp_style_unused_value_expression_statement_preference = discard_variable:sil
 
 # CS8618: Non nullable field _name is not initialized. Consider declare the field as nullable type
 dotnet_diagnostic.CS8618.severity = none
+csharp_style_prefer_primary_constructors = false:suggestion

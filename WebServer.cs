@@ -27,8 +27,8 @@ namespace CCTavern {
 
             // Inject dependencies into controller
             server.WithLocalSessionManager();
-            server.WithWebApi("Serve status page", "/api/status",
-                m => m.RegisterController( () => ServiceProvider.GetInstance<StatusController>())
+            _ = server.WithWebApi("Serve status page", "/api/status",
+                m => m.RegisterController( () => ServiceProvider.GetInstance<StatusController>()! )
             );
             server.WithAction("/", HttpVerbs.Any, async (ctx) => await ctx.SendStandardHtmlAsync(200, (x) => { x.WriteLine("Waiting for API requests"); }));
 

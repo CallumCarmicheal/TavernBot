@@ -47,10 +47,10 @@ namespace CCTavern
         internal static ITavernSettings Settings { get; private set; }
 
         internal static Logger.TavernLoggerFactory LoggerFactory { get; private set; } = new CCTavern.Logger.TavernLoggerFactory();
-        internal static Dictionary<ulong, IEnumerable<string>> ServerPrefixes = new Dictionary<ulong, IEnumerable<string>>();
+        internal static Dictionary<ulong, IEnumerable<string>> ServerPrefixes = [];
         internal static IEnumerable<string> g_DefaultPrefixes;
 
-        private static CancellationTokenSource applicationCancelTokenSource = new CancellationTokenSource();
+        private static readonly CancellationTokenSource applicationCancelTokenSource = new();
 
         public static string VERSION_Full { get; private set; }
         public static string VERSION_Git { get; private set; } = "??";
@@ -95,7 +95,6 @@ namespace CCTavern
             builder.Services.ConfigureLavalink(config => {
                 config.BaseAddress = new Uri($"http://{Settings.Lavalink.Hostname}:{Settings.Lavalink.Port}");
                 config.Passphrase = Settings.Lavalink.Password;
-
                 config.ReadyTimeout = TimeSpan.FromSeconds(10);
                 config.ResumptionOptions = new LavalinkSessionResumptionOptions(TimeSpan.FromSeconds(60));
             });
@@ -145,7 +144,7 @@ namespace CCTavern
 
             var migrations = await ctx.Database.GetPendingMigrationsAsync();
             if (migrations.Any()) {
-                logger.LogInformation(LoggerEvents.Startup, "Migrations required: " + string.Join(", ", migrations) + ".");
+                logger.LogInformation(LoggerEvents.Startup, "Migrations required: {migrations}.", string.Join(", ", migrations));
                 await ctx.Database.MigrateAsync();
                 await ctx.SaveChangesAsync();
             }

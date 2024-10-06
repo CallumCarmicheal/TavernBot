@@ -42,7 +42,7 @@ namespace CCTavern.Commands {
         [Description("Play music using a search")]
         [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
         public async Task Play(CommandContext ctx, [RemainingText] string search) {
-            logger.LogInformation(TLE.MBPlay, "Play Music: " + search);
+            logger.LogInformation(TLE.MBPlay, "Play Music: {search}", search);
 
             var voiceState = ctx.Member?.VoiceState;
             if (voiceState == null || voiceState.Channel == null || ctx.Member == null) {
@@ -135,7 +135,7 @@ namespace CCTavern.Commands {
             await _Play_Single(ctx, db, player, trackQueryResults.Value.Track);
         }
 
-        private async Task<TrackRequestedPlayMode> _Play_PromptForPlaylist(CommandContext ctx) {
+        private static async Task<TrackRequestedPlayMode> _Play_PromptForPlaylist(CommandContext ctx) {
             // Set a static time 30 seconds from now so if the message needs to be reset
             // it still waits 30 seconds from the original message.
             var waitTimespan = TimeSpan.FromSeconds(30);
@@ -237,12 +237,12 @@ namespace CCTavern.Commands {
             var playlist = new GuildQueuePlaylist();
             playlist.Title = trackResults.Playlist.Name;
             playlist.CreatedById = requestedBy.Id;
-            playlist.PlaylistSongCount = list.Count();
+            playlist.PlaylistSongCount = list.Count;
             db.GuildQueuePlaylists.Add(playlist);
             await db.SaveChangesAsync();
 
             // Loop the tracks
-            for (int x = 0; x < list.Count(); x++) {
+            for (int x = 0; x < list.Count; x++) {
                 var lt = list[x];
                 var trackIdx = await mbHelper.EnqueueTrack(lt, ctx.Channel, ctx.Member, playlist, (x == 0 && isPlayEvent));
 
@@ -259,11 +259,11 @@ namespace CCTavern.Commands {
                 // Every 5 tracks update the index
                 if (x % 15 == 0) {
                     // TODO: Check if the bot is finished on the queue, then make it continue playing on the next track
-                    await addingMessage.ModifyAsync($"Adding `{x}`/`{list.Count()}` tracks to playlist...");
+                    await addingMessage.ModifyAsync($"Adding `{x}`/`{list.Count}` tracks to playlist...");
                 }
             }
 
-            await addingMessage.ModifyAsync($"Successfully added `{list.Count()}` tracks to playlist...");
+            await addingMessage.ModifyAsync($"Successfully added `{list.Count}` tracks to playlist...");
         }
 
         [Command("join")]
