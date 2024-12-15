@@ -125,16 +125,16 @@ namespace CCTavern.Player {
 
                     // Handle the timeout
                     var guild = await client.GetGuildAsync(guildId);
-                    var playerQuery = await mbHelper.GetPlayerAsync(guildId, voiceChannelId: null, connectToVoiceChannel: false);
+                    var playerQueryTavern = await mbHelper.GetPlayerAsync(guildId, voiceChannelId: null, connectToVoiceChannel: false);
 
                     // If we don't have a connection remove it from the dictionary
-                    if (playerQuery.isPlayerConnected == false || playerQuery.playerResult.Player == null) {
+                    if (playerQueryTavern.isPlayerConnected == false || playerQueryTavern.playerResult.Player == null) {
                         removals.Add(timeout.Key);
                         continue;
                     }
 
                     var outputChannel = await mbHelper.GetMusicTextChannelFor(guild);
-                    var voiceChannelId = playerQuery.playerResult.Player.VoiceChannelId;
+                    var voiceChannelId = playerQueryTavern.playerResult.Player.VoiceChannelId;
 
                     // Check if we still want the timeout, to avoid a racetime condition
                     timeout = lastActivityTracker.ElementAt(index);
@@ -155,7 +155,7 @@ namespace CCTavern.Player {
                         }
 
                         // Disconnect the bot
-                        await playerQuery.playerResult.Player.DisconnectAsync().ConfigureAwait(false);
+                        await playerQueryTavern.playerResult.Player.DisconnectAsync().ConfigureAwait(false);
                         mbHelper.AnnounceLeave(guildId);
 
                         removals.Add(timeout.Key);
