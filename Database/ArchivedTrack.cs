@@ -20,19 +20,19 @@ namespace CCTavern.Database {
 
         public ulong Position { get; set; }
 
-        public string Title { get; set; }
+        public required string Title { get; set; }
 
         public TimeSpan Length { get; set; }
 
-        public string TrackString { get; set; }
+        public string? TrackString { get; set; }
 
         [ForeignKey("Id")]
         public ulong? RequestedById { get; set; }
-        public virtual CachedUser RequestedBy { get; set; }
+        public virtual CachedUser? RequestedBy { get; set; }
 
         [ForeignKey("Id")]
         public ulong GuildId { get; set; }
-        public virtual Guild Guild { get; set; }
+        public virtual Guild? Guild { get; set; }
 
         #endregion
 

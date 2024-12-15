@@ -18,14 +18,14 @@ namespace CCTavern.Database {
 
         [ForeignKey("Id")]
         public ulong? AuthorId { get; set; }
-        public virtual CachedUser Author { get; set; }
+        public virtual CachedUser? Author { get; set; }
 
         [ForeignKey("Id")]
         public ulong GuildId { get; set; }
-        public virtual Guild Guild { get; set; }
+        public virtual Guild? Guild { get; set; }
 
         public bool ContainsPrefix { get; set; }
 
-        public string MessageContents { get; set; }
+        public string? MessageContents { get; set; }
     }
 }

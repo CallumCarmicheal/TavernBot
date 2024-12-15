@@ -13,7 +13,7 @@ namespace CCTavern.Database {
         [DatabaseGenerated(DatabaseGeneratedOption.None)]
         public ulong Id { get; set; }
         
-        public string Name { get; set; }
+        public string? Name { get; set; }
         public string? Prefixes { get; set; } = null;
 
         public ulong? MusicChannelId { get; set; }
@@ -36,7 +36,7 @@ namespace CCTavern.Database {
         /// </summary>
         public bool LeaveAfterQueue { get; set; } = false;
 
-        public ICollection<GuildQueueItem> Tracks { get; set; }
+        public ICollection<GuildQueueItem>? Tracks { get; set; }
 
         //public ICollection<ArchivedTrack>  ArchivedTracks { get; set; }
     }

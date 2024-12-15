@@ -22,12 +22,11 @@ namespace CCTavern.Commands
 
         public MusicBotHelper Music { private get; set; }
 
-        private ILogger _logger;
-        private ILogger logger {
-            get {
-                if (_logger == null) _logger = Program.LoggerFactory.CreateLogger<MusicPlayModule>();
-                return _logger;
-            }
+        private ILogger logger { get; set; } = null!;
+
+        public TemporaryQueueModule(MusicBotHelper mbHelper) {
+            logger = Program.LoggerFactory.CreateLogger<MusicPlayModule>();
+            this.Music = mbHelper;
         }
 
         [Command("playonce"), Aliases("po")]

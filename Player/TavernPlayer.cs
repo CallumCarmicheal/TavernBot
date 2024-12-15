@@ -146,7 +146,7 @@ namespace CCTavern.Player
                     embed.Fields[fieldIdx].Value = progressText + $"```{currentTrack.Title}\n{remainingText.currentTime} {progressBar} {remainingText.timeLeft}```";
 
                     // Update the thumbnail
-                    if (currentTrack.Thumbnails.Any())
+                    if (currentTrack.Thumbnails != null && currentTrack.Thumbnails.Any())
                         embed.Thumbnail.Url = currentTrack.Thumbnails.OrderByDescending(x => x.Height).First().Url;
                 }
             }
@@ -418,16 +418,16 @@ namespace CCTavern.Player
         }
 
 
-        #region Guild and Track Functions
+    #region Guild and Track Functions
 
-        private DiscordGuild _guild;
+        private DiscordGuild? _guild;
         private async Task<DiscordGuild> GetGuildAsync() {
             return _guild ??= await discordClient.GetGuildAsync(GuildId);
         }
 
-        #endregion
+    #endregion
 
-        #region Tracking
+    #region Tracking
 
         public ValueTask NotifyPlayerActiveAsync(PlayerTrackingState trackingState, CancellationToken cancellationToken = default) {
             //logger.LogInformation(TLE.MBTimeout, "<================== NotifyPlayerActiveAsync @ {trackingState}", trackingState);
@@ -476,7 +476,8 @@ namespace CCTavern.Player
 
             return default; // do nothing
         }
-        #endregion
+
+    #endregion
 
         // 
     }

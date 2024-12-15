@@ -16,18 +16,17 @@ namespace CCTavern.Database {
         public ulong UserId { get; set; }
 
         [Required]
-        public string Username { get; set; }
+        public required string Username { get; set; }
         
         [Required]
-        public string DisplayName { get; set; }
+        public required string DisplayName { get; set; }
 
         [ForeignKey("Id")]
         public ulong GuildId { get; set; }
-        public virtual Guild Guild { get; set; }
+        public virtual Guild? Guild { get; set; }
 
-
-        public ICollection<GuildQueueItem> RequestedSongs { get; set; }
-        public ICollection<GuildQueueItem> DeletedSongs   { get; set; }
-        public ICollection<ArchivedTrack>  ArchivedTracks { get; set; }
+        public ICollection<GuildQueueItem>? RequestedSongs { get; set; }
+        public ICollection<GuildQueueItem>? DeletedSongs   { get; set; }
+        public ICollection<ArchivedTrack>? ArchivedTracks { get; set; }
     }
 }

@@ -197,10 +197,12 @@ namespace CCTavern.Commands {
             var addingMessage = await ctx.RespondAsync($"Adding `0`/`{list.Count}` tracks to playlist...");
 
             // Create the queue 
-            var playlist = new GuildQueuePlaylist();
-            playlist.Title = trackResults.Playlist.Name;
-            playlist.CreatedById = requestedBy.Id;
-            playlist.PlaylistSongCount = list.Count();
+
+            var playlist = new GuildQueuePlaylist() {
+                Title = trackResults.Playlist.Name,
+                CreatedById = requestedBy.Id,
+                PlaylistSongCount = list.Count()
+            };
             db.GuildQueuePlaylists.Add(playlist);
             await db.SaveChangesAsync();
 
