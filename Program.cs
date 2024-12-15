@@ -48,23 +48,23 @@ namespace CCTavern
 
     public sealed class Program {
         public static string DotNetConfigurationMode { get => get_VarDotNetConfigurationMode(); }
-        internal static ITavernSettings Settings { get; private set; }
+        internal static ITavernSettings Settings { get; private set; } = null!;
 
         internal static Logger.TavernLoggerFactory LoggerFactory { get; private set; } = new CCTavern.Logger.TavernLoggerFactory();
         internal static Dictionary<ulong, IEnumerable<string>> ServerPrefixes = new Dictionary<ulong, IEnumerable<string>>();
-        internal static IEnumerable<string> g_DefaultPrefixes;
+        internal static IEnumerable<string> g_DefaultPrefixes = new List<string>(["!!"]); // When changing value also update Settings.DefaultPrefixes
 
-        public static string VERSION_Full { get; private set; }
+        public static string VERSION_Full { get; private set; } = "??";
         public static string VERSION_Git { get; private set; } = "??";
         public static string VERSION_Git_WithBuild { get; private set; } = "??";
 
-        private static ILogger logger;
+        private static ILogger logger = null!;
 
         public static async Task Main(string[] args) {
             await SetupEnvironment();
 
             // Verify the discord token
-            if (string.IsNullOrWhiteSpace(Settings.DiscordToken)) {
+            if (string.IsNullOrWhiteSpace(Settings!.DiscordToken)) {
                 Console.WriteLine("Please specify a token in the DISCORD_TOKEN environment variable.");
                 Environment.Exit(1);
                 return; // For the compiler's nullability, unreachable code.
@@ -120,7 +120,36 @@ namespace CCTavern
             // Logging
             builder.Services.AddLogging(s => s.AddConsole().SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Trace));
 
-            builder.Build().Run();
+            // Try running the host
+            await runWithRetries(builder, maxRetries: 5, delayMilliseconds: 30000);
+        }
+
+        private static async Task runWithRetries(HostApplicationBuilder builder, int maxRetries, int delayMilliseconds) {
+            int attempt = 0;
+
+            while (attempt < maxRetries) {
+                try {
+                    attempt++;
+                    logger.LogInformation($"Attempt {attempt} to build and run the host.");
+
+                    // Build and run the application
+                    builder.Build().Run();
+                    logger.LogInformation("Host is running successfully.");
+
+                    break; // Exit the loop if successful
+                } catch (Exception ex) {
+                    logger.LogError(TLE.Startup, ex, $"Attempt {attempt} failed: {ex.Message}");
+
+                    if (attempt >= maxRetries) {
+                        logger.LogCritical(TLE.Startup, "Max retries reached. Exiting in 5 seconds...");
+                        await Task.Delay(5000);
+                        throw; // Rethrow the exception after max retries
+                    }
+
+                    logger.LogInformation(TLE.Startup, $"Retrying in {delayMilliseconds / 1000} seconds...");
+                    await Task.Delay(delayMilliseconds); // Wait 30 seconds before retrying
+                }
+            }
         }
 
 
