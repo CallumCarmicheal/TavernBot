@@ -14,6 +14,7 @@ using Lavalink4NET.Players.Queued;
 
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Identity.Client;
 
 using System;
 using System.Collections.Generic;
@@ -78,24 +79,26 @@ namespace CCTavern {
             commands.RegisterCommands<StatusCommandModule>();
 #endif
 
-            // Initialize node connection
-            await audioService
-                .WaitForReadyAsync(stoppingToken)
-                .ConfigureAwait(false);
+            try {
+                // Initialize node connection
+                await audioService
+                    .WaitForReadyAsync(stoppingToken)
+                    .ConfigureAwait(false);
+            } catch (Exception ex) {
+                status = new($"Error LLC Failure ({DateTime.Now:dd/MM/yyyy HH:mm:ss})", ActivityType.Competing);
+                await discordClient.UpdateStatusAsync(status, UserStatus.Idle);
 
-            var date = DateTime.Now;
-            status = new($"Ready ({date:dd/MM/yyyy HH:mm:ss})", ActivityType.Playing);
+                logger.LogError(TLE.Startup, ex, $"Failed to connect to Lavalink audio service backend: {ex.Message}");
+                throw;
+            }
+
+            status = new($"Ready ({DateTime.Now:dd/MM/yyyy HH:mm:ss})", ActivityType.Playing);
             await discordClient.UpdateStatusAsync(status, UserStatus.Online);
 
             discordClient.Zombied += DiscordClient_Zombied;
             discordClient.SocketClosed += DiscordClient_SocketClosed;
 
             logger.LogInformation(TLE.Startup, "Ready :)");
-
-            //logger.LogInformation("Finished Loading!");
-            // await _audioService.Players
-            //     .JoinAsync(0, 0, playerOptions, stoppingToken) // Ids
-            //     .ConfigureAwait(false);
         }
 
         public override async Task StopAsync(CancellationToken cancellationToken) {

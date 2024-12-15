@@ -18,19 +18,17 @@ namespace CCTavern.Commands {
 
     internal class RadioStreamCommandModule : BaseAudioCommandModule {
         private readonly ILogger<RadioStreamCommandModule> logger;
-        private readonly MusicBotHelper mbHelper;
 
         public RadioStreamCommandModule(MusicBotHelper mbHelper, ILogger<RadioStreamCommandModule> logger, IAudioService audioService)
                 : base(audioService, mbHelper) {
             this.logger = logger;
-            this.mbHelper = mbHelper;
         }
 
-        [Command("sverige"), Aliases("svenska", "swed", "ikea")]
-        [Description("Play music using a search")]
-        [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
-        public async Task PlaySwedishRock(CommandContext ctx, [RemainingText] string search) {
-
-        }
+        //[Command("sverige"), Aliases("svenska", "swed", "ikea")]
+        //[Description("Play music using a search")]
+        //[RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
+        //public async Task PlaySwedishRock(CommandContext ctx, [RemainingText] string search) {
+            //
+        //}
     }
 }

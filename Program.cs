@@ -38,25 +38,22 @@ using Org.BouncyCastle.Asn1.X509.Qualified;
 
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
-namespace CCTavern
-{
-
-
+namespace CCTavern {
     public sealed class Program {
         public static string DotNetConfigurationMode { get => get_VarDotNetConfigurationMode(); }
-        internal static ITavernSettings Settings { get; private set; }
+        internal static ITavernSettings Settings { get; private set; } = null!;
 
         internal static Logger.TavernLoggerFactory LoggerFactory { get; private set; } = new CCTavern.Logger.TavernLoggerFactory();
         internal static Dictionary<ulong, IEnumerable<string>> ServerPrefixes = [];
-        internal static IEnumerable<string> g_DefaultPrefixes;
+        internal static IEnumerable<string> g_DefaultPrefixes = new List<string>(["!!"]); // When changing value also update Settings.DefaultPrefixes;
 
         private static readonly CancellationTokenSource applicationCancelTokenSource = new();
 
-        public static string VERSION_Full { get; private set; }
+        public static string VERSION_Full { get; private set; } = "??";
         public static string VERSION_Git { get; private set; } = "??";
         public static string VERSION_Git_WithBuild { get; private set; } = "??";
 
-        private static ILogger logger;
+        private static ILogger logger = null!;
 
         public static async Task Main(string[] args) {
             await SetupEnvironment();
@@ -104,15 +101,38 @@ namespace CCTavern
             // Logging
             builder.Services.AddLogging(s => s.AddConsole().SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Trace));
 
-            var services = builder.Build();
+            IHost services = null!;
+            try {
+                services = builder.Build();
+            } catch (Exception ex) {
+                logger.LogError(TLE.Startup, ex, $"Failed to build application host, waiting 5 seconds: {ex.Message}");
+                await Task.Delay(5000);
+                throw;
+            }
+
             var serviceProvider = services.Services;
 
             var webServer = new WebServer(serviceProvider);
             var webServerStartTask = webServer.StartServer(applicationCancelTokenSource.Token).ConfigureAwait(false);
 
             // Run the application
-            services.RunAsync(applicationCancelTokenSource.Token).GetAwaiter().GetResult();
+            //services.RunAsync(applicationCancelTokenSource.Token).GetAwaiter().GetResult();
             //await builder.Build().RunAsync(applicationCancelTokenSource.Token);
+
+            int shutdownDelayMilliseconds = (2 * 60) * 1000; // 2 minutes
+            try {
+                // Build and run the application
+                await services.RunAsync(applicationCancelTokenSource.Token);
+
+                logger.LogInformation("Host is running successfully.");
+                return;
+            } catch (Exception ex) {
+                logger.LogError(TLE.Startup, ex, $"Startup attempt failed: {ex.Message}");
+                logger.LogInformation(TLE.Startup, $"Shutting down in {shutdownDelayMilliseconds / 1000} seconds...");
+                Shutdown();
+                await Task.Delay(shutdownDelayMilliseconds); // Wait 30 seconds before retrying
+                return;
+            }
         }
 
         public static void Shutdown() {

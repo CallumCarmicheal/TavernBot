@@ -22,7 +22,7 @@ namespace CCTavern.Player
         public bool RepeatEnabled { get; internal set; } = false;
         public int  TimesRepeated { get; set; } = 0;
 
-        public MusicEmbedState? MusicEmbed { get; set; } = null;
+        public MusicEmbedState? MusicEmbed { get; set; } = null!;
         public SortedList<TimeSpan, IVideoChapter>? TrackChapters { get; set; }
 
 
