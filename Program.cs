@@ -104,6 +104,7 @@ namespace CCTavern {
             IHost services = null!;
             try {
                 services = builder.Build();
+            //} catch (Microsoft.Extensions.Hosting.HostAbortedException ex) {
             } catch (Exception ex) {
                 logger.LogError(TLE.Startup, ex, $"Failed to build application host, waiting 5 seconds: {ex.Message}");
                 await Task.Delay(5000);
@@ -122,7 +123,7 @@ namespace CCTavern {
             int shutdownDelayMilliseconds = (2 * 60) * 1000; // 2 minutes
             try {
                 // Build and run the application
-                await services.RunAsync(applicationCancelTokenSource.Token);
+                await services.RunAsync(applicationCancelTokenSource.Token).ConfigureAwait(false);
 
                 logger.LogInformation("Host is running successfully.");
                 return;

@@ -467,7 +467,7 @@ namespace CCTavern.Player
                 return false;
 
             var progressFieldIdx = guildState.MusicEmbed.ProgressFieldIdx;
-            var Position         = this.Position.Value.Position;
+            var Position         = this.Position.Value.RelativePosition;
 
             // Check if the track exits early (maybe seeking?) 
             if (Position.TotalSeconds > CurrentTrack.Duration.TotalSeconds)
