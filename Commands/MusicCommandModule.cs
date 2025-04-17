@@ -299,6 +299,7 @@ namespace CCTavern.Commands
         [Description("Current playing track")]
         [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
         public async Task SeekPlayer(CommandContext ctx,
+            [RemainingText]
             [Description("Timespan to parse, examples \"1hr 30m 20s\", \"33 seconds\", \"minute:second\", \"hour:minute:second\"")]
             string unparsedTimespan
         ) {
