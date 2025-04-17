@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 namespace CCTavern.Database {
     public class GuildQueueItem : BaseDbEntity {
         [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public ulong Id { get; set; }
 
         [ForeignKey("Id")]

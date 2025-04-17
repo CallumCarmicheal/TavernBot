@@ -5,6 +5,8 @@ using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
 
+using EmbedIO.Utilities;
+
 using Lavalink4NET;
 
 using LinqKit;
@@ -12,6 +14,7 @@ using LinqKit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using Microsoft.EntityFrameworkCore.Update;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 using System;
@@ -20,6 +23,9 @@ using System.Data.Common;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Web;
+
+using static CCTavern.Player.YoutubeChaptersParser;
 
 namespace CCTavern.Commands
 {
@@ -362,6 +368,83 @@ namespace CCTavern.Commands
                 await ctx.RespondAsync($"Repeat enabled.");
             else
                 await ctx.RespondAsync($"Repeat disabled.");
+        }
+
+        [Command("ytsettl")]
+        [Description("[YT] Set sub-track playlist")]
+        [RequireGuild]
+        public async Task SetCustomYTTrackList(CommandContext ctx,
+            [Description("First line is video id, every line after is used to parse the positions.")]
+            string ytVideoId,
+
+            [Description("A list of all tracks with the timestamp followed by the track name / display text.")]
+            [RemainingText] string trackPositions = ""
+        ){
+            logger.LogDebug("ytsettl sent!");
+            if (string.IsNullOrWhiteSpace(ytVideoId)) {
+                await ctx.RespondAsync("No tracks or video id has been attached.");
+                return;
+            }
+
+            // Check if the ytVideoId is a url
+            Uri? trackUri = null;
+            bool result = Uri.TryCreate(ytVideoId, UriKind.Absolute, out trackUri)
+                && (trackUri.Scheme == Uri.UriSchemeHttp || trackUri.Scheme == Uri.UriSchemeHttps);
+
+            if (result && trackUri != null
+                    && (trackUri.Host == "youtube.com" || trackUri.Host == "www.youtube.com")) {
+                var uriQuery = HttpUtility.ParseQueryString(trackUri.Query);
+                if (uriQuery.ContainsKey("v"))
+                    ytVideoId = uriQuery["v"]!;
+            }
+
+            var tracks = trackPositions.Split('\n')
+                .Where( x => !string.IsNullOrWhiteSpace(x) )
+                .Select( x => x.Trim() )
+                .ToList();
+            
+            // Check if we have any tracks
+            if (tracks.Count <= 1) {
+                await ctx.RespondAsync("There are not enough tracks attached");
+                return;
+            }
+
+            // Try to parse the track lists
+            var slTracks = new SortedDictionary<TimeSpan, string>();
+
+            foreach (var trackString in tracks) {
+                // Get Timestamps
+                var matchTs = YoutubeChaptersParser.RgxTimestampMatch.Match(trackString);
+                if (matchTs.Success) {
+                    // Parse into timestamp
+                    var ts = matchTs.Value.TryParseTimeStamp();
+                    if (ts == null) continue;
+
+                    slTracks.Add(ts.Value, trackString);
+                }
+            }
+
+            // Add to the database
+            if (slTracks.Count > 1) {
+                // Add to the database
+                var dbCtx = new TavernContext();
+
+                foreach (var track in slTracks) {
+                    var tpp = new TrackPlaylistPosition() {
+                        TrackSource = "youtube",
+                        TrackSourceId = ytVideoId,
+                        Position = track.Key,
+                        DisplayText = track.Value
+                    };
+                    await dbCtx.TrackPlaylistPositions.AddAsync(tpp).ConfigureAwait(false);
+                }
+
+                await dbCtx.SaveChangesAsync().ConfigureAwait(false);
+                await ctx.RespondAsync($"Added {slTracks.Count} tracks to youtube {ytVideoId}.");
+            } else {
+                await ctx.RespondAsync("There are not enough tracks (min 2).");
+                return;
+            }
         }
 
         /*/[Command("searchQueue"), Aliases("sq")]

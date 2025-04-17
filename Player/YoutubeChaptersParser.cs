@@ -1,4 +1,8 @@
-﻿using Newtonsoft.Json;
+﻿using CCTavern.Database;
+
+using Microsoft.EntityFrameworkCore;
+
+using Newtonsoft.Json;
 
 using System;
 using System.Collections.Generic;
@@ -15,40 +19,36 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace CCTavern.Player
 {
-    internal class YoutubeChaptersParser
-    {
+    internal class YoutubeChaptersParser {
 
-        private static Regex RgxTimestampMatch = new Regex(@"(?<ts>(?:[\d]{2}:[\d]{2}:[\d]{2}|[\d]{2}:[\d]{2}))", RegexOptions.Compiled);
+        public static Regex RgxTimestampMatch = new Regex(@"(?<ts>(?:\d{1,2}:\d{2}(?::\d{2})?))", RegexOptions.Compiled);
 
         private static HttpClient cli = new HttpClient();
 
         // TEST: var chapters = await YoutubeChaptersParser.ParseChapters("vrMfm8-UBVM");
-        public static async Task<(bool success, SortedList<TimeSpan, IVideoChapter>? chapters)> ParseChapters(string videoId, CancellationToken cancellationToken = default)
-        {
+        public static async Task<(bool success, SortedList<TimeSpan, IVideoChapter>? chapters)> ParseChapters(string videoId, CancellationToken cancellationToken = default) {
             // snippet,chapters | if you want to get the description too. To parse it see below in commented function
             string apiEndpoint = string.Format("{0}/videos?part=snippet,chapters&id={1}", Program.Settings.YoutubeIntegration.OperationalApi, videoId);
             var response = await cli.GetAsync(apiEndpoint, cancellationToken);
             var json = await response.Content.ReadAsStringAsync();
 
             if (string.IsNullOrWhiteSpace(json))
-                return (false, null);
+                return await returnSuccessOrCheckDatabaseTracks(videoId, cancellationToken, false, null);
 
             IYoutubeRequest? yt = JsonConvert.DeserializeObject<IYoutubeRequest>(json);
-            if (yt == null) return (false, null);
-            if (yt.Error != null) return (false, null);
-            if (yt.Items.Count == 0) return (false, null);
+            if (yt == null) return await returnSuccessOrCheckDatabaseTracks(videoId, cancellationToken, false, null);
+            if (yt.Error != null) return await returnSuccessOrCheckDatabaseTracks(videoId, cancellationToken, false, null);
+            if (yt.Items.Count == 0) return await returnSuccessOrCheckDatabaseTracks(videoId, cancellationToken, false, null);
 
             var slTracks = new SortedList<TimeSpan, IVideoChapter>();
             var videoItem = yt.Items[0];
-            foreach (var chapter in videoItem.Chapters.Chapters)
-            {
+            foreach (var chapter in videoItem.Chapters.Chapters) {
                 var timespan = TimeSpan.FromSeconds(chapter.Time);
                 slTracks.Add(timespan, chapter);
             }
 
             // Attempt to parse the chapters from the description.
-            if (slTracks.Count == 0)
-            {
+            if (slTracks.Count == 0) {
                 var splitDescription = videoItem.Snippet.Description
                     .Split('\n')
                     .Select(x => x.Trim())
@@ -56,11 +56,9 @@ namespace CCTavern.Player
                     .ToArray();
 
                 // Get Timestamps
-                foreach (var line in splitDescription)
-                {
+                foreach (var line in splitDescription) {
                     var matchTs = RgxTimestampMatch.Match(line);
-                    if (matchTs.Success)
-                    {
+                    if (matchTs.Success) {
                         // Parse into timestamp
                         var ts = matchTs.Value.TryParseTimeStamp();
                         if (ts == null) continue;
@@ -70,7 +68,44 @@ namespace CCTavern.Player
                 }
             }
 
-            return (slTracks.Count != 0, slTracks);
+            return await returnSuccessOrCheckDatabaseTracks(videoId, cancellationToken, slTracks.Count != 0, slTracks);
+        }
+
+        private static async Task<(bool success, SortedList<TimeSpan, IVideoChapter>? chapters)> returnSuccessOrCheckDatabaseTracks
+            (string videoId, CancellationToken cancellationToken, bool success, SortedList<TimeSpan, IVideoChapter>? chapters) {
+            if (success) 
+                return (success, chapters);
+
+            // Check if the cancellation token was cancelled
+            if (cancellationToken.IsCancellationRequested)
+                return (false, null);
+
+            // Check if the database contains the tracks
+            var ctx = new TavernContext();
+            var qry = ctx.TrackPlaylistPositions.Where(x => x.TrackSource == "youtube"
+                                                       && x.TrackSourceId == videoId);
+
+            if (qry.Any()) {
+                // Load the tracks
+                var tracks = await qry.ToListAsync().ConfigureAwait(false);
+                chapters = new SortedList<TimeSpan, IVideoChapter>();
+
+                foreach (var t in tracks) {
+                    if (chapters.ContainsKey(t.Position)) continue;
+
+                    var ivc = new IVideoChapter() { 
+                        Title = t.DisplayText,
+                        Time = (int)t.Position.TotalSeconds, 
+                        Thumbnails = new List<IThumbnail>() 
+                    };
+
+                    chapters.Add(t.Position, ivc);
+                }
+
+                return (chapters.Count != 0, chapters);
+            }
+
+            return (false, null);
         }
 
         /*
