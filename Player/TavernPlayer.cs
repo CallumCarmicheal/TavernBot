@@ -29,6 +29,7 @@ using Lavalink4NET;
 using MySqlX.XDevAPI.Common;
 using System.Reflection;
 using Org.BouncyCastle.Asn1;
+using System.Security.Policy;
 
 namespace CCTavern.Player
 {
@@ -131,8 +132,7 @@ namespace CCTavern.Player
             botInactivityManager.GuildStateChanged(guild.Id, State);
         }
 
-        protected override async ValueTask NotifyTrackStartedAsync(ITrackQueueItem tqi
-            , CancellationToken cancellationToken = default)
+        protected override async ValueTask NotifyTrackStartedAsync(ITrackQueueItem tqi, CancellationToken cancellationToken = default)
         {
             logger.LogInformation(TLE.Misc, "NotifyTrackStartedAsync");
             mbHelper.AnnounceJoin(GuildId, VoiceChannelId);
@@ -173,26 +173,42 @@ namespace CCTavern.Player
                 requestedBy = (dbTrack?.RequestedBy == null) ? "<#NULL>" : dbTrack?.RequestedBy.DisplayName;
             }
 
+            string track_Author = track.Author;
+            string track_Title = track.Title;
+
             string? thumbnail = null;
 
+            string? embedUrl  = track.Uri?.ToString();
             bool isYoutubeUrl = (track.Uri?.Host == "youtube.com" || track.Uri?.Host == "www.youtube.com");
+            bool isSunoUrl    = (track.Uri?.Host == "suno.com" || (track.Uri?.Host.EndsWith("suno.ai") ?? false));
             if (isYoutubeUrl && track.Uri != null) {
                 var uriQuery = HttpUtility.ParseQueryString(track.Uri.Query);
                 var videoId = uriQuery["v"];
 
+                embedUrl = $"https://youtube.com/watch?v={track.Identifier}";
                 thumbnail = $"https://img.youtube.com/vi/{videoId}/0.jpg";
             }
 
+            else if (isSunoUrl && track.Uri != null) {
+                // Check if the ITrackQueueItem is a SunoTrackQueueItem
+                if (tqi is TavernPlayerQueueItem tavernQI) {
+                    track_Author = tavernQI.AuthorDisplayName;
+                    track_Title  = tavernQI.TrackTitle;
+                    embedUrl     = tavernQI.TrackUrl;
+                    thumbnail    = tavernQI.TrackThumbnail;
+                }
+            }
+
             DiscordEmbedBuilder embed = new DiscordEmbedBuilder() {
-                Url = $"https://youtube.com/watch?v={track.Identifier}",
+                Url = embedUrl,
                 Color = DiscordColor.SpringGreen,
-                Title = track.Title,
+                Title = track_Title,
             };
 
             if (thumbnail != null)
                 embed.WithThumbnail(thumbnail);
 
-            embed.WithAuthor(track.Author);
+            embed.WithAuthor(track_Author);
             //embed.AddField("Player Panel", "[Manage bot through web panel (not added)](https://callumcarmicheal.com/#)", false);
 
             if (dbTrack == null)
@@ -392,9 +408,28 @@ namespace CCTavern.Player
                 return;
             }
 
+            // Parse the track if its a suno ai track
+            bool isSunoUrl = (track.Uri?.Host == "suno.com" || (track.Uri?.Host.EndsWith("suno.ai") ?? false));
+
+            if (isSunoUrl && track != null) {
+                TavernPlayerQueueItem? nextTrackQueueItem = await SunoAIParser.GetSunoTrack(track.Uri?.ToString());
+
+                if (nextTrackQueueItem != null) {
+                    var trackRef = new TrackReference(track);
+                    nextTrackQueueItem.Reference = trackRef;
+
+                    await Task.Delay(500);
+                    await PlayAsync(nextTrackQueueItem).ConfigureAwait(false);
+
+                    logger.LogInformation(TLE.Misc, "-------------PlaybackFinished ### Finished processing");
+                    return;
+                }
+            }
+            
             // Play the next track.
             await Task.Delay(500);
             await PlayAsync(track).ConfigureAwait(false);
+            
             logger.LogInformation(TLE.Misc, "-------------PlaybackFinished ### Finished processing");
         }
 

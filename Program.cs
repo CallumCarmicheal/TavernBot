@@ -1,17 +1,11 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Net.Http.Headers;
-using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using AngleSharp.Html.Dom;
+using AngleSharp.Html.Parser;
+
 using CCTavern.Commands;
 using CCTavern.Database;
 using CCTavern.Logger;
 using CCTavern.Player;
+
 using Config.Net;
 
 using DSharpPlus;
@@ -33,8 +27,23 @@ using Microsoft.Identity.Client;
 
 using MySqlX.XDevAPI;
 
+using Newtonsoft.Json.Linq;
+
 using Org.BouncyCastle.Asn1.Pkcs;
 using Org.BouncyCastle.Asn1.X509.Qualified;
+
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
@@ -273,5 +282,7 @@ namespace CCTavern {
 
             return _dnMode;
         }
+
+        
     }
 }

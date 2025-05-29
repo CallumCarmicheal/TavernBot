@@ -2,23 +2,17 @@
 using CCTavern.Logger;
 
 using DSharpPlus;
-using DSharpPlus.Lavalink;
 
 using Lavalink4NET;
 using Lavalink4NET.Players;
-using Lavalink4NET.Protocol.Models.RoutePlanners;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Microsoft.VisualBasic;
-
-using Org.BouncyCastle.Crypto.Prng;
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -147,7 +141,7 @@ namespace CCTavern.Player {
                         if (outputChannel != null) {
                             var leaveMessage = "Left the voice channel <#" + voiceChannelId + "> due to inactivity";
                             if (timeout.Value.State == PlayerState.Paused)
-                                 leaveMessage += " (Paused for too long).";
+                                leaveMessage += " (Paused for too long).";
                             else leaveMessage += ".";
 
                             await client.SendMessageAsync(outputChannel, leaveMessage);
@@ -173,8 +167,9 @@ namespace CCTavern.Player {
             // logger.LogDebug(TLE.MBTimeout, "Timeout clearup finished, clearup took ({sw})...", sw.Elapsed.ToString());
         }
 
-        public bool IsCancellationRequested()  => this.cancelToken.IsCancellationRequested;
-        public DateTime? GetLastTimerTick()    => LastTimerTick;
+        public bool IsCancellationRequested() => this.cancelToken.IsCancellationRequested;
+
+        public DateTime? GetLastTimerTick()   => LastTimerTick;
 
         public static async Task PeriodicAsync(Func<Task> action, TimeSpan interval,
                 CancellationToken cancellationToken = default) {

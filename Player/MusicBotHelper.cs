@@ -241,8 +241,8 @@ namespace CCTavern.Player {
 
 
         public static async Task<GuildQueueItem> CreateGuildQueueItem(
-                TavernContext db, Guild dbGuild,
-                LavalinkTrack track, DiscordChannel channel, DiscordMember requestedBy, GuildQueuePlaylist? playlist, ulong trackPosition
+            TavernContext db, Guild dbGuild,
+            LavalinkTrack track, DiscordChannel channel, DiscordMember requestedBy, GuildQueuePlaylist? playlist, ulong trackPosition
         ) {
             var requestedUser = await db.GetOrCreateCachedUser(dbGuild, requestedBy);
             var qi = new GuildQueueItem() {
@@ -251,6 +251,35 @@ namespace CCTavern.Player {
                 Position = trackPosition,
                 RequestedById = requestedUser.Id,
                 Title = track.Title,
+                TrackString = track.ToString(),
+                PlaylistId = playlist?.Id
+            };
+
+            return qi;
+        }
+
+        public static async Task<GuildQueueItem?> CreateGuildQueueItem(
+            TavernContext db, Guild dbGuild,
+            ITrackQueueItem trackQueueItem, DiscordChannel channel, DiscordMember requestedBy, GuildQueuePlaylist? playlist, ulong trackPosition
+        ) {
+            var track = trackQueueItem.Track;
+
+            if (track == null)
+                return null;
+
+            string trackTitle = track.Title;
+
+            if (trackQueueItem is TavernPlayerQueueItem tpqi) {
+                trackTitle = tpqi.TrackTitle;
+            }
+
+            var requestedUser = await db.GetOrCreateCachedUser(dbGuild, requestedBy);
+            var qi = new GuildQueueItem() {
+                GuildId = channel.Guild.Id,
+                Length = track.Duration,
+                Position = trackPosition,
+                RequestedById = requestedUser.Id,
+                Title = trackTitle,
                 TrackString = track.ToString(),
                 PlaylistId = playlist?.Id
             };
@@ -269,6 +298,34 @@ namespace CCTavern.Player {
             logger.LogInformation(TLE.Misc, $"Queue Music into {channel.Guild.Name}.{channel.Name} [{trackPosition}] from {requestedBy.Username}: {track.Title}, {track.Duration.ToString(@"hh\:mm\:ss")}");
 
             var qi = await CreateGuildQueueItem(db, dbGuild, track, channel, requestedBy, playlist, trackPosition);
+
+            if (updateNextTrack) {
+                dbGuild.NextTrack = trackPosition + 1;
+                logger.LogInformation(TLE.Misc, $"Setting next track to current position.");
+            }
+
+            db.GuildQueueItems.Add(qi);
+            await db.SaveChangesAsync();
+
+            return trackPosition;
+        }
+
+        public async Task<ulong?> EnqueueTrack(ITrackQueueItem trackQueueItem, DiscordChannel channel, DiscordMember requestedBy, GuildQueuePlaylist? playlist, bool updateNextTrack) {
+            var db = new TavernContext();
+            var dbGuild = await db.GetOrCreateDiscordGuild(channel.Guild);
+
+            dbGuild.TrackCount = dbGuild.TrackCount + 1;
+            var trackPosition = dbGuild.TrackCount;
+            await db.SaveChangesAsync();
+
+            logger.LogInformation(TLE.Misc, $"Queue Music into {channel.Guild.Name}.{channel.Name} [{trackPosition}] from {requestedBy.Username}: {trackQueueItem.Track?.Title}, {trackQueueItem.Track?.Duration.ToString(@"hh\:mm\:ss")}");
+
+            var qi = await CreateGuildQueueItem(db, dbGuild, trackQueueItem, channel, requestedBy, playlist, trackPosition);
+
+            if (qi == null) {
+                logger.LogInformation(TLE.Misc, $"Failed to EnqueueTrack, ITrackQueueItem.Track is null!");
+                return null;
+            }
 
             if (updateNextTrack) {
                 dbGuild.NextTrack = trackPosition + 1;

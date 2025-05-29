@@ -9,6 +9,7 @@ using DSharpPlus.Entities;
 using DSharpPlus.Interactivity.Extensions;
 
 using Lavalink4NET;
+using Lavalink4NET.Players;
 using Lavalink4NET.Rest.Entities.Tracks;
 using Lavalink4NET.Tracks;
 
@@ -33,8 +34,8 @@ namespace CCTavern.Commands {
             this.logger = logger;
         }
 
-        static bool IsWebUrl(string input) {
-            return Uri.TryCreate(input, UriKind.Absolute, out var uriResult)
+        static bool TryParseWebUri(string input, out Uri? uriResult) {
+            return Uri.TryCreate(input, UriKind.Absolute, out uriResult)
                    && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps);
         }
 
@@ -74,38 +75,45 @@ namespace CCTavern.Commands {
             var player = playerResult.Player;
             TrackLoadResult? trackQueryResults;
 
-            if (IsWebUrl(search)) {
+            if (TryParseWebUri(search, out Uri? uri)) {
+                // Check if the track is from Suno AI
+                if (uri != null) {
+                    bool isSunoUrl = (uri.Host == "suno.com" || uri.Host.EndsWith("suno.ai"));
+
+                    if (isSunoUrl) {
+                        // Attempt to parse the track information from suno.ai
+                        var trackQueueItem = await SunoAIParser.GetSunoTrack(search);
+
+                        if (trackQueueItem == null) {
+                            await ctx.RespondAsync($"[Suno AI] track parse failed for {search}.");
+                            return;
+                        }
+
+                        trackQueryResults = await audioService.Tracks
+                            .LoadTracksAsync(trackQueueItem.TrackAudioUrl, TrackSearchMode.None)
+                            .ConfigureAwait(false);
+
+                        var track = trackQueryResults.Value.Track;
+                        if (track == null) {
+                            await ctx.RespondAsync($"[Suno AI] track parse failed for {search}.");
+                            return;
+                        }
+
+                        var trackReference = new TrackReference(track);
+                        trackQueueItem.Reference = trackReference;
+
+                        await _Play_Single(ctx, db, player, trackQueueItem);
+                        return;
+                    }
+                }
+
                 trackQueryResults = await audioService.Tracks
                     .LoadTracksAsync(search, TrackSearchMode.None)
                     .ConfigureAwait(false);
             } else {
-#if (SERVER_FILESTORAGE)
-                if (search.StartsWith("srv://")) {
-#if (DEBUG)
-                    var path = System.IO.Path.Combine("C:\\Users\\callu\\Music\\FFXIV", string.Join("", search.Split("srv://")));
-                    if (path.StartsWith("C:\\Users\\callu\\Music\\FFXIV")) {
-#else
-                    var path = System.IO.Path.Combine("/srv/media/", string.Join("", search.Split("srv://")));
-                    if (path.StartsWith("/srv/media/")) {
-#endif
-                        search = path;
-                        trackQueryResults = await audioService.Tracks
-                            .LoadTracksAsync(search, new TrackSearchMode("file:///"))
-                            .ConfigureAwait(false);
-                    } else {
-                        trackQueryResults = await audioService.Tracks
-                           .LoadTracksAsync(search, TrackSearchMode.None)
-                           .ConfigureAwait(false);
-                    }
-                }
-                else {
-#endif
-                    trackQueryResults = await audioService.Tracks
-                        .LoadTracksAsync(search, TrackSearchMode.YouTube)
-                        .ConfigureAwait(false);
-#if (SERVER_FILESTORAGE)
-                }
-#endif
+                trackQueryResults = await audioService.Tracks
+                    .LoadTracksAsync(search, TrackSearchMode.YouTube)
+                    .ConfigureAwait(false);
             }
 
             if (trackQueryResults.HasValue && trackQueryResults.Value.IsPlaylist) {
@@ -209,6 +217,42 @@ namespace CCTavern.Commands {
                 await db.SaveChangesAsync();
 
                 await player.PlayAsync(track).ConfigureAwait(false);
+            }
+        }
+
+        private async Task _Play_Single(CommandContext ctx, TavernContext db, TavernPlayer player, ITrackQueueItem trackQueueItem) {
+            if (trackQueueItem is null) {
+                await ctx.RespondAsync($"Failed to parse track.");
+                return;
+            }
+
+            // Check if the member is null
+            if (ctx.Member == null) {
+                await ctx.RespondAsync($"CRITICAL ERROR, Unable to retrieve author Id.");
+                return;
+            }
+
+            string trackTitle = trackQueueItem.Track?.Title ?? "Unknown title";
+
+            if (trackQueueItem is TavernPlayerQueueItem sunoTrackQueueItem)
+                trackTitle = sunoTrackQueueItem.TrackTitle;
+
+            var isPlayEvent = player.State == Lavalink4NET.Players.PlayerState.NotPlaying;
+            var trackPosition = await mbHelper.EnqueueTrack(trackQueueItem, ctx.Channel, ctx.Member, null, isPlayEvent);
+
+            if (trackPosition == null) {
+                await ctx.RespondAsync($"Failed to queue track `{trackTitle}`.");
+                return;
+            }
+
+            await ctx.RespondAsync($"Enqueued `{trackTitle}` in position `{trackPosition}`.");
+
+            if (isPlayEvent) {
+                var dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
+                dbGuild.CurrentTrack = trackPosition.Value;
+                await db.SaveChangesAsync();
+
+                await player.PlayAsync(trackQueueItem).ConfigureAwait(false);
             }
         }
 

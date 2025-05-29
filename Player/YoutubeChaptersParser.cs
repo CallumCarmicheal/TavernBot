@@ -83,7 +83,7 @@ namespace CCTavern.Player
             // Check if the database contains the tracks
             var ctx = new TavernContext();
             var qry = ctx.TrackPlaylistPositions.Where(x => x.TrackSource == "youtube"
-                                                       && x.TrackSourceId == videoId);
+                                                         && x.TrackSourceId == videoId);
 
             if (qry.Any()) {
                 // Load the tracks
