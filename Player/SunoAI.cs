@@ -37,7 +37,7 @@ namespace CCTavern.Player {
                 string html = "";
 
                 try {
-                    html = await client.GetStringAsync(url);
+                    html = await client.GetStringAsync(url).ConfigureAwait(false);
                 } catch (HttpRequestException e) {
                     Console.WriteLine("Failed to request html, " + e.ToString());
                     return null;

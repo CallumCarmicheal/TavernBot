@@ -71,6 +71,15 @@ namespace CCTavern.Commands {
                 mbHelper.AnnounceJoin(voiceState.Channel.GuildId.Value, voiceChannel.Id);
             }
 
+            // Check if the player is paused and the user didn't enter a search result, assume they want to resume.
+            if (playerIsConnected && string.IsNullOrWhiteSpace(search) && playerResult.Player.IsPaused) {
+                await playerResult.Player.ResumeAsync().ConfigureAwait(false);
+
+                var emoji = DiscordEmoji.FromName(ctx.Client, ":arrow_forward:");
+                await ctx.Message.CreateReactionAsync(emoji);
+                return;
+            }
+
             var db = new TavernContext();
             var player = playerResult.Player;
             TrackLoadResult? trackQueryResults;
@@ -82,7 +91,7 @@ namespace CCTavern.Commands {
 
                     if (isSunoUrl) {
                         // Attempt to parse the track information from suno.ai
-                        var trackQueueItem = await SunoAIParser.GetSunoTrack(search);
+                        var trackQueueItem = await SunoAIParser.GetSunoTrack(search).ConfigureAwait(false);
 
                         if (trackQueueItem == null) {
                             await ctx.RespondAsync($"[Suno AI] track parse failed for {search}.");

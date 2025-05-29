@@ -190,17 +190,28 @@ namespace CCTavern.Player
             }
 
             else if (isSunoUrl && track.Uri != null) {
-                // Check if the ITrackQueueItem is a SunoTrackQueueItem
+                TavernPlayerQueueItem? tavernQueueItem;
+
+                // Check if the ITrackQueueItem is a TavernPlayerQueueItem
                 if (tqi is TavernPlayerQueueItem tavernQI) {
-                    track_Author = tavernQI.AuthorDisplayName;
-                    track_Title  = tavernQI.TrackTitle;
-                    embedUrl     = tavernQI.TrackUrl;
-                    thumbnail    = tavernQI.TrackThumbnail;
+                    tavernQueueItem = tavernQI;
+                }
+                // If we do not have a TavernPlayerQueueItem lets get the metadata again.
+                //   this can be when a person jumps the queue like !jump <idx> and the track was placed on the queue directly from the db.
+                else {
+                    tavernQueueItem = await SunoAIParser.GetSunoTrack(track.Uri.ToString()).ConfigureAwait(false);
+                }
+
+                if (tavernQueueItem != null) {
+                    track_Author = tavernQueueItem.AuthorDisplayName;
+                    track_Title = tavernQueueItem.TrackTitle;
+                    embedUrl = tavernQueueItem.TrackUrl;
+                    thumbnail = tavernQueueItem.TrackThumbnail;
                 }
             }
 
             DiscordEmbedBuilder embed = new DiscordEmbedBuilder() {
-                Url = embedUrl,
+                Url   = embedUrl,
                 Color = DiscordColor.SpringGreen,
                 Title = track_Title,
             };
@@ -412,7 +423,7 @@ namespace CCTavern.Player
             bool isSunoUrl = (track.Uri?.Host == "suno.com" || (track.Uri?.Host.EndsWith("suno.ai") ?? false));
 
             if (isSunoUrl && track != null) {
-                TavernPlayerQueueItem? nextTrackQueueItem = await SunoAIParser.GetSunoTrack(track.Uri?.ToString());
+                TavernPlayerQueueItem? nextTrackQueueItem = await SunoAIParser.GetSunoTrack(track.Uri?.ToString()).ConfigureAwait(false);
 
                 if (nextTrackQueueItem != null) {
                     var trackRef = new TrackReference(track);
