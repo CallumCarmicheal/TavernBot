@@ -1,6 +1,8 @@
 ﻿using AngleSharp.Html.Dom;
 using AngleSharp.Html.Parser;
 
+using CCTavern.Logger;
+
 using Lavalink4NET.Players;
 
 using Newtonsoft.Json.Linq;
@@ -29,7 +31,7 @@ namespace CCTavern.Player {
             }
 
             try {
-                // 1. Load your HTML (from string or file)
+                // Load your HTML (from string or file)
                 using var client = new HttpClient();
                 // (Optional) set a timeout, default headers, etc.
                 client.Timeout = TimeSpan.FromSeconds(10);
@@ -43,66 +45,59 @@ namespace CCTavern.Player {
                     return null;
                 }
 
-                // 2. Parse with AngleSharp
+                // Parse with AngleSharp
                 var parser = new HtmlParser();
                 var document = parser.ParseDocument(html);
 
-                // 3. Grab the <script> elements that contains "__next_f.push"
+                // Grab the <script> elements that contains "__next_f.push"
                 var scripts = document.Scripts
-                                     .Where(s => s.TextContent.Contains("__next_f.push"));
+                                     .Where(s => s.TextContent.Contains("audio_url"));
+                string? rawJson = null;
 
-                IHtmlScriptElement? script = null;
-                const string marker = "\"5:[";
-                int idx = -1;
-                string text = string.Empty;
+                foreach (var script in scripts) {
+                    var arrayContent = GetSecondColumnFromScript(script.Text);
 
-                foreach (var scriptElement in scripts) {
-                    if (scriptElement == null)
-                        throw new Exception("Could not find the __next_f.push script.");
-
-                    text = scriptElement.TextContent;
-
-                    // 4. Find the JSON‐array payload marker
-                    idx = text.IndexOf(marker, StringComparison.Ordinal);
-                    if (idx >= 0)
-                        script = scriptElement;
+                    if (!string.IsNullOrWhiteSpace(arrayContent))
+                        rawJson = arrayContent;
                 }
 
-                // 5. Walk forward from the '[' and count brackets until balanced
-                int start = idx + marker.Length - 1; // points at the '['
-                int depth = 0, end = -1;
-                for (int i = start; i < text.Length; i++) {
-                    if (text[i] == '[')
-                        depth++;
+                if (rawJson == null) 
+                    throw new Exception("Failed to find track metadata");
 
-                    else if (text[i] == ']') {
-                        depth--;
+                // Parse as a JArray
+                JObject? obj = null;
 
-                        if (depth == 0) {
-                            end = i;
-                            break;
+                try {
+                    if (rawJson.TrimStart()[0] == '{') {
+                        obj = JObject.Parse(rawJson);
+                    } else {
+                        var arr = JArray.Parse(rawJson);
+                        
+                        foreach (var item in arr) {
+                            if (item is JObject)
+                                obj = (JObject)item;
                         }
                     }
-                }
+                } catch { }
 
-                if (end < 0)
-                    throw new Exception("Could not find end of JSON array.");
+                if (obj == null)
+                    throw new Exception("Failed to find track metadata");
 
-                // 6. Extract the slice and un‐escape the JS string literal
-                var rawJson = text.Substring(start, end - start + 1);
-                var unescapedJson = Regex.Unescape(rawJson);
-
-                // 7. Parse as a JArray
-                var arr = JArray.Parse(unescapedJson);
-
-                // 8. Our payload is in element #3
-                var obj = (JObject)arr[3];
-
-                // 9. Pull out the fields you want:
+                // Pull out the fields you want:
                 string trackId = (string)obj["clip"]!["id"]!;
                 string trackName = (string)obj["clip"]!["title"]!;
-                string artistName = (string)obj["persona"]!["user_display_name"]!;
-                string artistImageUrl = (string)obj["persona"]!["user_image_url"]!;
+
+                string artistName = string.Empty;
+                string artistImageUrl = string.Empty;
+
+                if (obj["persona"] == null) {
+                    artistName = (string)obj["persona"]!["user_display_name"]!;
+                    artistImageUrl = (string)obj["persona"]!["user_image_url"]!;
+                } else {
+                    artistName = obj["clip"]!["display_name"]!.ToString().Trim();
+                    artistImageUrl = obj["clip"]!["avatar_image_url"]!.ToString().Trim();
+                }
+
                 string imageUrl = (string)obj["clip"]!["image_url"]!;
                 string audioUrl = (string)obj["clip"]!["audio_url"]!;
 
@@ -115,9 +110,54 @@ namespace CCTavern.Player {
                 trackItem.TrackAudioUrl = audioUrl;
 
                 return trackItem;
-            } catch {
+            } catch (Exception ex) {
                 return null;
             }
         }
+
+        /// <summary>
+        /// Returns the part after the first colon inside the first quoted literal.
+        /// </summary>
+        public static string? GetSecondColumnFromScript(string line) {
+            var lines = Regex.Split(line, @"(?<!\\)\\n");
+            
+            if (lines.Length >= 3) {
+                // Join the first and last
+                line = lines[0] + lines[lines.Length-1];
+            }
+
+            //line = line.Split("\n")[0].Split("\\n"); // Get the first line
+
+            // Find the first quote
+            int firstQuoteIndex = line.IndexOf('\"');
+            int firstColonIndex = line.IndexOf(':', firstQuoteIndex);
+            int firstCommaIndex = line.IndexOf(',', firstQuoteIndex);
+
+            int start = -1;
+
+            if (firstColonIndex - firstQuoteIndex < 4) {
+                start = firstColonIndex + 1;
+            }
+            else if (firstCommaIndex - firstQuoteIndex < 4) {
+                start = firstCommaIndex + 1;
+            }
+
+            int end = line.LastIndexOf('\"');
+
+            // Maybe the end is trailing a ] ???
+
+            string response = line.Substring(start, (end - start));
+            var unescape = Regex.Unescape(response);
+
+            if (unescape[0] == '{') {
+                // Check if the last character is a ], if so remove it
+                if (unescape[unescape.Length-1] == ']') {
+                    unescape = unescape.Substring(0, unescape.Length - 1);
+                }
+            }
+
+            return unescape;
+        }
+
     }
 }
