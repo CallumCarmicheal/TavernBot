@@ -101,6 +101,16 @@ namespace CCTavern.Player {
                 string imageUrl = (string)obj["clip"]!["image_url"]!;
                 string audioUrl = (string)obj["clip"]!["audio_url"]!;
 
+                if (string.IsNullOrWhiteSpace(trackName)) {
+                    if (obj["clip"]?["metadata"]?["prompt"] != null) {
+                        trackName = ((string)obj["clip"]!["metadata"]!["prompt"]!).Split("\n").First();
+                    } else if (obj["clip"]?["metadata"]?["tags"] != null) {
+                        trackName = (string)obj["clip"]!["metadata"]!["tags"]!;
+                    } else {
+                        trackName = "Unknown title";
+                    }
+                }
+
                 var trackItem = new TavernPlayerQueueItem();
                 trackItem.TrackTitle = trackName;
                 trackItem.TrackThumbnail = imageUrl;
