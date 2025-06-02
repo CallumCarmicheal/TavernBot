@@ -448,7 +448,7 @@ namespace CCTavern.Player
             
             // Play the next track.
             await Task.Delay(500);
-            await PlayAsync(track).ConfigureAwait(false);
+            await PlayAsync(track!).ConfigureAwait(false);
             
             logger.LogInformation(TLE.Misc, "-------------PlaybackFinished ### Finished processing");
         }

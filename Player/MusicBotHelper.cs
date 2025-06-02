@@ -155,7 +155,7 @@ namespace CCTavern.Player {
                 // Check if we are shuffling and there is no target track specified.
                 //    and the SetNext flag is not set, if its been set the next track is specified.
                 if (guildState != null && targetTrackId == null && guildState.ShuffleEnabled) {
-                    // If we specifically set the next track then skip this 
+                    // If we specifically set the next track then skip this
                     if (guildState.SetNextFlag) {
                         // Clear the SetNextFlag
                         guildState.SetNextFlag = false;

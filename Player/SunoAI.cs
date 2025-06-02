@@ -98,7 +98,7 @@ namespace CCTavern.Player {
                     }
                 }
                 return url;
-            } catch (HttpRequestException e) {
+            } catch (HttpRequestException) {
                 return null;
             }
         }

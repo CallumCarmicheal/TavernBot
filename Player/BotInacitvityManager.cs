@@ -141,7 +141,7 @@ namespace CCTavern.Player {
                         if (outputChannel != null) {
                             var leaveMessage = "Left the voice channel <#" + voiceChannelId + "> due to inactivity";
                             if (timeout.Value.State == PlayerState.Paused)
-                                leaveMessage += " (Paused for too long).";
+                                 leaveMessage += " (Paused for too long).";
                             else leaveMessage += ".";
 
                             await client.SendMessageAsync(outputChannel, leaveMessage);
@@ -151,6 +151,9 @@ namespace CCTavern.Player {
                         // Disconnect the bot
                         await playerQueryTavern.playerResult.Player.DisconnectAsync().ConfigureAwait(false);
                         mbHelper.AnnounceLeave(guildId);
+
+                        // Dispose the player
+                        await playerQueryTavern.playerResult.Player.DisposeAsync().ConfigureAwait(false);
 
                         removals.Add(timeout.Key);
                     } else {

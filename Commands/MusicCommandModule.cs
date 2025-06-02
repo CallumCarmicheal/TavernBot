@@ -53,11 +53,13 @@ namespace CCTavern.Commands
 
             if (playerIsConnected && playerState.Player != null) {
                 await playerState.Player.DisconnectAsync().ConfigureAwait(false);
-
                 await ctx.RespondAsync($"Left <#{ctx?.Member?.VoiceState.Channel.Id}>!");
 
                 if (ctx?.Guild != null) 
                     mbHelper.AnnounceLeave(ctx.Guild.Id);
+                
+                // Dispose the bot
+                await playerState.Player.DisposeAsync();
             } else {
                 await ctx.RespondAsync("Music bot is not connected.");
             }
