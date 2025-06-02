@@ -174,6 +174,7 @@ namespace CCTavern.Player
             }
 
             string track_Author = track.Author;
+            string? track_AuthorUrl = null;
             string track_Title = track.Title;
 
             string? thumbnail = null;
@@ -203,10 +204,14 @@ namespace CCTavern.Player
                 }
 
                 if (tavernQueueItem != null) {
+                    track_AuthorUrl = tavernQueueItem.AuthorUrl;
                     track_Author = tavernQueueItem.AuthorDisplayName;
                     track_Title = tavernQueueItem.TrackTitle;
                     embedUrl = tavernQueueItem.TrackUrl;
                     thumbnail = tavernQueueItem.TrackThumbnail;
+
+                    if (!string.IsNullOrEmpty(tavernQueueItem.AuthorSuffix))
+                        track_Author += " " + tavernQueueItem.AuthorSuffix;
                 }
             }
 
@@ -219,7 +224,11 @@ namespace CCTavern.Player
             if (thumbnail != null)
                 embed.WithThumbnail(thumbnail);
 
-            embed.WithAuthor(track_Author);
+            // Enum.GetValues(typeof(DiscordColor))
+
+
+            embed.WithAuthor(track_Author, track_AuthorUrl);
+            embed.WithColor(DiscordColor.Goldenrod);
             //embed.AddField("Player Panel", "[Manage bot through web panel (not added)](https://callumcarmicheal.com/#)", false);
 
             if (dbTrack == null)

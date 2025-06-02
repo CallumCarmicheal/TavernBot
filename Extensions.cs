@@ -10,6 +10,9 @@ using TimeSpanParserUtil;
 
 namespace CCTavern {
     internal static class Extensions {
+
+        static Random random = new Random();
+
         //used by LINQ to SQL
         public static IQueryable<TSource> Page<TSource>(this IQueryable<TSource> source, int page, int pageSize) {
             return source.Skip((page - 1) * pageSize).Take(pageSize);
@@ -18,6 +21,14 @@ namespace CCTavern {
         //used by LINQ
         public static IEnumerable<TSource> Page<TSource>(this IEnumerable<TSource> source, int page, int pageSize) {
             return source.Skip((page - 1) * pageSize).Take(pageSize);
+        }
+
+        public static bool InList<T>(this T item, params T[] list) {
+            return list?.Contains(item!) ?? false;
+        }
+
+        public static bool InList<T>(this T item, IEnumerable<T> list) {
+            return list?.Contains(item!) ?? false;
         }
 
         public static IEnumerable<string> SplitWithTrim(this string text, char separator, char escapeCharacter, bool removeEmptyEntries) {
@@ -150,6 +161,11 @@ namespace CCTavern {
 
         public static T? GetInstance<T>(this IServiceProvider serviceProvider, params object[] parameters) {
             return ActivatorUtilities.CreateInstance<T>(serviceProvider, parameters);
+        }
+
+        public static TEnum RandomEnumValue<TEnum>() where TEnum : struct, Enum {
+            TEnum[] vals = Enum.GetValues<TEnum>();
+            return vals[random.Next(vals.Length)];
         }
     }
 }

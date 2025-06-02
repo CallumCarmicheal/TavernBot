@@ -282,7 +282,5 @@ namespace CCTavern {
 
             return _dnMode;
         }
-
-        
     }
 }
