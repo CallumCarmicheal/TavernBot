@@ -48,7 +48,8 @@ namespace CCTavern.Player {
         public TimeSpan TsTimeoutInactivity; /// The amount of time of inactivity for the bot to disconnect after.
         public TimeSpan TsTimeoutPaused; /// The amount of time of paused before the bot disconnects.
 
-        public BotInactivityImplementation(DiscordClient client, MusicBotHelper mbHelper, BotInactivityManager inactivityManager, IAudioService audioService, ITavernSettings settings, ILogger<BotInactivityManager> logger) {
+        public BotInactivityImplementation(DiscordClient client, MusicBotHelper mbHelper, BotInactivityManager inactivityManager
+                , IAudioService audioService, ITavernSettings settings, ILogger<BotInactivityManager> logger) {
             this.logger = logger;
             this.client = client;
             this.mbHelper = mbHelper;
@@ -88,7 +89,7 @@ namespace CCTavern.Player {
             if (!trackerExists)
                 lastActivityTracker.Add(guildId, activity);
 
-            logger.LogDebug(TLE.MBTimeout, "Guild {guildId}, Updated timeout!", guildId);
+            logger.LogDebug(TLE.MBTimeout, "Guild {guildId}, Updated timeout - Player Status {status}!", guildId, state.ToString());
         }
 
         private async Task handleBotTimeouts() {

@@ -135,338 +135,341 @@ namespace CCTavern.Player
         protected override async ValueTask NotifyTrackStartedAsync(ITrackQueueItem tqi, CancellationToken cancellationToken = default)
         {
             logger.LogInformation(TLE.Misc, "NotifyTrackStartedAsync");
-            mbHelper.AnnounceJoin(GuildId, VoiceChannelId);
+            try {
+                mbHelper.AnnounceJoin(GuildId, VoiceChannelId);
 
-            var track = tqi.Track;
-            if (track == null) {
-                // No track is playing, just ignore it.
-                return;
-            }
-
-            var discordGuild = await GetGuildAsync();
-            var db = new TavernContext();
-            var dbGuild = await db.GetOrCreateDiscordGuild(discordGuild);
-            var guildState = mbHelper.GetOrCreateGuildState(dbGuild.Id);
-
-            if (guildState == null) {
-                guildState = new GuildState(dbGuild.Id);
-                mbHelper.GuildStates.Add(dbGuild.Id, guildState);
-            }
-
-            guildState.TrackChapters = null; // Reset playlist tracks to null
-
-            var outputChannel = await mbHelper.GetMusicTextChannelFor(discordGuild);
-            if (outputChannel == null) {
-                logger.LogError(TLE.MBLava, "Failed to get music channel.");
-            } else {
-                await mbHelper.DeletePastStatusMessage(dbGuild, outputChannel);
-            }
-
-            GuildQueueItem? dbTrack = null;
-
-            var currentTrackIdx = dbGuild.CurrentTrack;
-
-            var requestedBy = "<#ERROR>";
-            var currentTrackQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(x => x.GuildId == dbGuild.Id && x.Position == currentTrackIdx);
-            if (currentTrackQuery.Any()) {
-                dbTrack = await currentTrackQuery.FirstAsync(cancellationToken);
-                requestedBy = (dbTrack?.RequestedBy == null) ? "<#NULL>" : dbTrack?.RequestedBy.DisplayName;
-            }
-
-            string track_Author = track.Author;
-            string? track_AuthorUrl = null;
-            string track_Title = track.Title;
-
-            string? thumbnail = null;
-
-            string? embedUrl  = track.Uri?.ToString();
-            bool isYoutubeUrl = (track.Uri?.Host == "youtube.com" || track.Uri?.Host == "www.youtube.com");
-            bool isSunoUrl    = (track.Uri?.Host == "suno.com" || (track.Uri?.Host.EndsWith("suno.ai") ?? false));
-            if (isYoutubeUrl && track.Uri != null) {
-                var uriQuery = HttpUtility.ParseQueryString(track.Uri.Query);
-                var videoId = uriQuery["v"];
-
-                embedUrl = $"https://youtube.com/watch?v={track.Identifier}";
-                thumbnail = $"https://img.youtube.com/vi/{videoId}/0.jpg";
-            }
-
-            else if (isSunoUrl && track.Uri != null) {
-                TavernPlayerQueueItem? tavernQueueItem;
-
-                // Check if the ITrackQueueItem is a TavernPlayerQueueItem
-                if (tqi is TavernPlayerQueueItem tavernQI) {
-                    tavernQueueItem = tavernQI;
-                }
-                // If we do not have a TavernPlayerQueueItem lets get the metadata again.
-                //   this can be when a person jumps the queue like !jump <idx> and the track was placed on the queue directly from the db.
-                else {
-                    tavernQueueItem = await SunoAIParser.GetSunoTrack(track.Uri.ToString()).ConfigureAwait(false);
+                var track = tqi.Track;
+                if (track == null) {
+                    // No track is playing, just ignore it.
+                    return;
                 }
 
-                if (tavernQueueItem != null) {
-                    track_AuthorUrl = tavernQueueItem.AuthorUrl;
-                    track_Author = tavernQueueItem.AuthorDisplayName;
-                    track_Title = tavernQueueItem.TrackTitle;
-                    embedUrl = tavernQueueItem.TrackUrl;
-                    thumbnail = tavernQueueItem.TrackThumbnail;
+                var discordGuild = await GetGuildAsync();
+                var db = new TavernContext();
+                var dbGuild = await db.GetOrCreateDiscordGuild(discordGuild);
+                var guildState = mbHelper.GetOrCreateGuildState(dbGuild.Id);
 
-                    if (!string.IsNullOrEmpty(tavernQueueItem.AuthorSuffix))
-                        track_Author += " " + tavernQueueItem.AuthorSuffix;
+                if (guildState == null) {
+                    guildState = new GuildState(dbGuild.Id);
+                    mbHelper.GuildStates.Add(dbGuild.Id, guildState);
                 }
+
+                guildState.TrackChapters = null; // Reset playlist tracks to null
+
+                var outputChannel = await mbHelper.GetMusicTextChannelFor(discordGuild);
+                if (outputChannel == null) {
+                    logger.LogError(TLE.MBLava, "Failed to get music channel.");
+                } else {
+                    await mbHelper.DeletePastStatusMessage(dbGuild, outputChannel);
+                }
+
+                GuildQueueItem? dbTrack = null;
+
+                var currentTrackIdx = dbGuild.CurrentTrack;
+
+                var requestedBy = "<#ERROR>";
+                var currentTrackQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(x => x.GuildId == dbGuild.Id && x.Position == currentTrackIdx);
+                if (currentTrackQuery.Any()) {
+                    dbTrack = await currentTrackQuery.FirstAsync(cancellationToken);
+                    requestedBy = (dbTrack?.RequestedBy == null) ? "<#NULL>" : dbTrack?.RequestedBy.DisplayName;
+                }
+
+                string track_Author = track.Author;
+                string? track_AuthorUrl = null;
+                string track_Title = track.Title;
+
+                string? thumbnail = null;
+
+                string? embedUrl  = track.Uri?.ToString();
+                bool isYoutubeUrl = (track.Uri?.Host == "youtube.com" || track.Uri?.Host == "www.youtube.com");
+                bool isSunoUrl    = (track.Uri?.Host == "suno.com" || (track.Uri?.Host.EndsWith("suno.ai") ?? false));
+                if (isYoutubeUrl && track.Uri != null) {
+                    var uriQuery = HttpUtility.ParseQueryString(track.Uri.Query);
+                    var videoId = uriQuery["v"];
+
+                    embedUrl = $"https://youtube.com/watch?v={track.Identifier}";
+                    thumbnail = $"https://img.youtube.com/vi/{videoId}/0.jpg";
+                } 
+                else if (isSunoUrl && track.Uri != null) {
+                    TavernPlayerQueueItem? tavernQueueItem;
+
+                    // Check if the ITrackQueueItem is a TavernPlayerQueueItem
+                    if (tqi is TavernPlayerQueueItem tavernQI) {
+                        tavernQueueItem = tavernQI;
+                    }
+                    // If we do not have a TavernPlayerQueueItem lets get the metadata again.
+                    //   this can be when a person jumps the queue like !jump <idx> and the track was placed on the queue directly from the db.
+                    else {
+                        tavernQueueItem = await SunoAIParser.GetSunoTrack(track.Uri.ToString()).ConfigureAwait(false);
+                    }
+
+                    if (tavernQueueItem != null) {
+                        track_AuthorUrl = tavernQueueItem.AuthorUrl;
+                        track_Author = tavernQueueItem.AuthorDisplayName;
+                        track_Title = tavernQueueItem.TrackTitle;
+                        embedUrl = tavernQueueItem.TrackUrl;
+                        thumbnail = tavernQueueItem.TrackThumbnail;
+
+                        if (!string.IsNullOrEmpty(tavernQueueItem.AuthorSuffix))
+                            track_Author += " " + tavernQueueItem.AuthorSuffix;
+                    }
+                }
+
+                DiscordEmbedBuilder embed = new DiscordEmbedBuilder() {
+                    Url   = embedUrl,
+                    Color = DiscordColor.SpringGreen,
+                    Title = track_Title,
+                };
+
+                if (thumbnail != null)
+                    embed.WithThumbnail(thumbnail);
+
+                // Enum.GetValues(typeof(DiscordColor))
+
+
+                embed.WithAuthor(track_Author, track_AuthorUrl);
+                embed.WithColor(DiscordColor.Goldenrod);
+                //embed.AddField("Player Panel", "[Manage bot through web panel (not added)](https://callumcarmicheal.com/#)", false);
+
+                if (dbTrack == null)
+                    embed.AddField("Position", "<TRX Nil>", true);
+                else embed.AddField("Position", dbTrack.Position.ToString(), true);
+
+                embed.AddField("Duration", track.Duration.ToString(@"hh\:mm\:ss"), true);
+                embed.AddField("Requested by", requestedBy, true);
+
+                if (guildState.ShuffleEnabled)
+                    embed.AddField("Shuffle", "Enabled", true);
+
+                if (guildState.RepeatEnabled)
+                    embed.AddField("Repeat", $"Repeated `{guildState.TimesRepeated}` times.", true);
+
+                if (dbTrack != null) {
+                    embed.AddField("State", "Playing", true);
+                    embed.AddField("Date", Formatter.Timestamp(dbTrack.CreatedAt, TimestampFormat.LongDateTime), true);
+                } else {
+                    embed.AddField("State", "Playing");
+                }
+
+                var progressBar = mbHelper.GenerateProgressBar(0, track.Duration.TotalSeconds, 20);
+                var (currentTime, timeLeft) = mbHelper.GetTrackRemaining(TimeSpan.FromSeconds(0), track.Duration);
+                embed.AddField("Progress", $"```{progressBar} {timeLeft}```");
+
+                // 
+                embed.WithFooter($"gb:callums-basement@{Program.VERSION_Full}");
+
+                var message = await discordClient.SendMessageAsync(outputChannel, embed: embed);
+
+                dbGuild.LastMessageStatusId = message.Id;
+                dbGuild.IsPlaying = true;
+                await db.SaveChangesAsync(cancellationToken);
+
+                var embedIndex = embed.Fields.FindIndex(x => x.Name == "Progress");
+                var stateIndex = embed.Fields.FindIndex(x => x.Name == "State");
+                guildState.MusicEmbed = new MusicEmbedState() {
+                    Message = message,
+                    Embed = embed,
+                    ProgressFieldIdx = embedIndex,
+                    StateFieldIdx = stateIndex
+                };
+
+                if (isYoutubeUrl && Program.Settings.YoutubeIntegration.Enabled && track.Duration.TotalMinutes >= 5)
+                    _ = Task.Run(() => mbHelper.ParseYoutubeChaptersPlaylist(dbGuild.Id, currentTrackIdx, track.Identifier, _cancellationTokenSource.Token), _cancellationTokenSource.Token);
+
+                StartProgressTimer();
+            } finally {
+                botInactivityManager.GuildStateChanged(GuildId, State);
+                logger.LogInformation(TLE.Misc, "NotifyTrackStartedAsync <-- Done processing");
             }
-
-            DiscordEmbedBuilder embed = new DiscordEmbedBuilder() {
-                Url   = embedUrl,
-                Color = DiscordColor.SpringGreen,
-                Title = track_Title,
-            };
-
-            if (thumbnail != null)
-                embed.WithThumbnail(thumbnail);
-
-            // Enum.GetValues(typeof(DiscordColor))
-
-
-            embed.WithAuthor(track_Author, track_AuthorUrl);
-            embed.WithColor(DiscordColor.Goldenrod);
-            //embed.AddField("Player Panel", "[Manage bot through web panel (not added)](https://callumcarmicheal.com/#)", false);
-
-            if (dbTrack == null)
-                 embed.AddField("Position", "<TRX Nil>", true);
-            else embed.AddField("Position", dbTrack.Position.ToString(), true);
-
-            embed.AddField("Duration", track.Duration.ToString(@"hh\:mm\:ss"), true);
-            embed.AddField("Requested by", requestedBy, true);
-
-            if (guildState.ShuffleEnabled)
-                embed.AddField("Shuffle", "Enabled", true);
-
-            if (guildState.RepeatEnabled)
-                embed.AddField("Repeat", $"Repeated `{guildState.TimesRepeated}` times.", true);
-
-            if (dbTrack != null) {
-                embed.AddField("State", "Playing", true);
-                embed.AddField("Date", Formatter.Timestamp(dbTrack.CreatedAt, TimestampFormat.LongDateTime), true);
-            } else {
-                embed.AddField("State", "Playing");
-            }
-
-            var progressBar = mbHelper.GenerateProgressBar(0, track.Duration.TotalSeconds, 20);
-            var (currentTime, timeLeft) = mbHelper.GetTrackRemaining(TimeSpan.FromSeconds(0), track.Duration);
-            embed.AddField("Progress", $"```{progressBar} {timeLeft}```");
-
-            // 
-            embed.WithFooter($"gb:callums-basement@{Program.VERSION_Full}");
-
-            var message = await discordClient.SendMessageAsync(outputChannel, embed: embed);
-
-            dbGuild.LastMessageStatusId = message.Id;
-            dbGuild.IsPlaying = true;
-            await db.SaveChangesAsync(cancellationToken);
-
-            var embedIndex = embed.Fields.FindIndex(x => x.Name == "Progress");
-            var stateIndex = embed.Fields.FindIndex(x => x.Name == "State");
-            guildState.MusicEmbed = new MusicEmbedState() {
-                Message = message,
-                Embed = embed,
-                ProgressFieldIdx = embedIndex,
-                StateFieldIdx = stateIndex
-            };
-
-            if (isYoutubeUrl && Program.Settings.YoutubeIntegration.Enabled && track.Duration.TotalMinutes >= 5)
-                _ = Task.Run(() => mbHelper.ParseYoutubeChaptersPlaylist(dbGuild.Id, currentTrackIdx, track.Identifier, _cancellationTokenSource.Token), _cancellationTokenSource.Token);
-
-            StartProgressTimer();
-            botInactivityManager.GuildStateChanged(dbGuild.Id, State);
-            logger.LogInformation(TLE.Misc, "NotifyTrackStartedAsync <-- Done processing");
         }
 
         protected override async ValueTask NotifyTrackEndedAsync(ITrackQueueItem trackQueueItem, TrackEndReason endReason
             , CancellationToken cancellationToken = default) 
         {
             logger.LogInformation(TLE.MBFin, "-------------PlaybackFinished : {reason}", endReason.ToString());
-            if (endReason == TrackEndReason.Replaced) {
-                logger.LogInformation(TLE.MBFin, "Finished current track because the music was replaced.");
-                return;
-            }
+            try {
+                if (endReason == TrackEndReason.Replaced) {
+                    botInactivityManager.GuildStateChanged(GuildId, State);
+                    logger.LogInformation(TLE.MBFin, "Finished current track because the music was replaced.");
+                    return;
+                } else {
+                    botInactivityManager.GuildStateChanged(GuildId, PlayerState.NotPlaying);
+                }
 
-            var guild = await GetGuildAsync();
+                var guild = await GetGuildAsync();
 
-            // Check if we have a channel for the guild
-            var db = new TavernContext();
-            var dbGuild = await db.GetOrCreateDiscordGuild(guild);
-            var guildState = mbHelper.GuildStates.ContainsKey(dbGuild.Id) ? mbHelper.GuildStates[dbGuild.Id] : null;
-            var shuffleEnabled = guildState != null && guildState.ShuffleEnabled;
-            var repeatEnabled  = guildState != null && guildState.RepeatEnabled;
+                // Check if we have a channel for the guild
+                var db = new TavernContext();
+                var dbGuild = await db.GetOrCreateDiscordGuild(guild);
+                var guildState = mbHelper.GuildStates.ContainsKey(dbGuild.Id) ? mbHelper.GuildStates[dbGuild.Id] : null;
+                var shuffleEnabled = guildState != null && guildState.ShuffleEnabled;
+                var repeatEnabled  = guildState != null && guildState.RepeatEnabled;
 
-            if (repeatEnabled) shuffleEnabled = false; // Disable shuffle if on repeat mode!
+                if (repeatEnabled) shuffleEnabled = false; // Disable shuffle if on repeat mode!
 
-            // Set IsPlaying to false.
-            dbGuild.IsPlaying = false;
-            await db.SaveChangesAsync();
+                // Set IsPlaying to false.
+                dbGuild.IsPlaying = false;
+                await db.SaveChangesAsync();
 
-            // Get the output music chanenl
-            var outputChannel = await mbHelper.GetMusicTextChannelFor(guild);
-            if (outputChannel == null) {
-                logger.LogError(TLE.MBFin, "Failed to get music channel for lavalink connection.");
-            } else {
-                await mbHelper.DeletePastStatusMessage(dbGuild, outputChannel);
-            }
+                // Get the output music chanenl
+                var outputChannel = await mbHelper.GetMusicTextChannelFor(guild);
+                if (outputChannel == null) {
+                    logger.LogError(TLE.MBFin, "Failed to get music channel for lavalink connection.");
+                } else {
+                    await mbHelper.DeletePastStatusMessage(dbGuild, outputChannel);
+                }
 
-            bool isTempTrack = false;
-            GuildQueueItem? dbTrack = null;
+                bool isTempTrack = false;
+                GuildQueueItem? dbTrack = null;
 
-            // Check if we have any temporary tracks and remove empty playlist if needed
-            //(isTempTrack, dbTrack) = this.GetNextTemporaryTrackForGuild(guild);
+                // Check if we have any temporary tracks and remove empty playlist if needed
+                //(isTempTrack, dbTrack) = this.GetNextTemporaryTrackForGuild(guild);
 
-            if (isTempTrack && Program.Settings.LoggingVerbose) {
-                logger.LogInformation(TLE.MBFin, "Playing temporary track: {Title}.", dbTrack?.Title ?? "<NULL>");
-            }
+                if (isTempTrack && Program.Settings.LoggingVerbose) {
+                    logger.LogInformation(TLE.MBFin, "Playing temporary track: {Title}.", dbTrack?.Title ?? "<NULL>");
+                }
 
-            // Check if we are on the repeat mode.
-            if (repeatEnabled) {
-                // Get the current track
-                dbTrack = await mbHelper.getNextTrackForGuild(guild, targetTrackId: dbGuild.CurrentTrack);
+                // Check if we are on the repeat mode.
+                if (repeatEnabled) {
+                    // Get the current track
+                    dbTrack = await mbHelper.getNextTrackForGuild(guild, targetTrackId: dbGuild.CurrentTrack);
 
-                if (guildState != null)
-                    guildState.TimesRepeated++;
-            } else {
-                // Get the next available track
-                dbTrack = await mbHelper.getNextTrackForGuild(guild);
+                    if (guildState != null)
+                        guildState.TimesRepeated++;
+                } else {
+                    // Get the next available track
+                    dbTrack = await mbHelper.getNextTrackForGuild(guild);
 
-                if (guildState != null)
-                    guildState.TimesRepeated = 0;
-            }
+                    if (guildState != null)
+                        guildState.TimesRepeated = 0;
+                }
 
-            // Get the track
-            LavalinkTrack? track = null;
+                // Get the track
+                LavalinkTrack? track = null;
 
-            if (dbTrack != null)
-                track = LavalinkTrack.Parse(dbTrack.TrackString, provider: null);
+                if (dbTrack != null)
+                    track = LavalinkTrack.Parse(dbTrack.TrackString, provider: null);
 
-            // Get the next track (attempt it 10 times)
-            int attempts = 0;
-            int MAX_ATTEMPTS = 10;
+                // Get the next track (attempt it 10 times)
+                int attempts = 0;
+                int MAX_ATTEMPTS = 10;
 
-            ulong nextTrackNumber = dbGuild.NextTrack;
+                ulong nextTrackNumber = dbGuild.NextTrack;
 
-            // Attempt to get next available track
-            while (track == null && attempts++ < MAX_ATTEMPTS) {
-                logger.LogInformation(TLE.MBFin, "Error, Failed to parse next track `{Title}` at position `{Position}`.", dbTrack?.Title, dbTrack?.Position);
-                if (outputChannel != null && nextTrackNumber <= dbGuild.TrackCount)
-                    await outputChannel.SendMessageAsync($"Error (1), Failed to parse next track `{dbTrack?.Title}` at position `{nextTrackNumber}`.");
+                // Attempt to get next available track
+                while (track == null && attempts++ < MAX_ATTEMPTS) {
+                    logger.LogInformation(TLE.MBFin, "Error, Failed to parse next track `{Title}` at position `{Position}`.", dbTrack?.Title, dbTrack?.Position);
+                    if (outputChannel != null && nextTrackNumber <= dbGuild.TrackCount)
+                        await outputChannel.SendMessageAsync($"Error (1), Failed to parse next track `{dbTrack?.Title}` at position `{nextTrackNumber}`.");
 
-                // Get the next track
-                nextTrackNumber++;
+                    // Get the next track
+                    nextTrackNumber++;
 
-                // If we have reached the max count disconnect
-                if (!shuffleEnabled && nextTrackNumber > dbGuild.TrackCount) {
-                    if (Program.Settings.LoggingVerbose)
-                        logger.LogInformation(TLE.MBFin, "Reached end of playlist count {attempts} attempts, {trackCount} tracks.", attempts, dbGuild.TrackCount);
+                    // If we have reached the max count disconnect
+                    if (!shuffleEnabled && nextTrackNumber > dbGuild.TrackCount) {
+                        if (Program.Settings.LoggingVerbose)
+                            logger.LogInformation(TLE.MBFin, "Reached end of playlist count {attempts} attempts, {trackCount} tracks.", attempts, dbGuild.TrackCount);
 
-                    if (outputChannel != null) {
-                        string messageText = "Finished queue.";
+                        if (outputChannel != null) {
+                            string messageText = "Finished queue.";
 
-                        if (dbGuild.LeaveAfterQueue) {
-                            // Remove temporary playlist
-                            if (mbHelper.TemporaryTracks.ContainsKey(dbGuild.Id))
-                                mbHelper.TemporaryTracks.Remove(dbGuild.Id);
+                            if (dbGuild.LeaveAfterQueue) {
+                                // Remove temporary playlist
+                                if (mbHelper.TemporaryTracks.ContainsKey(dbGuild.Id))
+                                    mbHelper.TemporaryTracks.Remove(dbGuild.Id);
 
-                            messageText = "Disconnected after finished queue.";
-                            await DisconnectAsync().ConfigureAwait(false);
-                            mbHelper.AnnounceLeave(dbGuild.Id);
+                                messageText = "Disconnected after finished queue.";
+                                await DisconnectAsync().ConfigureAwait(false);
+                                mbHelper.AnnounceLeave(dbGuild.Id);
+                            }
+
+                            await outputChannel.SendMessageAsync(messageText);
+                            await db.SaveChangesAsync();
                         }
 
-                        await outputChannel.SendMessageAsync(messageText);
-                        await db.SaveChangesAsync();
+                        return;
+                    }
+
+                    dbTrack = await mbHelper.getNextTrackForGuild(guild, nextTrackNumber);
+                    track = dbTrack == null ? null : LavalinkTrack.Parse(dbTrack.TrackString, provider: null);
+                }
+
+                // If we cannot still resolve a track leave the channel (if setting provides)
+                if (dbTrack == null || track == null) {
+                    logger.LogInformation(TLE.MBLava, "Fatal error, Failed to parse {MaxAttempts} track(s) in a row at position {Position}. dbTrack == null: {dbTrackIsNull}, track == null: {trackIsNull}"
+                        , MAX_ATTEMPTS, dbTrack?.Position, dbTrack == null ? "True" : "False", track == null ? "True" : "False");
+
+                    if (outputChannel != null)
+                        await outputChannel.SendMessageAsync($"Error (2), Failed to parse next track at position `{nextTrackNumber}`.\n"
+                            + $"Please manually set next queue index above `{nextTrackNumber}` with jump or queue a new song!");
+
+                    if (dbGuild.LeaveAfterQueue) {
+                        // Remove temporary playlist
+                        if (mbHelper.TemporaryTracks.ContainsKey(dbGuild.Id))
+                            mbHelper.TemporaryTracks.Remove(dbGuild.Id);
+
+                        // Disconnecting
+                        await DisconnectAsync().ConfigureAwait(false);
+                        mbHelper.AnnounceLeave(dbGuild.Id);
+
+                        if (outputChannel != null)
+                            await outputChannel.SendMessageAsync("Disconnected after finished queue.");
                     }
 
                     return;
                 }
 
-                dbTrack = await mbHelper.getNextTrackForGuild(guild, nextTrackNumber);
-                track = dbTrack == null ? null : LavalinkTrack.Parse(dbTrack.TrackString, provider: null);
-            }
+                // Update guild in database
+                dbGuild.IsPlaying = true;
 
-            // If we cannot still resolve a track leave the channel (if setting provides)
-            if (dbTrack == null || track == null) {
-                logger.LogInformation(TLE.MBLava, "Fatal error, Failed to parse {MaxAttempts} track(s) in a row at position {Position}. dbTrack == null: {dbTrackIsNull}, track == null: {trackIsNull}"
-                    , MAX_ATTEMPTS, dbTrack?.Position, dbTrack == null ? "True" : "False", track == null ? "True" : "False");
-
-                if (outputChannel != null)
-                    await outputChannel.SendMessageAsync($"Error (2), Failed to parse next track at position `{nextTrackNumber}`.\n"
-                        + $"Please manually set next queue index above `{nextTrackNumber}` with jump or queue a new song!");
-
-                if (dbGuild.LeaveAfterQueue) {
-                    // Remove temporary playlist
-                    if (mbHelper.TemporaryTracks.ContainsKey(dbGuild.Id))
-                        mbHelper.TemporaryTracks.Remove(dbGuild.Id);
-
-                    // Disconnecting
-                    await DisconnectAsync().ConfigureAwait(false);
-                    mbHelper.AnnounceLeave(dbGuild.Id);
-
-                    if (outputChannel != null)
-                        await outputChannel.SendMessageAsync("Disconnected after finished queue.");
+                if (isTempTrack == false && dbTrack != null) {
+                    dbGuild.CurrentTrack = dbTrack.Position;
+                    dbGuild.NextTrack    = dbTrack.Position + 1;
                 }
 
-                return;
-            }
+                await db.SaveChangesAsync();
 
-            // Update guild in database
-            dbGuild.IsPlaying = true;
-
-            if (isTempTrack == false && dbTrack != null) {
-                dbGuild.CurrentTrack = dbTrack.Position;
-                dbGuild.NextTrack    = dbTrack.Position + 1;
-            }
-
-            await db.SaveChangesAsync();
-
-            if (track == null) {
-                logger.LogError(TLE.MBLava, "Fatal error, track is null is null!");
-                return;
-            }
-
-            // Parse the track if its a suno ai track
-            bool isSunoUrl = (track.Uri?.Host == "suno.com" || (track.Uri?.Host.EndsWith("suno.ai") ?? false));
-
-            if (isSunoUrl && track != null) {
-                TavernPlayerQueueItem? nextTrackQueueItem = await SunoAIParser.GetSunoTrack(track.Uri?.ToString()).ConfigureAwait(false);
-
-                if (nextTrackQueueItem != null) {
-                    var trackRef = new TrackReference(track);
-                    nextTrackQueueItem.Reference = trackRef;
-
-                    await Task.Delay(500);
-                    await PlayAsync(nextTrackQueueItem).ConfigureAwait(false);
-
-                    logger.LogInformation(TLE.Misc, "-------------PlaybackFinished ### Finished processing");
+                if (track == null) {
+                    logger.LogError(TLE.MBLava, "Fatal error, track is null is null!");
                     return;
                 }
+
+                // Parse the track if its a suno ai track
+                bool isSunoUrl = (track.Uri?.Host == "suno.com" || (track.Uri?.Host.EndsWith("suno.ai") ?? false));
+
+                if (isSunoUrl && track != null) {
+                    TavernPlayerQueueItem? nextTrackQueueItem = await SunoAIParser.GetSunoTrack(track.Uri?.ToString()).ConfigureAwait(false);
+
+                    if (nextTrackQueueItem != null) {
+                        var trackRef = new TrackReference(track);
+                        nextTrackQueueItem.Reference = trackRef;
+
+                        await Task.Delay(500);
+                        await PlayAsync(nextTrackQueueItem).ConfigureAwait(false);
+                        return;
+                    }
+                }
+            
+                // Play the next track.
+                await Task.Delay(500);
+                await PlayAsync(track!).ConfigureAwait(false);
             }
-            
-            // Play the next track.
-            await Task.Delay(500);
-            await PlayAsync(track!).ConfigureAwait(false);
-            
-            logger.LogInformation(TLE.Misc, "-------------PlaybackFinished ### Finished processing");
+            finally {
+                logger.LogInformation(TLE.Misc, "-------------PlaybackFinished ### Finished processing");
+            }
         }
 
         public override async ValueTask PauseAsync(CancellationToken cancellationToken = default) {
             // Pause the track
             await base.PauseAsync(cancellationToken);
 
-            var discordGuild = await GetGuildAsync();
-            var db = new TavernContext();
-            var dbGuild = await db.GetOrCreateDiscordGuild(discordGuild);
-            var guildState = mbHelper.GetOrCreateGuildState(dbGuild.Id);
+            var guildState = mbHelper.GetOrCreateGuildState(GuildId);
 
             // Pause the update timer thread
             StopProgressTimer();
 
             // Update state
-            botInactivityManager.GuildStateChanged(dbGuild.Id, State);
+            botInactivityManager.GuildStateChanged(GuildId, State);
 
             // Update the embed
             if (guildState == null || guildState.MusicEmbed == null)
@@ -488,16 +491,13 @@ namespace CCTavern.Player
         public override async ValueTask ResumeAsync(CancellationToken cancellationToken = default) {
             await base.ResumeAsync(cancellationToken);
 
-            var discordGuild = await GetGuildAsync();
-            var db = new TavernContext();
-            var dbGuild = await db.GetOrCreateDiscordGuild(discordGuild);
-            var guildState = mbHelper.GetOrCreateGuildState(dbGuild.Id);
+            var guildState = mbHelper.GetOrCreateGuildState(GuildId);
 
             // Pause the update timer thread
             StartProgressTimer();
 
             // Update state
-            botInactivityManager.GuildStateChanged(dbGuild.Id, State);
+            botInactivityManager.GuildStateChanged(GuildId, State);
 
             // Update the embed
             if (guildState == null || guildState.MusicEmbed == null)
