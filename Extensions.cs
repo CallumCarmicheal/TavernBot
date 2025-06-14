@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using CCTavern.Library;
+
+using Microsoft.Extensions.DependencyInjection;
 
 using System;
 using System.Collections.Generic;
@@ -90,7 +92,7 @@ namespace CCTavern {
         public static TimeSpan? TryParseTimeStamp(this string input) {
             TimeSpan ts;
 
-            if (TimeSpan.TryParseExact(input, new string[] { "ss", "mm\\:ss", "mm\\-ss", "mm\\'ss", "mm\\;ss" }, null, out ts))
+            if (FlexibleTimeSpanParser.TryParse(input, out ts))
                 return ts;
 
             if (TimeSpanParser.TryParse(input, timeSpan: out ts))
