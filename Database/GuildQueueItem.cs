@@ -55,7 +55,7 @@ namespace CCTavern.Database {
 
             if (ctx == null && RequestedBy == null) {
                 return ($"`{Title}` at position `{Position}`, requested at "
-                    + $"`{CreatedAt:dd/MM/yyyy HH:mm:ss}` ({Formatter.Timestamp(CreatedAt, TimestampFormat.RelativeTime)})");
+                      + $"`{CreatedAt:dd/MM/yyyy HH:mm:ss}` ({Formatter.Timestamp(CreatedAt, TimestampFormat.RelativeTime)})");
             }
 
             if (fetchUserIfNotPresent && RequestedBy == null) {
@@ -66,7 +66,7 @@ namespace CCTavern.Database {
 
             if (RequestedBy == null) {
                 return ($"`{Title}` at position `{Position}`, requested at "
-                    + $"`{CreatedAt:dd/MM/yyyy HH:mm:ss}` ({Formatter.Timestamp(CreatedAt, TimestampFormat.RelativeTime)})");
+                      + $"`{CreatedAt:dd/MM/yyyy HH:mm:ss}` ({Formatter.Timestamp(CreatedAt, TimestampFormat.RelativeTime)})");
             }
 
             return $"`{Title}` at position `{Position}`, requested by `{RequestedBy.Username}` at "

@@ -183,10 +183,9 @@ namespace CCTavern.Player {
             // Get the track from the database
             var query = db.GuildQueueItems
                 .Include(x => x.RequestedBy)
-                .Where(
-                    x => x.GuildId == guild.Id
-                      && x.Position >= targetTrackId // Get target track or the next available track
-                      && x.IsDeleted == false);
+                .Where(x => x.GuildId == guild.Id
+                         && x.Position >= targetTrackId // Get target track or the next available track
+                         && x.IsDeleted == false);
 
             // Return the track or null.
             if (query.Any() == false)

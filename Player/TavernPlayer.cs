@@ -168,7 +168,8 @@ namespace CCTavern.Player
                 var currentTrackIdx = dbGuild.CurrentTrack;
 
                 var requestedBy = "<#ERROR>";
-                var currentTrackQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(x => x.GuildId == dbGuild.Id && x.Position == currentTrackIdx);
+                var currentTrackQuery = db.GuildQueueItems.Include(p => p.RequestedBy)
+                                                          .Where(x => x.GuildId == dbGuild.Id && x.Position == currentTrackIdx);
                 if (currentTrackQuery.Any()) {
                     dbTrack = await currentTrackQuery.FirstAsync(cancellationToken);
                     requestedBy = (dbTrack?.RequestedBy == null) ? "<#NULL>" : dbTrack?.RequestedBy.DisplayName;

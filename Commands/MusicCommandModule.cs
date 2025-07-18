@@ -286,7 +286,7 @@ namespace CCTavern.Commands
             var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
-            var query = db.GuildQueueItems.Where(x => x.Position == guild.CurrentTrack);
+            var query = db.GuildQueueItems.Where(x => x.GuildId == ctx.Guild.Id && x.Position == guild.CurrentTrack);
             if (query.Any() == false) {
                 await ctx.RespondAsync("Failed to jump to track (could not be found).");
                 return;
@@ -400,7 +400,7 @@ namespace CCTavern.Commands
 
             // TODO: Maybe find the nearest track using the position above.
             if (dbTrack == null) {
-                await ctx.RespondAsync("***Bot got hurt in the confusion***. For some reason or another (ᴾʳᵒᵇᵃᵇˡʸ ᶜᵃˡˡᵘᵐˢ ᵇᵃᵈ ᵖʳᵒᵍʳᵃᵐᵐᶦⁿᵍ)"
+                await ctx.RespondAsync("***Bot got hurt in the confusion*** For some reason or another (ᴾʳᵒᵇᵃᵇˡʸ ᶜᵃˡˡᵘᵐˢ ᵇᵃᵈ ᵖʳᵒᵍʳᵃᵐᵐᶦⁿᵍ)"
                     + " I cant find a track to play. Try again... maybe!?");
                 return;
             }
