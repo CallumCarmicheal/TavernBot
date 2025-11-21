@@ -116,7 +116,7 @@ namespace CCTavern.Player
                 return;
             }
 
-            if (updateStateEmbed(guildState, embed) == false) 
+            if (updateEmbedState(guildState, embed) == false) 
                 goto Finish;
 
             var message = guildState?.MusicEmbed.Message;
@@ -271,7 +271,7 @@ namespace CCTavern.Player
                     Message = message,
                     Embed = embed,
                     ProgressFieldIdx = embedIndex,
-                    StateFieldIdx = stateIndex
+                    StateFieldIdx = stateIndex,
                 };
 
                 if (isYoutubeUrl && Program.Settings.YoutubeIntegration.Enabled && track.Duration.TotalMinutes >= 5)
@@ -476,7 +476,7 @@ namespace CCTavern.Player
             if (guildState == null || guildState.MusicEmbed == null)
                 return;
 
-            var updateMessage = updateStateEmbed(guildState, guildState.MusicEmbed.Embed);
+            var updateMessage = updateEmbedState(guildState, guildState.MusicEmbed.Embed);
             if (updateMessage) {
                 var message = guildState?.MusicEmbed.Message;
                 if (guildState != null && message != null) {
@@ -504,7 +504,7 @@ namespace CCTavern.Player
             if (guildState == null || guildState.MusicEmbed == null)
                 return;
 
-            var updateMessage = updateStateEmbed(guildState, guildState.MusicEmbed.Embed);
+            var updateMessage = updateEmbedState(guildState, guildState.MusicEmbed.Embed);
             if (updateMessage) {
                 var message = guildState?.MusicEmbed.Message;
                 if (guildState != null && message != null) {
@@ -518,7 +518,7 @@ namespace CCTavern.Player
         }
 
 
-        private bool updateStateEmbed(GuildState guildState, DiscordEmbedBuilder embedBuilder) {
+        private bool updateEmbedState(GuildState guildState, DiscordEmbedBuilder embedBuilder) {
             if (guildState == null || guildState.MusicEmbed == null || this.Position == null || CurrentTrack == null) 
                 return false;
 

@@ -1,5 +1,6 @@
 ﻿using CCTavern.Database;
 using CCTavern.Player;
+
 using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
@@ -17,24 +18,30 @@ using Microsoft.EntityFrameworkCore.Update;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+using Org.BouncyCastle.Asn1.Cms;
+
+using Swan.Logging;
+
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
+using System.Globalization;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web;
 
 using static CCTavern.Player.YoutubeChaptersParser;
 
-namespace CCTavern.Commands
-{
+namespace CCTavern.Commands {
     internal class MusicQueueModule : BaseAudioCommandModule {
         private readonly ILogger<MusicQueueModule> logger;
 
         const int ITEMS_PER_PAGE = 10;
 
-        public MusicQueueModule(MusicBotHelper mbHelper, IAudioService audioService, ILogger<MusicQueueModule> logger) 
+        public MusicQueueModule(MusicBotHelper mbHelper, IAudioService audioService, ILogger<MusicQueueModule> logger)
                 : base(audioService, mbHelper) {
             this.logger = logger;
         }
@@ -42,17 +49,17 @@ namespace CCTavern.Commands
         [Command("shuffle"), Aliases("sh")]
         [Description("Shuffle the music in the queue")]
         [RequireGuild]
-        public async Task ToggleGuildShuffle(CommandContext ctx, 
+        public async Task ToggleGuildShuffle(CommandContext ctx,
             [Description("True values [yes, 1, true, on]")]
             string flag_str = ""
         ) {
             var flag_str_lwr = flag_str.Trim().ToLower();
-            bool flag = string.IsNullOrWhiteSpace(flag_str_lwr) ? false : 
-                ( flag_str_lwr[0] == 'y' || flag_str_lwr[0] == '1' || flag_str_lwr[0] == 't' 
+            bool flag = string.IsNullOrWhiteSpace(flag_str_lwr) ? false :
+                (flag_str_lwr[0] == 'y' || flag_str_lwr[0] == '1' || flag_str_lwr[0] == 't'
                 || (flag_str_lwr[0] == 'o' && flag_str_lwr[1] == 'n'));
 
             // Get the guild
-            var db    = new TavernContext();
+            var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
             if (string.IsNullOrWhiteSpace(flag_str_lwr) || flag_str_lwr[0] == '?') {
@@ -73,7 +80,7 @@ namespace CCTavern.Commands
                 return;
             }
 
-            if (mbHelper.GuildStates.ContainsKey(guild.Id) == false) 
+            if (mbHelper.GuildStates.ContainsKey(guild.Id) == false)
                 mbHelper.GuildStates[guild.Id] = new GuildState(guild.Id);
 
             // Check if the flag is empty then we are to toggle.
@@ -82,7 +89,7 @@ namespace CCTavern.Commands
             } else {
                 mbHelper.GuildStates[guild.Id].ShuffleEnabled = flag;
             }
-            
+
             await ctx.RespondAsync(mbHelper.GuildStates[guild.Id].ShuffleEnabled ? "Shuffle enabled." : "Shuffle disabled.");
         }
 
@@ -105,10 +112,10 @@ namespace CCTavern.Commands
                 queueContent += "*** Temporary queue exists, pleasue use \"queuetemp\" to view temporary queue.";
 
             // Get the guild
-            var db    = new TavernContext();
+            var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
             var guildQueueQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(qi => qi.GuildId == guild.Id && qi.IsDeleted == false);
-            var currentPosition = await guildQueueQuery.Where(qi => qi.Position <= guild.CurrentTrack).CountAsync(); 
+            var currentPosition = await guildQueueQuery.Where(qi => qi.Position <= guild.CurrentTrack).CountAsync();
 
             var targetPage = (int)Math.Ceiling((decimal)currentPosition / ITEMS_PER_PAGE);
 
@@ -171,7 +178,7 @@ namespace CCTavern.Commands
                 if (dbTrack.PlaylistId == null) {
                     queueContent += " ";
                 } else {
-                    var lineSymbol = 
+                    var lineSymbol =
                         (nextTrack != null && nextTrack.PlaylistId != dbTrack.PlaylistId)
                         || (dbTrack.Playlist?.PlaylistSongCount == 1)
                         ? "/" : "|";
@@ -251,7 +258,7 @@ namespace CCTavern.Commands
             var guildQueueQuery = db.GuildQueueItems
                 .Include(p => p.RequestedBy)
                 .Where(x => x.GuildId == dbGuild.Id && x.IsDeleted == false && x.Position == songIndex);
-            
+
             // Check if the song doesn't exist
             if (await guildQueueQuery.AnyAsync() == false) {
                 var emoji = DiscordEmoji.FromName(ctx.Client, ":question:");
@@ -308,7 +315,7 @@ namespace CCTavern.Commands
             GuildState guildState;
 
             if (mbHelper.GuildStates.ContainsKey(dbGuild.Id) == false)
-                 mbHelper.GuildStates.Add(dbGuild.Id, guildState = new GuildState(dbGuild.Id));
+                mbHelper.GuildStates.Add(dbGuild.Id, guildState = new GuildState(dbGuild.Id));
             else guildState = mbHelper.GuildStates[dbGuild.Id];
 
             guildState.SetNextFlag = true;
@@ -354,7 +361,7 @@ namespace CCTavern.Commands
             GuildState guildState;
 
             if (mbHelper.GuildStates.ContainsKey(dbGuild.Id) == false)
-                 mbHelper.GuildStates.Add(dbGuild.Id, guildState = new GuildState(dbGuild.Id));
+                mbHelper.GuildStates.Add(dbGuild.Id, guildState = new GuildState(dbGuild.Id));
             else guildState = mbHelper.GuildStates[dbGuild.Id];
 
             // Check if the flag is empty then we are to toggle.
@@ -379,7 +386,7 @@ namespace CCTavern.Commands
 
             [Description("A list of all tracks with the timestamp followed by the track name / display text.")]
             [RemainingText] string trackPositions = ""
-        ){
+        ) {
             logger.LogDebug("ytsettl sent!");
             if (string.IsNullOrWhiteSpace(ytVideoId)) {
                 await ctx.RespondAsync("No tracks or video id has been attached.");
@@ -399,10 +406,10 @@ namespace CCTavern.Commands
             }
 
             var tracks = trackPositions.Split('\n')
-                .Where( x => !string.IsNullOrWhiteSpace(x) )
-                .Select( x => x.Trim() )
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
                 .ToList();
-            
+
             // Check if we have any tracks
             if (tracks.Count <= 1) {
                 await ctx.RespondAsync("There are not enough tracks attached");
@@ -455,7 +462,7 @@ namespace CCTavern.Commands
             [RemainingText]
             string searchFields
         ) {
-            
+
             var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild, false);
 

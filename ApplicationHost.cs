@@ -71,11 +71,14 @@ namespace CCTavern {
             commands.RegisterCommands<BotCommandsModule>();
             commands.RegisterCommands<MusicQueueModule>();
 #else
+            commands.RegisterCommands<GuildSettingsModule>();
+
             commands.RegisterCommands<MusicCommandModule>();
             commands.RegisterCommands<MusicPlayModule>();
-            commands.RegisterCommands<GuildSettingsModule>();
-            commands.RegisterCommands<BotCommandsModule>();
             commands.RegisterCommands<MusicQueueModule>();
+            commands.RegisterCommands<QueueSearchModule>();
+
+            commands.RegisterCommands<BotCommandsModule>();
             commands.RegisterCommands<StatusCommandModule>();
 #endif
 
@@ -147,20 +150,14 @@ namespace CCTavern {
             const string archivalPrefix = "ccArchive?";
             int mpos = msg.GetStringPrefixLength(archivalPrefix, StringComparison.OrdinalIgnoreCase);
             return mpos;
-#else
+#elif (DEBUG && !ARCHIVAL_MODE)
             const string debugPrefix = "cc?";
             int mpos = msg.GetStringPrefixLength(debugPrefix, StringComparison.OrdinalIgnoreCase);
-#endif
 
-#if (DEBUG && !ARCHIVAL_MODE)
             // Get the prefix here, dont forget to have a default one.
             return mpos;// Task.FromResult(mpos);
 
 #elif (ARCHIVAL_MODE == false)
-            // If we are using the debugging prefix then we want to ignore this message in prod.
-            if (mpos != -1) 
-                return -1;
-
             // If direct message
             if (msg.Channel.IsPrivate) 
                 return 0;
@@ -169,6 +166,7 @@ namespace CCTavern {
             IEnumerable<string> prefixes = Program.ServerPrefixes.ContainsKey(guildId)
                 ? Program.ServerPrefixes[guildId] : Program.g_DefaultPrefixes;
 
+            int mpos = -1;
             foreach (var pfix in prefixes) {
                 if (mpos == -1 && !string.IsNullOrWhiteSpace(pfix)) {
                     mpos = msg.GetStringPrefixLength(pfix, Program.Settings.PrefixesCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase);
