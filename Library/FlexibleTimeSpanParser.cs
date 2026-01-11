@@ -27,27 +27,26 @@ namespace CCTavern.Library {
             if (string.IsNullOrWhiteSpace(input)) return false;
             input = input.Trim();
 
-            // 1. Standard .NET formats (includes invariant "c", "g", etc.).
-            if (TimeSpan.TryParse(input, CultureInfo.InvariantCulture, out result))
-                return true;
-
-            // 2. Explicit exact patterns to handle 5:00 as mm:ss (not hh:mm).
-            string[] exact =
-            {
-            @"mm\:ss",          // 05:32  -> 0h 5m 32s
-            @"hh\:mm\:ss",      // 01:30:05
-            @"d\:hh\:mm\:ss"    // 1:02:03:04  -> 1d 2h 3m 4s
-        };
+            // 1. Explicit exact patterns to handle 5:00 as mm:ss (not hh:mm).
+            string[] exact = {
+                @"mm\:ss",          // 05:32  -> 0h 5m 32s
+                @"hh\:mm\:ss",      // 01:30:05
+                @"d\:hh\:mm\:ss"    // 1:02:03:04  -> 1d 2h 3m 4s
+            };
             if (TimeSpan.TryParseExact(input, exact, CultureInfo.InvariantCulture,
                                        TimeSpanStyles.None, out result))
                 return true;
 
-            // 3. Colon-split heuristic (handles "30:02:10" without unit labels).
+            // 2. Colon-split heuristic (handles "30:02:10" without unit labels).
             if (ParseColonForm(input, out result))
                 return true;
 
-            // 4. Word/unit tokens ("1hr32m1s", "90 seconds", "1 mn").
+            // 3. Word/unit tokens ("1hr32m1s", "90 seconds", "1 mn").
             if (ParseWordForm(input, out result))
+                return true;
+
+            // 4. Final fallback, let .NET formats give it a crack. This is last because it keeps doing "3:01" -> 3 hours, not 3 minutes.
+            if (TimeSpan.TryParse(input, CultureInfo.InvariantCulture, out result))
                 return true;
 
             return false;

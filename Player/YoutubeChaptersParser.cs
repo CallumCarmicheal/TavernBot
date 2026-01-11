@@ -19,7 +19,7 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace CCTavern.Player
 {
-    internal class YoutubeChaptersParser {
+    public class YoutubeChaptersParser {
 
         public static Regex RgxTimestampMatch = new Regex(@"(?<ts>(?:\d{1,2}:\d{2}(?::\d{2})?))", RegexOptions.Compiled);
 
