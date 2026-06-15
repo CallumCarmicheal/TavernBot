@@ -337,7 +337,7 @@ namespace CCTavern.Commands {
                 _ => false
             };
 
-            logger.LogInformation(TLE.Misc, "Join voice: Continue = {continuePlaying}", resumePlaylist);
+            logger.LogInformation(TLE.MBJoin, "Join voice: Continue = {continuePlaying}", resumePlaylist);
 
             var voiceState = ctx.Member?.VoiceState;
             if (voiceState == null || voiceState.Channel == null || ctx.Member == null) {
@@ -351,41 +351,78 @@ namespace CCTavern.Commands {
             }
 
             var voiceChannel = voiceState.Channel;
-            (var playerResult, var playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, voiceChannel.Id, connectToVoiceChannel: false).ConfigureAwait(false);
 
-            // If the music bot is already connected
-            if (playerIsConnected && playerResult.Status != Lavalink4NET.Players.PlayerRetrieveStatus.BotNotConnected) {
-                await ctx.RespondAsync("Bot is already connected to a voice channel.");
-                return;
-            }
+            try {
+                logger.LogInformation(TLE.MBJoin, "Join voice: checking existing player for guild {guildId}, channel {channelId}", ctx.Guild.Id, voiceChannel.Id);
 
-            // Connect the music bot 
-            (playerResult, playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, voiceChannel.Id, connectToVoiceChannel: true).ConfigureAwait(false);
-            if (playerIsConnected == false || playerResult.Player == null) {
-                await ctx.RespondAsync(GetPlayerErrorMessage(playerResult.Status));
-                return;
-            }
+                var existing = await GetPlayerAsync(ctx.Guild.Id, voiceChannel.Id, connectToVoiceChannel: false)
+                    .AsTask()
+                    .WaitAsync(TimeSpan.FromSeconds(10));
 
-            mbHelper.AnnounceJoin(voiceState.Channel.GuildId.Value, voiceChannel.Id);
-            await ctx.RespondAsync($"Joined <#{voiceChannel.Id}>!");
+                logger.LogInformation(
+                    TLE.MBJoin,
+                    "Join voice: existing player result. Connected={connected}, Status={status}, PlayerState={state}, VoiceChannelId={voiceChannelId}",
+                    existing.isPlayerConnected,
+                    existing.playerResult.Status,
+                    existing.playerResult.Player?.State,
+                    existing.playerResult.Player?.VoiceChannelId
+                );
 
-            if (resumePlaylist && playerResult.Player?.State == Lavalink4NET.Players.PlayerState.NotPlaying) {
-                var db = new TavernContext();
-                var dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
-                var nextTrack = await mbHelper.getNextTrackForGuild(ctx.Guild);
+                // If the music bot is already connected
+                if (existing.isPlayerConnected && existing.playerResult.Status != PlayerRetrieveStatus.BotNotConnected) {
+                    await ctx.RespondAsync($"Bot is already connected. Status={existing.playerResult.Status}, State={existing.playerResult.Player?.State}.");
+                    return;
+                }
 
-                if (nextTrack != null) {
-                    var track = LavalinkTrack.Parse(nextTrack.TrackString, provider: null);
+                logger.LogInformation(TLE.MBJoin, "Join voice: attempting to join guild {guildId}, channel {channelId}", ctx.Guild.Id, voiceChannel.Id);
 
-                    if (track != null) {
-                        dbGuild.CurrentTrack = nextTrack.Position;
-                        dbGuild.NextTrack    = nextTrack.Position + 1;
-                        await db.SaveChangesAsync();
+                // Connect the music bot 
+                var joined = await GetPlayerAsync(ctx.Guild.Id, voiceChannel.Id, connectToVoiceChannel: true)
+                    .AsTask()
+                    .WaitAsync(TimeSpan.FromSeconds(15));
 
-                        await playerResult.Player.PlayAsync(track).ConfigureAwait(false);
-                        return;
+                logger.LogInformation(
+                    TLE.MBJoin,
+                    "Join voice: join result. Connected={connected}, Status={status}, PlayerState={state}, VoiceChannelId={voiceChannelId}",
+                    joined.isPlayerConnected,
+                    joined.playerResult.Status,
+                    joined.playerResult.Player?.State,
+                    joined.playerResult.Player?.VoiceChannelId
+                );
+
+                if (joined.isPlayerConnected == false || joined.playerResult.Player == null) {
+                    await ctx.RespondAsync($"Failed to join voice. Status={joined.playerResult.Status}, Message={GetPlayerErrorMessage(joined.playerResult.Status)}");
+                    return;
+                }
+
+                mbHelper.AnnounceJoin(voiceState.Channel.GuildId.Value, voiceChannel.Id);
+                await ctx.RespondAsync($"Joined <#{voiceChannel.Id}>!");
+
+                // If we are continuing the playlist, play the next track.
+                if (resumePlaylist && joined.playerResult.Player?.State == PlayerState.NotPlaying) {
+                    var db = new TavernContext();
+                    var dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
+                    var nextTrack = await mbHelper.getNextTrackForGuild(ctx.Guild);
+
+                    if (nextTrack != null) {
+                        var track = LavalinkTrack.Parse(nextTrack.TrackString, provider: null);
+
+                        if (track != null) {
+                            dbGuild.CurrentTrack = nextTrack.Position;
+                            dbGuild.NextTrack = nextTrack.Position + 1;
+                            await db.SaveChangesAsync();
+
+                            await joined.playerResult.Player.PlayAsync(track).ConfigureAwait(false);
+                            return;
+                        }
                     }
                 }
+            } catch (TimeoutException) {
+                logger.LogError(TLE.MBJoin, "Join voice timed out while waiting for Lavalink4NET player retrieval/join.");
+                await ctx.RespondAsync("Failed to join voice: timed out waiting for the Lavalink/Discord voice join handshake.");
+            } catch (Exception ex) {
+                logger.LogError(TLE.MBJoin, ex, "Join voice failed with exception.");
+                await ctx.RespondAsync($"Failed to join voice: `{ex.GetType().Name}` - `{ex.Message}`");
             }
         }
     }

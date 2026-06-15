@@ -107,6 +107,8 @@ namespace CCTavern.Player {
         {
             if (GuildStates.ContainsKey(guildId))
                 GuildStates.Remove(guildId);
+
+            inactivityManager.GuildStateChanged(guildId, PlayerState.NotPlaying);
         }
 
         public async Task<bool> DeletePastStatusMessage(Guild guild, DiscordChannel outputChannel)
@@ -386,7 +388,7 @@ namespace CCTavern.Player {
                     AnnounceJoin(guildId, voiceChannelId.Value);
 
                 // Update inactivity manager, so if !join is used instead of !play it disconnects the bot after inactivity
-                inactivityManager.GuildStateChanged(guildId, PlayerState.Playing);
+                inactivityManager.GuildStateChanged(guildId, PlayerState.NotPlaying);
             }
 
             bool isConnected = result.IsSuccess && result.Player != null //&& result.Player.ConnectionState.IsConnected

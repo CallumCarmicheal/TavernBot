@@ -60,7 +60,7 @@ namespace CCTavern.Player
         }
 
         ~TavernPlayer() {
-            logger.LogDebug("TavernPlayer <<<<<<<<< Destructor");
+            logger.LogDebug("TavernPlayer <<<<<<<<< Destructor : {guildId}", GuildId);
         }
 
         public void Dispose() {
@@ -70,7 +70,9 @@ namespace CCTavern.Player
 
             mbHelper.AnnounceLeave(GuildId);
 
-            logger.LogDebug("TavernPlayer <<<<<<<<< Disposed");
+            botInactivityManager.GuildStateChanged(GuildId, PlayerState.Destroyed);
+
+            logger.LogDebug("TavernPlayer <<<<<<<<< Disposed : {guildId}", GuildId);
         }
 
         public void StartProgressTimer(TimeSpan? interval = null) {
@@ -574,13 +576,13 @@ namespace CCTavern.Player
             return true;
         }
 
-        #region Guild and Track Functions
+    #region Guild and Track Functions
 
         private DiscordGuild _guild;
         private async Task<DiscordGuild> GetGuildAsync() {
             return _guild ??= await discordClient.GetGuildAsync(GuildId);
         }
 
-        #endregion
+    #endregion
     }
 }

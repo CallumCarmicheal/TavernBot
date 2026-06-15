@@ -69,8 +69,13 @@ namespace CCTavern.Player {
 
         private void InactivityManager_OnGuildStateUpdated(ulong guildId, PlayerState state) {
             GuildActivityState activity;
+            
             bool trackerExists = lastActivityTracker.ContainsKey(guildId);
-            if (trackerExists) {
+            if (trackerExists && state == PlayerState.Destroyed) {
+                // Handle the bot being destroyed
+                lastActivityTracker.Remove(guildId);
+                return;
+            } else if (trackerExists) {
                 activity = lastActivityTracker[guildId];
             } else {
                 activity = new GuildActivityState() { GuildId = guildId, State = state };

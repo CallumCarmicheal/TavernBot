@@ -4,6 +4,8 @@ using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 
 using Lavalink4NET;
+using Lavalink4NET.Players;
+
 using Microsoft.Extensions.Logging;
 
 using System;
@@ -27,7 +29,6 @@ namespace CCTavern.Commands {
         [Description("View the status of the inactivity module")]
         [RequireGuild]
         public async Task StatusInactivity(CommandContext ctx) {
-            // 20
             string status = "";
 
             var countOfPlayers = audioService.Players.Players.Count();
@@ -42,15 +43,21 @@ namespace CCTavern.Commands {
             status += $"Inactivity timer: | {botInactivity.TsTimeoutInactivity.ToDynamicTimestamp()}\n";
             status += $"Paused timer:     | {botInactivity.TsTimeoutPaused.ToDynamicTimestamp()}\n";
 
-            status += $"\n{"Guild Id",20} {"Last Checkin",12} {"Paused Since",12} {"State",12}\n";
-            status += $"{"".PadRight(20, '-')} {"".PadRight(12, '-')} {"".PadRight(12, '-')} {"".PadRight(12, '-')}\n";
+            status += $"\n{"Guild Id",20} {"Activity",12} {"Paused At",12} {"State",12} {"Autodiscon at.", 14}\n";
+            status += $"{"".PadRight(20, '-')} {"".PadRight(12, '-')} {"".PadRight(12, '-')} {"".PadRight(12, '-')} {"".PadRight(14, '-')}\n";
             foreach (var row in botInactivity.lastActivityTracker) {
                 var guildId = row.Key;
                 var playingState = row.Value;
 
-                var lastActivity = playingState.LastActivity.ToString("HH:mm:ss");
-                var pausedDate   = playingState.PausedDate.HasValue ? playingState.PausedDate.Value.ToString("HH:mm:ss") : "***";
-                status += $"{guildId,20} {lastActivity,12} {pausedDate,12} {playingState.State, 12}";
+                var lastActivity       = playingState.LastActivity.ToString("HH:mm:ss");
+                var pausedDate         = playingState.PausedDate.HasValue ? playingState.PausedDate.Value.ToString("HH:mm:ss") : "n/a";
+                var autoDisconnectTime = "n/a";
+                
+                if (playingState.State is PlayerState.NotPlaying or PlayerState.Paused or PlayerState.Destroyed) {
+                    autoDisconnectTime = playingState.LastActivity.Add(botInactivity.TsTimeoutInactivity).ToString("HH:mm:ss");
+                }
+                
+                status += $"{guildId,20} {lastActivity,12} {pausedDate,12} {playingState.State, 12} {autoDisconnectTime, 14}";
             }
             status += "```";
 
