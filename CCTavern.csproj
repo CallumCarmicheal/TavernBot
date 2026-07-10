@@ -1,71 +1,75 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net9.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <Configurations>Debug;Release;Archival_Debug;Archival_Release</Configurations>
-    <AssemblyVersion>2.1.0</AssemblyVersion>
-    <FileVersion>2.1.0</FileVersion>
-    <Version>2.1.0</Version>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Archival_Debug|AnyCPU'">
-    <DefineConstants>$(DefineConstants);ARCHIVAL_MODE;DEBUG</DefineConstants>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Archival_Release|AnyCPU'">
-    <DefineConstants>$(DefineConstants);ARCHIVAL_MODE;RELEASE</DefineConstants>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'" />
-  <ItemGroup>
-    <Compile Remove="Utility\**" />
-    <EmbeddedResource Remove="Utility\**" />
-    <None Remove="Utility\**" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Remove="Commands\ArchiveImportModule.cs" />
-    <Compile Remove="Migrations\20231018012150_CreateInitialDatabaseMsSQL.cs" />
-    <Compile Remove="Migrations\20231018012150_CreateInitialDatabaseMsSQL.Designer.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="AngleSharp" Version="1.4.0" />
-    <PackageReference Include="Config.Net" Version="5.2.1" />
-    <PackageReference Include="DSharpPlus" Version="4.5.1" />
-    <PackageReference Include="DSharpPlus.CommandsNext" Version="4.5.1" />
-    <PackageReference Include="DSharpPlus.Interactivity" Version="4.5.1" />
-    <PackageReference Include="DSharpPlus.Lavalink" Version="4.5.1" />
-    <PackageReference Include="EmbedIO" Version="3.5.2" />
-    <PackageReference Include="Humanizer" Version="3.0.10" />
-    <PackageReference Include="Lavalink4NET" Version="4.2.1" />
-    <PackageReference Include="Lavalink4NET.DSharpPlus" Version="4.2.1" />
-    <PackageReference Include="Lavalink4NET.Integrations.ExtraFilters" Version="4.2.1" />
-    <PackageReference Include="LinqKit.Core" Version="1.2.11" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.13" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.13">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.13" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.13" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.13">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.13" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.13" />
-    <PackageReference Include="MySql.EntityFrameworkCore" Version="10.0.1" />
-    <PackageReference Include="TimeSpanParserUtil" Version="1.2.0" />
-  </ItemGroup>
-  <ItemGroup>
-    <Service Include="{508349b6-6b84-4df5-91f0-309beebad82d}" />
-  </ItemGroup>
-  <ItemGroup>
-    <EditorConfigFiles Remove="C:\Programming\CSharp\Discord Music Bot\CCMusique\.editorconfig" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="C:\Programming\CSharp\Discord Music Bot\CCMusique\.editorconfig" />
-  </ItemGroup>
-  <Target Name="SetSourceRevisionId" BeforeTargets="InitializeSourceControlInformation">
-    <Exec Command="git describe --long --always --dirty --exclude=* --abbrev=8" ConsoleToMSBuild="True" IgnoreExitCode="False">
-      <Output PropertyName="SourceRevisionId" TaskParameter="ConsoleOutput" />
-    </Exec>
-  </Target>
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net9.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<Configurations>Debug;Release;Archival_Debug;Archival_Release</Configurations>
+		<AssemblyVersion>2.1.0</AssemblyVersion>
+		<FileVersion>2.1.0</FileVersion>
+		<Version>2.1.0</Version>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Archival_Debug|AnyCPU'">
+		<DefineConstants>$(DefineConstants);ARCHIVAL_MODE;DEBUG</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Archival_Release|AnyCPU'">
+		<DefineConstants>$(DefineConstants);ARCHIVAL_MODE;RELEASE</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'" />
+	<ItemGroup>
+		<Compile Remove="Utility\**" />
+		<EmbeddedResource Remove="Utility\**" />
+		<None Remove="Utility\**" />
+	</ItemGroup>
+	<ItemGroup>
+		<Compile Remove="Commands\ArchiveImportModule.cs" />
+		<Compile Remove="Migrations\20231018012150_CreateInitialDatabaseMsSQL.cs" />
+		<Compile Remove="Migrations\20231018012150_CreateInitialDatabaseMsSQL.Designer.cs" />
+	</ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="AngleSharp" Version="1.4.0" />
+		<PackageReference Include="Config.Net" Version="5.2.1" />
+		<PackageReference Include="DSharpPlus" Version="4.5.1" />
+		<PackageReference Include="DSharpPlus.CommandsNext" Version="4.5.1" />
+		<PackageReference Include="DSharpPlus.Interactivity" Version="4.5.1" />
+		<PackageReference Include="DSharpPlus.Lavalink" Version="4.5.1" />
+		<PackageReference Include="EmbedIO" Version="3.5.2" />
+		<PackageReference Include="Humanizer" Version="3.0.10" />
+		<PackageReference Include="Lavalink4NET" Version="4.2.1" />
+		<PackageReference Include="Lavalink4NET.DSharpPlus" Version="4.2.1" />
+		<PackageReference Include="Lavalink4NET.Integrations.ExtraFilters" Version="4.2.1" />
+		<PackageReference Include="LinqKit.Core" Version="1.2.11" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.13" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.13">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.13" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.13" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.13">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.13" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.13" />
+		<PackageReference Include="MySql.EntityFrameworkCore" Version="10.0.1" />
+		<PackageReference Include="TimeSpanParserUtil" Version="1.2.0" />
+	</ItemGroup>
+	<ItemGroup>
+		<Service Include="{508349b6-6b84-4df5-91f0-309beebad82d}" />
+	</ItemGroup>
+	<ItemGroup>
+		<EditorConfigFiles Remove="C:\Programming\CSharp\Discord Music Bot\CCMusique\.editorconfig" />
+	</ItemGroup>
+	<ItemGroup>
+		<None Include="C:\Programming\CSharp\Discord Music Bot\CCMusique\.editorconfig" />
+	</ItemGroup>
+	<Target Name="SetSourceRevisionId"
+        BeforeTargets="InitializeSourceControlInformation"
+        Condition="'$(Configuration)' == 'Release' Or '$(Configuration)' == 'Archival_Release'">
+		<Exec Command="git describe --long --always --dirty --exclude=* --abbrev=8"
+			  ConsoleToMSBuild="True"
+			  IgnoreExitCode="False">
+			<Output PropertyName="SourceRevisionId" TaskParameter="ConsoleOutput" />
+		</Exec>
+	</Target>
 </Project>
