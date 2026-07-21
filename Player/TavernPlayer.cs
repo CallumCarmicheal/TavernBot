@@ -1,40 +1,26 @@
-﻿using Lavalink4NET.Players;
-using Lavalink4NET.Players.Queued;
+﻿using CCTavern.Database;
+using CCTavern.Logger;
 
+using DSharpPlus;
+using DSharpPlus.Entities;
+
+using Lavalink4NET;
+using Lavalink4NET.Players;
+using Lavalink4NET.Protocol.Payloads.Events;
+using Lavalink4NET.Tracks;
+
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-using Lavalink4NET.Events;
-using Lavalink4NET.Clients;
-using Lavalink4NET.Events.Players;
-using Lavalink4NET.Socket;
-using Lavalink4NET.Protocol.Payloads.Events;
 using System.Threading;
-using CCTavern.Database;
-using CCTavern.Logger;
-using DSharpPlus.Entities;
-using DSharpPlus;
-using Microsoft.Extensions.Logging;
-using MySqlX.XDevAPI;
+using System.Threading.Tasks;
 using System.Web;
-using Microsoft.EntityFrameworkCore;
-using Lavalink4NET.Tracks;
-using Org.BouncyCastle.Asn1.Cms;
-using Lavalink4NET;
-using MySqlX.XDevAPI.Common;
-using System.Reflection;
-using Org.BouncyCastle.Asn1;
-using System.Security.Policy;
 
-namespace CCTavern.Player
-{
-    public sealed class TavernPlayer : LavalinkPlayer 
-    {
+namespace CCTavern.Player {
+    public sealed class TavernPlayer : LavalinkPlayer {
         private readonly ILogger<TavernPlayer> logger;
         private readonly MusicBotHelper mbHelper;
         private readonly DiscordClient discordClient;
@@ -45,8 +31,7 @@ namespace CCTavern.Player
         private CancellationTokenSource _cancellationTokenSource;
 
         public TavernPlayer(IPlayerProperties<LavalinkPlayer, LavalinkPlayerOptions> properties)
-            : base(properties)
-        {
+            : base(properties) {
             logger = properties.ServiceProvider!.GetRequiredService<ILogger<TavernPlayer>>();
             mbHelper = properties.ServiceProvider!.GetRequiredService<MusicBotHelper>();
             discordClient = properties.ServiceProvider!.GetRequiredService<DiscordClient>();
@@ -107,7 +92,7 @@ namespace CCTavern.Player
             }
 
             // Check if the player is not playing.
-            if (this.State != PlayerState.Playing) 
+            if (this.State != PlayerState.Playing)
                 return;
 
             var guild = await GetGuildAsync();
@@ -131,7 +116,7 @@ namespace CCTavern.Player
                 return;
             }
 
-            if (updateEmbedState(guildState, embed) == false) 
+            if (updateEmbedState(guildState, embed) == false)
                 goto Finish;
 
             var message = guildState?.MusicEmbed.Message;
@@ -147,8 +132,7 @@ namespace CCTavern.Player
             botInactivityManager.GuildStateChanged(guild.Id, State);
         }
 
-        protected override async ValueTask NotifyTrackStartedAsync(ITrackQueueItem tqi, CancellationToken cancellationToken = default)
-        {
+        protected override async ValueTask NotifyTrackStartedAsync(ITrackQueueItem tqi, CancellationToken cancellationToken = default) {
             logger.LogInformation(TLE.Misc, "NotifyTrackStartedAsync");
             try {
                 mbHelper.AnnounceJoin(GuildId, VoiceChannelId);
@@ -196,17 +180,16 @@ namespace CCTavern.Player
 
                 string? thumbnail = null;
 
-                string? embedUrl  = track.Uri?.ToString();
+                string? embedUrl = track.Uri?.ToString();
                 bool isYoutubeUrl = (track.Uri?.Host == "youtube.com" || track.Uri?.Host == "www.youtube.com");
-                bool isSunoUrl    = (track.Uri?.Host == "suno.com" || (track.Uri?.Host.EndsWith("suno.ai") ?? false));
+                bool isSunoUrl = (track.Uri?.Host == "suno.com" || (track.Uri?.Host.EndsWith("suno.ai") ?? false));
                 if (isYoutubeUrl && track.Uri != null) {
                     var uriQuery = HttpUtility.ParseQueryString(track.Uri.Query);
                     var videoId = uriQuery["v"];
 
                     embedUrl = $"https://youtube.com/watch?v={track.Identifier}";
                     thumbnail = $"https://img.youtube.com/vi/{videoId}/0.jpg";
-                } 
-                else if (isSunoUrl && track.Uri != null) {
+                } else if (isSunoUrl && track.Uri != null) {
                     TavernPlayerQueueItem? tavernQueueItem;
 
                     // Check if the ITrackQueueItem is a TavernPlayerQueueItem
@@ -232,7 +215,7 @@ namespace CCTavern.Player
                 }
 
                 DiscordEmbedBuilder embed = new DiscordEmbedBuilder() {
-                    Url   = embedUrl,
+                    Url = embedUrl,
                     Color = DiscordColor.SpringGreen,
                     Title = track_Title,
                 };
@@ -300,8 +283,7 @@ namespace CCTavern.Player
         }
 
         protected override async ValueTask NotifyTrackEndedAsync(ITrackQueueItem trackQueueItem, TrackEndReason endReason
-            , CancellationToken cancellationToken = default) 
-        {
+            , CancellationToken cancellationToken = default) {
             logger.LogInformation(TLE.MBFin, "-------------PlaybackFinished : {reason}", endReason.ToString());
             try {
                 if (endReason == TrackEndReason.Replaced) {
@@ -319,7 +301,7 @@ namespace CCTavern.Player
                 var dbGuild = await db.GetOrCreateDiscordGuild(guild);
                 var guildState = mbHelper.GuildStates.ContainsKey(dbGuild.Id) ? mbHelper.GuildStates[dbGuild.Id] : null;
                 var shuffleEnabled = guildState != null && guildState.ShuffleEnabled;
-                var repeatEnabled  = guildState != null && guildState.RepeatEnabled;
+                var repeatEnabled = guildState != null && guildState.RepeatEnabled;
 
                 if (repeatEnabled) shuffleEnabled = false; // Disable shuffle if on repeat mode!
 
@@ -440,7 +422,7 @@ namespace CCTavern.Player
 
                 if (isTempTrack == false && dbTrack != null) {
                     dbGuild.CurrentTrack = dbTrack.Position;
-                    dbGuild.NextTrack    = dbTrack.Position + 1;
+                    dbGuild.NextTrack = dbTrack.Position + 1;
                 }
 
                 await db.SaveChangesAsync();
@@ -465,12 +447,11 @@ namespace CCTavern.Player
                         return;
                     }
                 }
-            
+
                 // Play the next track.
                 await Task.Delay(500);
                 await PlayAsync(track!).ConfigureAwait(false);
-            }
-            finally {
+            } finally {
                 logger.LogInformation(TLE.Misc, "-------------PlaybackFinished ### Finished processing");
             }
         }
@@ -534,20 +515,20 @@ namespace CCTavern.Player
 
 
         private bool updateEmbedState(GuildState guildState, DiscordEmbedBuilder embedBuilder) {
-            if (guildState == null || guildState.MusicEmbed == null || this.Position == null || CurrentTrack == null) 
+            if (guildState == null || guildState.MusicEmbed == null || this.Position == null || CurrentTrack == null)
                 return false;
 
             var progressFieldIdx = guildState.MusicEmbed.ProgressFieldIdx;
-            var Position         = this.Position.Value.RelativePosition;
+            var Position = this.Position.Value.RelativePosition;
 
             // Check if the track exits early (maybe seeking?) 
             if (Position.TotalSeconds > CurrentTrack.Duration.TotalSeconds)
                 return false;
 
             // Update current progress bar
-            var progressBar   = mbHelper.GenerateProgressBar(Position.TotalSeconds, CurrentTrack.Duration.TotalSeconds, 20);
+            var progressBar = mbHelper.GenerateProgressBar(Position.TotalSeconds, CurrentTrack.Duration.TotalSeconds, 20);
             var remainingText = mbHelper.GetTrackRemaining(Position, CurrentTrack.Duration);
-            var progressText  = $"```{remainingText.currentTime} {progressBar} {remainingText.timeLeft}```";
+            var progressText = $"```{remainingText.currentTime} {progressBar} {remainingText.timeLeft}```";
 
             // Update track chapter
             if (guildState.TrackChapters == null || guildState.TrackChapters?.Count <= 1) {
@@ -589,13 +570,13 @@ namespace CCTavern.Player
             return true;
         }
 
-    #region Guild and Track Functions
+        #region Guild and Track Functions
 
         private DiscordGuild _guild;
         private async Task<DiscordGuild> GetGuildAsync() {
             return _guild ??= await discordClient.GetGuildAsync(GuildId);
         }
 
-    #endregion
+        #endregion
     }
 }
