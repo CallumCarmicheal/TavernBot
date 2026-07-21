@@ -1,15 +1,22 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build-env
-WORKDIR /App
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
 
-# Copy everything
-COPY . ./
-# Restore as distinct layers
-RUN dotnet restore
-# Build and publish a release
-RUN dotnet publish -c Release -o out
+# Copy the project file first so package restore can be cached
+COPY CCTavern/CCTavern.csproj CCTavern/
+RUN dotnet restore CCTavern/CCTavern.csproj
 
-# Build runtime image
-FROM mcr.microsoft.com/dotnet/runtime:10.0
-WORKDIR /App
-COPY --from=build-env /App/out .
+# Copy the rest of the source
+COPY CCTavern/ CCTavern/
+
+# Publish from the project file
+RUN dotnet publish CCTavern/CCTavern.csproj \
+    --configuration Release \
+    --output /app/publish \
+    --no-restore
+
+FROM mcr.microsoft.com/dotnet/runtime:10.0 AS runtime
+WORKDIR /app
+
+COPY --from=build /app/publish/ ./
+
 ENTRYPOINT ["dotnet", "CCTavern.dll"]
