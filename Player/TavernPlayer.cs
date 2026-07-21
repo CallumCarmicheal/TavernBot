@@ -33,7 +33,7 @@ using System.Security.Policy;
 
 namespace CCTavern.Player
 {
-    public sealed class TavernPlayer : LavalinkPlayer, IDisposable 
+    public sealed class TavernPlayer : LavalinkPlayer 
     {
         private readonly ILogger<TavernPlayer> logger;
         private readonly MusicBotHelper mbHelper;
@@ -63,16 +63,29 @@ namespace CCTavern.Player
             logger.LogDebug("TavernPlayer <<<<<<<<< Destructor : {guildId}", GuildId);
         }
 
-        public void Dispose() {
-            StopProgressTimer();
-            _cancellationTokenSource.Cancel();
-            _timer.Dispose();
 
-            mbHelper.AnnounceLeave(GuildId);
+        private int _cleanupStarted;
+        protected override async ValueTask DisposeAsyncCore() {
+            try {
+                if (Interlocked.Exchange(ref _cleanupStarted, 1) == 0) {
+                    _cancellationTokenSource.Cancel();
 
-            botInactivityManager.GuildStateChanged(GuildId, PlayerState.Destroyed);
+                    StopProgressTimer();
 
-            logger.LogDebug("TavernPlayer <<<<<<<<< Disposed : {guildId}", GuildId);
+                    await _timer.DisposeAsync();
+
+                    mbHelper.AnnounceLeave(GuildId);
+
+                    logger.LogDebug("TavernPlayer <<<<<<<<< Disposed : {guildId}", GuildId);
+                }
+            } catch (Exception ex) {
+                logger.LogWarning(
+                    ex,
+                    "Custom player cleanup failed for guild {GuildId}",
+                    GuildId);
+            } finally {
+                await base.DisposeAsyncCore();
+            }
         }
 
         public void StartProgressTimer(TimeSpan? interval = null) {
