@@ -187,7 +187,8 @@ namespace CCTavern.Player {
                 .Include(x => x.RequestedBy)
                 .Where(x => x.GuildId == guild.Id
                          && x.Position >= targetTrackId // Get target track or the next available track
-                         && x.IsDeleted == false);
+                         && x.IsDeleted == false)
+                .OrderBy(x => x.Position);
 
             // Return the track or null.
             if (query.Any() == false)

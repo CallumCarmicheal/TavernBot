@@ -324,18 +324,19 @@ namespace CCTavern.Commands {
         [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
         public async Task JoinVoice(CommandContext ctx,
             [Description("True values [yes, 1, true, resume, start]")]
-            string flagStr = "f"
+            string flag= "f"
         ) {
-            var flagStrLower = flagStr.ToLowerInvariant();
-            bool resumePlaylist = flagStrLower[0] switch {
-                'y' or '1' or 't' or 'r' or ('o' and 'n') => true,
-                's' => flagStrLower switch {
-                    "start" => true,
-                    "stop" => false,
-                    _ => false
-                },
-                _ => false
+            bool? resumePlaylist = flag.Trim().ToLowerInvariant() switch {
+                "yes" or "y" or "1" or "true" or "t" or "resume" or "r" or "start" => true,
+                "no" or "n" or "0" or "false" or "f" or "stop" => false,
+                _ => null
             };
+
+            if (resumePlaylist is null) {
+                await ctx.RespondAsync(
+                    "Please specify `yes`, `no`, `true`, `false`, `resume`, `start`, `stop`, `1`, or `0`.");
+                return;
+            }
 
             logger.LogInformation(TLE.MBJoin, "Join voice: Continue = {continuePlaying}", resumePlaylist);
 
@@ -399,7 +400,7 @@ namespace CCTavern.Commands {
                 await ctx.RespondAsync($"Joined <#{voiceChannel.Id}>!");
 
                 // If we are continuing the playlist, play the next track.
-                if (resumePlaylist && joined.playerResult.Player?.State == PlayerState.NotPlaying) {
+                if (resumePlaylist.Value && joined.playerResult.Player?.State == PlayerState.NotPlaying) {
                     var db = new TavernContext();
                     var dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
                     var nextTrack = await mbHelper.getNextTrackForGuild(ctx.Guild);

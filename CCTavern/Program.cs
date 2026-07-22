@@ -201,7 +201,8 @@ namespace CCTavern {
             string? version = fileVersionInfo.ProductVersion;
             string gitHash = "??";
 
-            if (version != null)
+            // Check if we have a version and it has a git hash code.
+            if (version != null && version.Contains("+"))
                 gitHash = version?.Split("+")[1] ?? "";
 
             VERSION_Git = gitHash;
@@ -240,18 +241,17 @@ namespace CCTavern {
                         folder = "bin\\Debug\\net10.0\\";
                         break;
                     case "Release":
-                        folder = "bin\\Release\\net8.0\\";
+                        folder = "bin\\Release\\net10.0\\";
                         break;
                 }
 
                 jsonFile = Path.Join(Directory.GetCurrentDirectory(), folder, "Configuration.json");
             }
 
-            if (logger == null) {
+            if (logger != null) 
                 logger?.LogInformation("Loading/Reloading configuration file: {file}", jsonFile);
-            } else {
+            else
                 Console.WriteLine("Loading/Reloading configuration file: " + jsonFile);
-            }
 
             // Load our settings
             Settings = new ConfigurationBuilder<ITavernSettings>()

@@ -63,6 +63,12 @@ public partial class TavernContext : DbContext
             modelBuilder.Entity<CachedUser>()
                 .ToTable("CachedUsers")
                 .HasKey(t => t.Id);
+
+            // Indexes
+
+            modelBuilder.Entity<CachedUser>()
+                .HasIndex(x => new { x.GuildId, x.UserId })
+                .IsUnique();
         }
 
         modelBuilder.Entity<Guild>()
@@ -119,6 +125,23 @@ public partial class TavernContext : DbContext
             modelBuilder.Entity<GuildQueueItem>()
                 .ToTable("GuildQueueItems")
                 .HasKey(t => t.Id);
+
+            // Indexes
+
+            modelBuilder.Entity<GuildQueueItem>()
+                .HasIndex(x => new { x.GuildId, x.Position })
+                .IsUnique();
+        }
+
+        /*Track Playlist Position*/ {
+            modelBuilder.Entity<TrackPlaylistPosition>()
+                .Property(t => t.Id)
+                .ValueGeneratedOnAdd();
+
+            // Indexes
+            modelBuilder.Entity<TrackPlaylistPosition>()
+                .HasIndex(x => new { x.TrackSource, x.TrackSourceId, x.Position })
+                .IsUnique();
         }
 
         OnModelCreatingPartial(modelBuilder);

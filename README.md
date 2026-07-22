@@ -12,7 +12,7 @@ I like the speed and type-safety offered by C#.
 First the bot uses MySQL as its database, this is hard coded. You can change this by going to `Database/TavernContext.cs` and modifying the `OnConfiguring` method.
 ```cs
 protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) { 
-    optionsBuilder.UseMySQL(Program.Settings.MySQLConnectionString);
+    optionsBuilder.UseMySQL(Program.Settings.DatabaseConnectionString);
 //  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     optionsBuilder.UseLoggerFactory(Program.LoggerFactory);
 }

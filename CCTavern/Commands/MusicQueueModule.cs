@@ -329,12 +329,19 @@ namespace CCTavern.Commands {
         [RequireGuild]
         public async Task ToggleGuildRepeat(CommandContext ctx,
             [Description("True values [yes, 1, true, on]")]
-            string flag_str = ""
+            string flag = ""
         ) {
-            var flag_str_lwr = flag_str.Trim().ToLower();
-            bool flag = string.IsNullOrWhiteSpace(flag_str_lwr) ? false :
-                (flag_str_lwr[0] == 'y' || flag_str_lwr[0] == '1' || flag_str_lwr[0] == 't'
-                || (flag_str_lwr[0] == 'o' && flag_str_lwr[1] == 'n'));
+            bool? enabled = flag.Trim().ToLowerInvariant() switch {
+                "yes" or "y" or "1" or "true" or "t" or "on" => true,
+                "no" or "n" or "0" or "false" or "f" or "off" => false,
+                _ => null
+            };
+
+            if (enabled is null) {
+                await ctx.RespondAsync(
+                    "Please specify `yes`, `no`, `true`, `false`, `on`, `off`, `1`, or `0`.");
+                return;
+            }
 
             // Check if we have a valid voice state
             if (ctx.Member?.VoiceState == null || ctx.Member.VoiceState.Channel == null) {
@@ -365,10 +372,10 @@ namespace CCTavern.Commands {
             else guildState = mbHelper.GuildStates[dbGuild.Id];
 
             // Check if the flag is empty then we are to toggle.
-            if (string.IsNullOrWhiteSpace(flag_str)) {
+            if (string.IsNullOrWhiteSpace(flag)) {
                 guildState.RepeatEnabled = !guildState.RepeatEnabled;
             } else {
-                guildState.RepeatEnabled = flag;
+                guildState.RepeatEnabled = enabled.Value;
             }
 
             if (guildState.RepeatEnabled)
