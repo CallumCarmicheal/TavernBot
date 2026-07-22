@@ -148,12 +148,12 @@ namespace CCTavern.Player {
             string? artistUrl = null;
             string artistImageUrl = string.Empty;
 
-            if (trackInfo["persona"] == null) {
-                artistName = (string)trackInfo["persona"]!["user_display_name"]!;
-                artistImageUrl = (string)trackInfo["persona"]!["user_image_url"]!;
+            if (trackInfo["persona"] is JObject persona) {
+                artistName = persona.Value<string>("user_display_name") ?? "Unknown artist";
+                artistImageUrl = persona.Value<string>("user_image_url") ?? "";
             } else {
-                artistName = trackInfo["clip"]!["display_name"]!.ToString().Trim();
-                artistImageUrl = trackInfo["clip"]!["avatar_image_url"]!.ToString().Trim();
+                artistName = trackInfo["clip"]?.Value<string>("display_name") ?? "Unknown artist";
+                artistImageUrl = trackInfo["clip"]?.Value<string>("avatar_image_url") ?? "";
 
                 string artistHandle = trackInfo["clip"]!["handle"]!.ToString().Trim();
                 artistUrl = $"https://suno.com/@" + artistHandle;
