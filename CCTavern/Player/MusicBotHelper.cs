@@ -21,8 +21,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace CCTavern.Player {
-    public class MusicBotHelper
-    {
+    public class MusicBotHelper {
         private readonly IAudioService audioService;
         private readonly ILogger<MusicBotHelper> logger;
         private readonly DiscordClient discordClient;
@@ -31,16 +30,14 @@ namespace CCTavern.Player {
         internal Dictionary<ulong, GuildState> GuildStates { get; set; } = new Dictionary<ulong, GuildState>();
         internal Dictionary<ulong, TemporaryQueue> TemporaryTracks { get; set; } = new Dictionary<ulong, TemporaryQueue>();
 
-        public MusicBotHelper(DiscordClient client, BotInactivityManager inactivityManager, IAudioService audioService, ILogger<MusicBotHelper> logger)
-        {
+        public MusicBotHelper(DiscordClient client, BotInactivityManager inactivityManager, IAudioService audioService, ILogger<MusicBotHelper> logger) {
             this.discordClient = client;
             this.inactivityManager = inactivityManager;
             this.audioService = audioService;
             this.logger = logger;
         }
 
-        public async Task<DiscordChannel?> GetMusicTextChannelFor(DiscordGuild guild)
-        {
+        public async Task<DiscordChannel?> GetMusicTextChannelFor(DiscordGuild guild) {
             var db = new TavernContext();
             var dbGuild = await db.GetOrCreateDiscordGuild(guild);
 
@@ -50,36 +47,31 @@ namespace CCTavern.Player {
             if (dbGuild.MusicChannelId == null) {
                 if (GuildStates.ContainsKey(guild.Id) && GuildStates[guild.Id].TemporaryMusicChannelId != null)
                     discordChannelId = GuildStates[guild.Id].TemporaryMusicChannelId;
-            }
-            else discordChannelId = dbGuild.MusicChannelId;
+            } else discordChannelId = dbGuild.MusicChannelId;
 
             if (discordChannelId == null) return null;
             return await discordClient.GetChannelAsync(discordChannelId.Value);
         }
 
-        public (bool isTempTrack, GuildQueueItem? dbTrack) GetNextTemporaryTrackForGuild(Guild guild)
-        {
+        public (bool isTempTrack, GuildQueueItem? dbTrack) GetNextTemporaryTrackForGuild(Guild guild) {
             bool isTempTrack = false;
             GuildQueueItem? dbTrack = null;
 
-            if (TemporaryTracks.ContainsKey(guild.Id))
-            {
+            if (TemporaryTracks.ContainsKey(guild.Id)) {
                 if (Program.Settings.LoggingVerbose) logger.LogError(TLE.MBFin, "Temporary tarcks discovered");
 
                 var tempTracks = TemporaryTracks[guild.Id];
                 tempTracks.SongItems.FirstOrDefault()?.FinishedPlaying(tempTracks);
 
                 // Remove empty queue
-                if (tempTracks.SongItems.Any() == false || tempTracks.SongItems.FirstOrDefault() == null)
-                {
+                if (tempTracks.SongItems.Any() == false || tempTracks.SongItems.FirstOrDefault() == null) {
                     if (Program.Settings.LoggingVerbose) logger.LogError(TLE.MBFin, "Removing empty temporary track queue.");
 
                     TemporaryTracks.Remove(guild.Id);
                 }
 
                 // Get the track
-                else
-                {
+                else {
                     dbTrack = tempTracks.SongItems.First()?.GetQueueItem();
                     isTempTrack = dbTrack != null;
 
@@ -94,8 +86,7 @@ namespace CCTavern.Player {
         }
 
 
-        public void AnnounceJoin(ulong guildId, ulong channelId)
-        {
+        public void AnnounceJoin(ulong guildId, ulong channelId) {
             if (!GuildStates.ContainsKey(guildId))
                 GuildStates[guildId] = new GuildState(guildId);
 
@@ -103,32 +94,26 @@ namespace CCTavern.Player {
                 GuildStates[guildId].TemporaryMusicChannelId = channelId;
         }
 
-        public void AnnounceLeave(ulong guildId)
-        {
+        public void AnnounceLeave(ulong guildId) {
             if (GuildStates.ContainsKey(guildId))
                 GuildStates.Remove(guildId);
 
             inactivityManager.GuildStateChanged(guildId, PlayerState.NotPlaying);
         }
 
-        public async Task<bool> DeletePastStatusMessage(Guild guild, DiscordChannel outputChannel)
-        {
-            try
-            {
-                if (guild.LastMessageStatusId != null && outputChannel != null)
-                {
+        public async Task<bool> DeletePastStatusMessage(Guild guild, DiscordChannel outputChannel) {
+            try {
+                if (guild.LastMessageStatusId != null && outputChannel != null) {
                     ulong lastMessageStatusId = guild.LastMessageStatusId.Value;
                     var oldMessage = await outputChannel.GetMessageAsync(lastMessageStatusId, true);
-                    if (oldMessage != null)
-                    {
+                    if (oldMessage != null) {
                         guild.LastMessageStatusId = null;
 
                         await oldMessage.DeleteAsync();
                         return true;
                     }
                 }
-            }
-            catch { }
+            } catch { }
 
             return false;
         }
@@ -197,8 +182,7 @@ namespace CCTavern.Player {
             return await query.FirstAsync();
         }
 
-        public string GenerateProgressBar(double value, double maxValue, int size)
-        {
+        public string GenerateProgressBar(double value, double maxValue, int size) {
             var percentage = value / maxValue; // Calculate the percentage of the bar
             var progress = (int)Math.Round(size * percentage); // Calculate the number of square caracters to fill the progress side.
             var emptyProgress = size - progress; // Calculate the number of dash caracters to fill the empty progress side.
@@ -356,14 +340,13 @@ namespace CCTavern.Player {
             return await GetPlayerAsyncT<TavernPlayer, TavernPlayerOptions>(CreatePlayerAsync, playerOptions, guildId, voiceChannelId, connectToVoiceChannel);
         }
 
-        public async ValueTask<(PlayerResult<TPlayer> playerResult, bool isPlayerConnected)> 
+        public async ValueTask<(PlayerResult<TPlayer> playerResult, bool isPlayerConnected)>
             GetPlayerAsyncT<TPlayer, TOptions>(
                 PlayerFactory<TPlayer, TOptions> playerFactory, IOptions<TOptions> playerOptions,
                 ulong guildId, ulong? voiceChannelId = null, bool connectToVoiceChannel = true
             )
-            where TPlayer  : class, ILavalinkPlayer
-            where TOptions : LavalinkPlayerOptions 
-        {
+            where TPlayer : class, ILavalinkPlayer
+            where TOptions : LavalinkPlayerOptions {
             var channelBehavior = connectToVoiceChannel
                 ? PlayerChannelBehavior.Join
                 : PlayerChannelBehavior.None;
@@ -419,7 +402,7 @@ namespace CCTavern.Player {
             // Remove parameter from query string
             string newQueryString = string.Join("&",
                 queryString.Split('&')
-                            .Where(x => 
+                            .Where(x =>
                                 !x.StartsWith("list=", StringComparison.OrdinalIgnoreCase)
                                 && !x.StartsWith("index=", StringComparison.OrdinalIgnoreCase)
                                 && !x.StartsWith("t=", StringComparison.OrdinalIgnoreCase)
