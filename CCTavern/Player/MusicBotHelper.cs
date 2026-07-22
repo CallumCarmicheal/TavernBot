@@ -97,7 +97,7 @@ namespace CCTavern.Player {
         public void AnnounceJoin(ulong guildId, ulong channelId)
         {
             if (!GuildStates.ContainsKey(guildId))
-                GuildStates[guildId] = new GuildState(channelId);
+                GuildStates[guildId] = new GuildState(guildId);
 
             if (GuildStates[guildId].TemporaryMusicChannelId == null)
                 GuildStates[guildId].TemporaryMusicChannelId = channelId;
