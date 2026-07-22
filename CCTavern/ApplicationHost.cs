@@ -16,6 +16,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Identity.Client;
 
+using Swan.Logging;
+
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -23,7 +25,7 @@ using System.Threading.Tasks;
 
 
 namespace CCTavern {
-    sealed class ApplicationHost : BackgroundService {
+    sealed class ApplicationHost : IHostedService {
         private readonly DiscordClient discordClient;
         private readonly IAudioService audioService;
         private readonly ITavernSettings settings;
@@ -46,7 +48,7 @@ namespace CCTavern {
             this.logger = logger;
         }
 
-        protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
+        public async Task StartAsync(CancellationToken stoppingToken) { 
             discordClient.UseInteractivity(new InteractivityConfiguration() {
                 PollBehaviour = PollBehaviour.KeepEmojis,
                 Timeout = TimeSpan.FromSeconds(30)
@@ -54,7 +56,8 @@ namespace CCTavern {
 
             // We can specify a status for our bot. Let's set it to "online" and set the activity to "with fire".
             var status = new DiscordActivity("Loading :)", ActivityType.Playing);
-            await discordClient.ConnectAsync(status, UserStatus.DoNotDisturb)
+            await discordClient
+                .ConnectAsync(status, UserStatus.DoNotDisturb)
                 .ConfigureAwait(false);
 
             var commands = discordClient.UseCommandsNext(new CommandsNextConfiguration() {
@@ -64,6 +67,8 @@ namespace CCTavern {
                 DmHelp = false,
                 Services = serviceProvider
             });
+
+            // Register commands
 
 #if (ARCHIVAL_MODE)
             // Archival import mode
@@ -104,13 +109,13 @@ namespace CCTavern {
             logger.LogInformation(TLE.Startup, "Ready :)");
         }
 
-        public override async Task StopAsync(CancellationToken cancellationToken) {
+        public async Task StopAsync(CancellationToken cancellationToken) {
             logger.LogCritical(TLE.Disconnected, "Disconnecting ApplicationHost, StopAsync.");
 
-            try { await discordClient.DisconnectAsync(); } catch { }
-            try { await audioService.StopAsync(); } catch { }
-
-            await base.StopAsync(cancellationToken);
+            try { await discordClient.DisconnectAsync(); } 
+            catch (Exception ex) { logger.LogWarning(ex, "Discord disconnection failed."); }
+            try { await audioService.StopAsync(); } 
+            catch (Exception ex) { logger.LogWarning(ex, "Audio service shutdown failed."); } 
         }
 
         private async Task DiscordClient_SocketClosed(DiscordClient sender, DSharpPlus.EventArgs.SocketCloseEventArgs e) {
