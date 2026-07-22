@@ -214,7 +214,7 @@ public partial class TavernContext : DbContext
         return cachedUser;
     }
 
-    public async Task<Guild> GetOrCreateDiscordGuild(DiscordGuild guild) {
+    public async Task<Guild> GetOrCreateDiscordGuild(DiscordGuild guild, CancellationToken cancellationToken = default) {
         Guild dbGuild;
         
         var query = Guilds
@@ -222,7 +222,7 @@ public partial class TavernContext : DbContext
 
         // if (includeTracks) query = query.Include(x => x.Tracks);
 
-        if (await query.AnyAsync() == false) {
+        if (await query.AsNoTracking().AnyAsync(cancellationToken) == false) {
             dbGuild = new Guild() {
                 Id = guild.Id,
                 Name = guild.Name,
@@ -231,8 +231,8 @@ public partial class TavernContext : DbContext
             };
 
             Guilds.Add(dbGuild);
-            await SaveChangesAsync();
-        } else dbGuild = await query.FirstAsync();
+            await SaveChangesAsync(cancellationToken);
+        } else dbGuild = await query.FirstAsync(cancellationToken);
 
         return dbGuild;
     }

@@ -132,9 +132,11 @@ namespace CCTavern.Player {
         // Returns:
         //     The next available queue item or null if there is none to be found.
         //
-        public async Task<GuildQueueItem?> getNextTrackForGuild(DiscordGuild discordGuild, ulong? targetTrackId = null) {
+        public async Task<GuildQueueItem?> getNextTrackForGuild(DiscordGuild discordGuild, ulong? targetTrackId = null,
+            CancellationToken cancellationToken = default
+        ) {
             var db = new TavernContext();
-            var guild = await db.GetOrCreateDiscordGuild(discordGuild);
+            var guild = await db.GetOrCreateDiscordGuild(discordGuild, cancellationToken);
 
             if (GuildStates.ContainsKey(discordGuild.Id)) {
                 var guildState = GuildStates[discordGuild.Id];
@@ -147,14 +149,14 @@ namespace CCTavern.Player {
                         // Clear the SetNextFlag
                         guildState.SetNextFlag = false;
                     } else {
-                        var guildQueueQuery = db.GuildQueueItems
+                        var guildQueueQuery = db.GuildQueueItems.AsNoTracking()
                             .Where(x => x.GuildId == guild.Id && x.IsDeleted == false)
                             .OrderByDescending(x => x.Position);
 
-                        if (await guildQueueQuery.CountAsync() >= 4) {
+                        if (await guildQueueQuery.CountAsync(cancellationToken) >= 4) {
                             var rnd = new Random();
 
-                            var largestTrackNumber = await guildQueueQuery.Select(x => x.Position).FirstOrDefaultAsync();
+                            var largestTrackNumber = await guildQueueQuery.Select(x => x.Position).FirstOrDefaultAsync(cancellationToken);
                             targetTrackId = Convert.ToUInt64(rnd.ULongNext(0, largestTrackNumber));
                         } else {
                             if (guildState != null)
@@ -176,7 +178,7 @@ namespace CCTavern.Player {
                 .OrderBy(x => x.Position);
 
             // Return the track or null.
-            if (query.Any() == false)
+            if (query.AsNoTracking().Any() == false)
                 return null;
 
             return await query.FirstAsync();

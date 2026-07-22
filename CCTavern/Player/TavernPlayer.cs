@@ -44,11 +44,6 @@ namespace CCTavern.Player {
             logger.LogDebug("TavernPlayer <<<<<<<<< Constructor");
         }
 
-        ~TavernPlayer() {
-            logger.LogDebug("TavernPlayer <<<<<<<<< Destructor : {guildId}", GuildId);
-        }
-
-
         private int _cleanupStarted;
         protected override async ValueTask DisposeAsyncCore() {
             try {
