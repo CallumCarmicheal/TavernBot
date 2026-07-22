@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0-noble AS build
 WORKDIR /src
 
 # Copy the project file first so package restore can be cached
@@ -14,7 +14,7 @@ RUN dotnet publish CCTavern/CCTavern.csproj \
     --output /app/publish \
     --no-restore
 
-FROM mcr.microsoft.com/dotnet/runtime:10.0 AS runtime
+FROM mcr.microsoft.com/dotnet/runtime:10.0-noble AS runtime
 WORKDIR /app
 
 COPY --from=build /app/publish/ ./
