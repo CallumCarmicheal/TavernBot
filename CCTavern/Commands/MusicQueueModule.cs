@@ -59,7 +59,7 @@ namespace CCTavern.Commands {
                 || (flag_str_lwr[0] == 'o' && flag_str_lwr[1] == 'n'));
 
             // Get the guild
-            var db = new TavernContext();
+            await using var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
             if (string.IsNullOrWhiteSpace(flag_str_lwr) || flag_str_lwr[0] == '?') {
@@ -112,7 +112,7 @@ namespace CCTavern.Commands {
                 queueContent += "*** Temporary queue exists, pleasue use \"queuetemp\" to view temporary queue.";
 
             // Get the guild
-            var db = new TavernContext();
+            await using var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
             var guildQueueQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(qi => qi.GuildId == guild.Id && qi.IsDeleted == false);
             var currentPosition = await guildQueueQuery.Where(qi => qi.Position <= guild.CurrentTrack).CountAsync();
@@ -247,7 +247,7 @@ namespace CCTavern.Commands {
             ulong songIndex
         ) {
             // Get the guild
-            var db = new TavernContext();
+            await using var db = new TavernContext();
             var dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
             CachedUser? dbUser = null;
@@ -304,7 +304,7 @@ namespace CCTavern.Commands {
                 return;
             }
 
-            var db = new TavernContext();
+            await using var db = new TavernContext();
             var dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
             if (songIndex > dbGuild.TrackCount) {
@@ -362,7 +362,7 @@ namespace CCTavern.Commands {
             }
 
             // Get the guild
-            var db = new TavernContext();
+            await using var db = new TavernContext();
             var dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
             GuildState guildState;
@@ -470,7 +470,7 @@ namespace CCTavern.Commands {
             string searchFields
         ) {
 
-            var db = new TavernContext();
+            await using var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild, false);
 
             var predicate = PredicateBuilder.New<GuildQueueItem>();

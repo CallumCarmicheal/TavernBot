@@ -188,7 +188,7 @@ namespace CCTavern.Commands
             var player = playerQuery.Player;
 
             // Get the next track
-            var db = new TavernContext();
+            await using var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
             // Get the next song
@@ -244,7 +244,7 @@ namespace CCTavern.Commands
             }
 
             // Get the next track
-            var db = new TavernContext();
+            await using var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
             var query = db
@@ -283,17 +283,16 @@ namespace CCTavern.Commands
             }
 
             // Get the next track
-            var db = new TavernContext();
+            await using var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
-            var query = db.GuildQueueItems.Where(x => x.GuildId == ctx.Guild.Id && x.Position == guild.CurrentTrack);
-            if (query.Any() == false) {
+            // Get the current song
+            var dbTrack = await db.GuildQueueItems.Where(x => x.GuildId == ctx.Guild.Id && x.Position == guild.CurrentTrack).FirstOrDefaultAsync().ConfigureAwait(false);
+            if (dbTrack is null) {
                 await ctx.RespondAsync("Failed to jump to track (could not be found).");
                 return;
             }
-
-            // Get the current song
-            var dbTrack = await query.FirstAsync();
+            
             await ctx.RespondAsync($"Currently playing {await dbTrack.GetTagline(db, true)}.");
         }
 
@@ -371,7 +370,7 @@ namespace CCTavern.Commands
                 await ctx.RespondAsync($"Connected to <#{ctx.Member?.VoiceState.Channel.Id}>.");
             }
 
-            var db = new TavernContext();
+            await using var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
             // Check if we have tracks in the queue

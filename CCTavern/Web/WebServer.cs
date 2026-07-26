@@ -1,6 +1,4 @@
-﻿using CCTavern.Web;
-
-using EmbedIO;
+﻿using EmbedIO;
 using EmbedIO.WebApi;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -12,7 +10,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace CCTavern {
+namespace CCTavern.Web {
     internal class WebServer {
         public IServiceProvider ServiceProvider { get; }
 

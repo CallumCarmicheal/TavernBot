@@ -144,7 +144,7 @@ namespace CCTavern.Player
             }
 
             // Check if we are still playing the same song
-            var db = new TavernContext();
+            await using var db = new TavernContext();
             var guild = await db.GetGuild(guildId);
 
             // Update the track list

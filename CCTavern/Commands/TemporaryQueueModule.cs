@@ -59,7 +59,7 @@ namespace CCTavern.Commands
             var tempQueue = Music.TemporaryTracks[ctx.Guild.Id];
 
             // Get the guild
-            var db = new TavernContext();
+            await using var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
             var targetPage = 1;

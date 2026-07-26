@@ -80,7 +80,7 @@ namespace CCTavern.Commands {
                 return;
             }
 
-            var db = new TavernContext();
+            await using var db = new TavernContext();
             var player = playerResult.Player;
             TrackLoadResult? trackQueryResults;
 
@@ -401,7 +401,7 @@ namespace CCTavern.Commands {
 
                 // If we are continuing the playlist, play the next track.
                 if (resumePlaylist.Value && joined.playerResult.Player?.State == PlayerState.NotPlaying) {
-                    var db = new TavernContext();
+                    await using var db = new TavernContext();
                     var dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
                     var nextTrack = await mbHelper.getNextTrackForGuild(ctx.Guild);
 

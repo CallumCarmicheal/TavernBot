@@ -39,7 +39,7 @@ namespace CCTavern.Commands {
             string joinedPrefixes = string.Join(Constants.PREFIX_SEPERATOR.ToString()
                 , prefixesList.Select(x => x.Replace(Constants.PREFIX_SEPERATOR.ToString(), "\\" + Constants.PREFIX_SEPERATOR)));
 
-            var db = new TavernContext();
+            await using var db = new TavernContext();
             Guild dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
             dbGuild.Prefixes = joinedPrefixes;
             await db.SaveChangesAsync();
@@ -63,7 +63,7 @@ namespace CCTavern.Commands {
         ) {
             logger.LogInformation(TLE.MBPlay, "Setting default music channel for {0} to {1}", channel.Guild.Name, channel.Name);
 
-            var db = new TavernContext();
+            await using var db = new TavernContext();
 
             Guild dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
@@ -82,7 +82,7 @@ namespace CCTavern.Commands {
         ) {
             logger.LogInformation(TLE.MBPlay, "Setting LeaveAfterPlaylist for {0} to {1}", ctx.Guild.Name, leaveAfterPlaylist);
 
-            var db = new TavernContext();
+            await using var db = new TavernContext();
 
             Guild dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 

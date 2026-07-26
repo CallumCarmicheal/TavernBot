@@ -139,7 +139,7 @@ namespace CCTavern.Player {
                 }
 
                 var discordGuild = await GetGuildAsync();
-                var db = new TavernContext();
+                await using var db = new TavernContext();
                 var dbGuild = await db.GetOrCreateDiscordGuild(discordGuild);
                 var guildState = mbHelper.GetOrCreateGuildState(dbGuild.Id);
 
@@ -287,7 +287,7 @@ namespace CCTavern.Player {
                 var guild = await GetGuildAsync();
 
                 // Check if we have a channel for the guild
-                var db = new TavernContext();
+                await using var db = new TavernContext();
                 var dbGuild = await db.GetOrCreateDiscordGuild(guild);
                 var guildState = mbHelper.GuildStates.ContainsKey(dbGuild.Id) ? mbHelper.GuildStates[dbGuild.Id] : null;
                 var shuffleEnabled = guildState != null && guildState.ShuffleEnabled;

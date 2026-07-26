@@ -102,7 +102,7 @@ namespace CCTavern.Player {
             var sw = new Stopwatch();
             sw.Start();
 
-            var db = new TavernContext();
+            await using var db = new TavernContext();
             List<ulong> removals = new List<ulong>();
 
             for (int index = 0; index < lastActivityTracker.Count; index++) {

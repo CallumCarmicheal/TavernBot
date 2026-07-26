@@ -33,7 +33,7 @@ namespace CCTavern.Commands {
         public async Task SearchQueue(CommandContext ctx,
             [RemainingText] string searchString
         ) {
-            var db = new TavernContext();
+            await using var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
             IQueryable<GuildQueueItem> baseQuery = db.GuildQueueItems
@@ -837,7 +837,7 @@ namespace CCTavern.Commands {
                 queueContent += verbosePlan! + "\n";
 
             // Get the guild
-            var db = new TavernContext();
+            await using var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
             // Get my own version of the GuildQueueItems just to get the current track index.

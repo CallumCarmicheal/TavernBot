@@ -39,7 +39,7 @@ namespace CCTavern.Player {
         }
 
         public async Task<DiscordChannel?> GetMusicTextChannelFor(DiscordGuild guild) {
-            var db = new TavernContext();
+            await using var db = new TavernContext();
             var dbGuild = await db.GetOrCreateDiscordGuild(guild);
 
             // Check if we have that in the database
@@ -136,7 +136,7 @@ namespace CCTavern.Player {
         public async Task<GuildQueueItem?> getNextTrackForGuild(DiscordGuild discordGuild, ulong? targetTrackId = null,
             CancellationToken cancellationToken = default
         ) {
-            var db = new TavernContext();
+            await using var db = new TavernContext();
             var guild = await db.GetOrCreateDiscordGuild(discordGuild, cancellationToken);
 
             if (GuildStates.ContainsKey(discordGuild.Id)) {
@@ -210,7 +210,7 @@ namespace CCTavern.Player {
             var (success, chapters) = await YoutubeChaptersParser.ParseChapters(videoUrl, cancellationToken).ConfigureAwait(false);
             if (success == false) return;
 
-            var db = new TavernContext();
+            await using var db = new TavernContext();
             var guild = await db.GetGuild(guildId);
 
             // Check if we are no longer on the same song, then dont update the chapter title.
@@ -271,7 +271,7 @@ namespace CCTavern.Player {
         }
 
         public async Task<ulong> EnqueueTrack(LavalinkTrack track, DiscordChannel channel, DiscordMember requestedBy, GuildQueuePlaylist? playlist, bool updateNextTrack) {
-            var db = new TavernContext();
+            await using var db = new TavernContext();
             var dbGuild = await db.GetOrCreateDiscordGuild(channel.Guild);
 
             dbGuild.TrackCount = dbGuild.TrackCount + 1;
@@ -294,7 +294,7 @@ namespace CCTavern.Player {
         }
 
         public async Task<ulong?> EnqueueTrack(ITrackQueueItem trackQueueItem, DiscordChannel channel, DiscordMember requestedBy, GuildQueuePlaylist? playlist, bool updateNextTrack) {
-            var db = new TavernContext();
+            await using var db = new TavernContext();
             var dbGuild = await db.GetOrCreateDiscordGuild(channel.Guild);
 
             dbGuild.TrackCount = dbGuild.TrackCount + 1;
