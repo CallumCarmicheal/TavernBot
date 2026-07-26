@@ -143,11 +143,6 @@ namespace CCTavern.Player {
                 var dbGuild = await db.GetOrCreateDiscordGuild(discordGuild);
                 var guildState = mbHelper.GetOrCreateGuildState(dbGuild.Id);
 
-                if (guildState == null) {
-                    guildState = new GuildState(dbGuild.Id);
-                    mbHelper.GuildStates.Add(dbGuild.Id, guildState);
-                }
-
                 guildState.TrackChapters = null; // Reset playlist tracks to null
 
                 var outputChannel = await mbHelper.GetMusicTextChannelFor(discordGuild);
@@ -369,7 +364,7 @@ namespace CCTavern.Player {
                             if (dbGuild.LeaveAfterQueue) {
                                 // Remove temporary playlist
                                 if (mbHelper.TemporaryTracks.ContainsKey(dbGuild.Id))
-                                    mbHelper.TemporaryTracks.Remove(dbGuild.Id);
+                                    mbHelper.TemporaryTracks.TryRemove(dbGuild.Id, out var _);
 
                                 messageText = "Disconnected after finished queue.";
                                 await DisconnectAsync().ConfigureAwait(false);
@@ -399,7 +394,7 @@ namespace CCTavern.Player {
                     if (dbGuild.LeaveAfterQueue) {
                         // Remove temporary playlist
                         if (mbHelper.TemporaryTracks.ContainsKey(dbGuild.Id))
-                            mbHelper.TemporaryTracks.Remove(dbGuild.Id);
+                            mbHelper.TemporaryTracks.TryRemove(dbGuild.Id, out var _);
 
                         // Disconnecting
                         await DisconnectAsync().ConfigureAwait(false);

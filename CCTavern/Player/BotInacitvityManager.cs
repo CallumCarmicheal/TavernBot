@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -40,7 +41,7 @@ namespace CCTavern.Player {
         private readonly ITavernSettings settings;
         private readonly BotInactivityManager inactivityManager;
 
-        internal Dictionary<ulong, GuildActivityState> lastActivityTracker = new();
+        internal ConcurrentDictionary<ulong, GuildActivityState> lastActivityTracker = new();
         private CancellationTokenSource cancelToken;
 
         private static DateTime? LastTimerTick;
@@ -68,33 +69,32 @@ namespace CCTavern.Player {
         }
 
         private void InactivityManager_OnGuildStateUpdated(ulong guildId, PlayerState state) {
-            GuildActivityState activity;
-            
-            bool trackerExists = lastActivityTracker.ContainsKey(guildId);
-            if (trackerExists && state == PlayerState.Destroyed) {
-                // Handle the bot being destroyed
-                lastActivityTracker.Remove(guildId);
+            // Handle the bot being destroyed
+            if (state == PlayerState.Destroyed) {
+                lastActivityTracker.TryRemove(guildId, out _);
                 return;
-            } else if (trackerExists) {
-                activity = lastActivityTracker[guildId];
-            } else {
-                activity = new GuildActivityState() { GuildId = guildId, State = state };
             }
 
-            // State changed
-            if (activity.State != state && state == PlayerState.Paused)
-                activity.PausedDate = DateTime.Now;
+            DateTime now = DateTime.Now;
 
-            if (state != PlayerState.Paused)
+            // Get the activity state
+            GuildActivityState activity = lastActivityTracker.GetOrAdd(
+                guildId,
+                id => new GuildActivityState { GuildId = id });
+
+            if (state == PlayerState.Paused && activity.State != PlayerState.Paused)
+                activity.PausedDate = now;
+            else if (state != PlayerState.Paused)
                 activity.PausedDate = null;
 
-            activity.LastActivity = DateTime.Now;
+            activity.LastActivity = now;
             activity.State = state;
 
-            if (!trackerExists)
-                lastActivityTracker.Add(guildId, activity);
-
-            logger.LogDebug(TLE.MBTimeout, "Guild {guildId}, Updated timeout - Player Status {status}!", guildId, state.ToString());
+            logger.LogDebug(
+               TLE.MBTimeout,
+               "Guild {guildId}, Updated timeout - Player Status {status}!",
+               guildId,
+               state);
         }
 
         private async Task handleBotTimeouts() {
@@ -170,7 +170,7 @@ namespace CCTavern.Player {
             }
 
             foreach (var id in removals)
-                lastActivityTracker.Remove(id);
+                lastActivityTracker.TryRemove(id, out var _);
 
             sw.Stop();
             // logger.LogDebug(TLE.MBTimeout, "Timeout clearup finished, clearup took ({sw})...", sw.Elapsed.ToString());

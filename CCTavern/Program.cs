@@ -202,8 +202,10 @@ namespace CCTavern {
             string gitHash = "??";
 
             // Check if we have a version and it has a git hash code.
-            if (version != null && version.Contains("+"))
-                gitHash = version?.Split("+")[1] ?? "";
+            if (version != null && version.Contains("+")) {
+                var parts = version?.Split("+");
+                gitHash = (parts != null && parts.Length >= 2) ? parts[1] : "";
+            }
 
             VERSION_Git = gitHash;
             VERSION_Full = version ?? "??";
@@ -253,11 +255,13 @@ namespace CCTavern {
             else
                 Console.WriteLine("Loading/Reloading configuration file: " + jsonFile);
 
+            var absoluteJsonFilePath = Path.GetFullPath(jsonFile);
+
             // Load our settings
             Settings = new ConfigurationBuilder<ITavernSettings>()
                 .UseAppConfig()
                 .UseEnvironmentVariables()
-                .UseJsonFile(jsonFile)
+                .UseJsonFile(absoluteJsonFilePath)
                 .Build();
         }
 

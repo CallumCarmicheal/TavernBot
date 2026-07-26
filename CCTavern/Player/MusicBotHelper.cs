@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -27,8 +28,8 @@ namespace CCTavern.Player {
         private readonly DiscordClient discordClient;
         private readonly BotInactivityManager inactivityManager;
 
-        internal Dictionary<ulong, GuildState> GuildStates { get; set; } = new Dictionary<ulong, GuildState>();
-        internal Dictionary<ulong, TemporaryQueue> TemporaryTracks { get; set; } = new Dictionary<ulong, TemporaryQueue>();
+        internal ConcurrentDictionary<ulong, GuildState> GuildStates { get; set; } = new();
+        internal ConcurrentDictionary<ulong, TemporaryQueue> TemporaryTracks { get; set; } = new();
 
         public MusicBotHelper(DiscordClient client, BotInactivityManager inactivityManager, IAudioService audioService, ILogger<MusicBotHelper> logger) {
             this.discordClient = client;
@@ -67,7 +68,7 @@ namespace CCTavern.Player {
                 if (tempTracks.SongItems.Any() == false || tempTracks.SongItems.FirstOrDefault() == null) {
                     if (Program.Settings.LoggingVerbose) logger.LogError(TLE.MBFin, "Removing empty temporary track queue.");
 
-                    TemporaryTracks.Remove(guild.Id);
+                    TemporaryTracks.TryRemove(guild.Id, out var _);
                 }
 
                 // Get the track
@@ -96,7 +97,7 @@ namespace CCTavern.Player {
 
         public void AnnounceLeave(ulong guildId) {
             if (GuildStates.ContainsKey(guildId))
-                GuildStates.Remove(guildId);
+                GuildStates.TryRemove(guildId, out var _);
 
             inactivityManager.GuildStateChanged(guildId, PlayerState.NotPlaying);
         }
@@ -219,14 +220,8 @@ namespace CCTavern.Player {
             GuildStates[guildId].TrackChapters = chapters;
         }
 
-        internal GuildState GetOrCreateGuildState(ulong guildId) {
-            if (this.GuildStates.ContainsKey(guildId))
-                return GuildStates[guildId];
-
-            GuildStates.Add(guildId, new GuildState(guildId));
-            return GuildStates[guildId];
-        }
-
+        internal GuildState GetOrCreateGuildState(ulong guildId) => 
+            GuildStates.GetOrAdd(guildId, id => new GuildState(id));
 
         public static async Task<GuildQueueItem> CreateGuildQueueItem(
             TavernContext db, Guild dbGuild,

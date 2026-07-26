@@ -313,10 +313,9 @@ namespace CCTavern.Commands {
             }
 
             GuildState guildState;
-
-            if (mbHelper.GuildStates.ContainsKey(dbGuild.Id) == false)
-                mbHelper.GuildStates.Add(dbGuild.Id, guildState = new GuildState(dbGuild.Id));
-            else guildState = mbHelper.GuildStates[dbGuild.Id];
+            guildState = mbHelper.GuildStates.GetOrAdd(
+                dbGuild.Id,
+                guildId => new GuildState(guildId));
 
             guildState.SetNextFlag = true;
             dbGuild.NextTrack = songIndex;
@@ -365,11 +364,12 @@ namespace CCTavern.Commands {
             // Get the guild
             var db = new TavernContext();
             var dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
-            GuildState guildState;
 
-            if (mbHelper.GuildStates.ContainsKey(dbGuild.Id) == false)
-                mbHelper.GuildStates.Add(dbGuild.Id, guildState = new GuildState(dbGuild.Id));
-            else guildState = mbHelper.GuildStates[dbGuild.Id];
+            GuildState guildState;
+            guildState = mbHelper.GuildStates.GetOrAdd(
+                dbGuild.Id,
+                guildId => new GuildState(guildId));
+
 
             // Check if the flag is empty then we are to toggle.
             if (string.IsNullOrWhiteSpace(flag)) {

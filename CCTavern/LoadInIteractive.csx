@@ -1,11 +1,11 @@
-#r "C:\\Programming\\CSharp\\Discord Music Bot\\CCMusique\\bin\\Debug\\net8.0\\CCTavern.dll"
+#r "C:\\Programming\\CSharp\\Discord Music Bot\\CCMusique\\bin\\Debug\\net10.0\\CCTavern.dll"
 
 using System;
 using System.IO;
 using System.Reflection;
 using CCTavern;
 
-var folder = @"C:\Programming\CSharp\Discord Music Bot\CCMusique\bin\Debug\net8.0";
+var folder = @"C:\Programming\CSharp\Discord Music Bot\CCMusique\bin\Debug\net10.0";
 
 // Load all DLLs and EXEs
 foreach (var file in Directory.GetFiles(folder, "*.*", SearchOption.TopDirectoryOnly))
