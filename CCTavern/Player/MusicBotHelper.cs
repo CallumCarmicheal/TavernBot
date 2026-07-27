@@ -27,19 +27,22 @@ namespace CCTavern.Player {
         private readonly ILogger<MusicBotHelper> logger;
         private readonly DiscordClient discordClient;
         private readonly BotInactivityManager inactivityManager;
+        private readonly IDbContextFactory<TavernContext> databaseFactory;
 
         internal ConcurrentDictionary<ulong, GuildState> GuildStates { get; set; } = new();
         internal ConcurrentDictionary<ulong, TemporaryQueue> TemporaryTracks { get; set; } = new();
 
-        public MusicBotHelper(DiscordClient client, BotInactivityManager inactivityManager, IAudioService audioService, ILogger<MusicBotHelper> logger) {
+        public MusicBotHelper(DiscordClient client, BotInactivityManager inactivityManager, IAudioService audioService,
+                ILogger<MusicBotHelper> logger, IDbContextFactory<TavernContext> databaseFactory) {
             this.discordClient = client;
             this.inactivityManager = inactivityManager;
             this.audioService = audioService;
             this.logger = logger;
+            this.databaseFactory = databaseFactory;
         }
 
         public async Task<DiscordChannel?> GetMusicTextChannelFor(DiscordGuild guild) {
-            await using var db = new TavernContext();
+            await using var db = await databaseFactory.CreateDbContextAsync();
             var dbGuild = await db.GetOrCreateDiscordGuild(guild);
 
             // Check if we have that in the database
@@ -136,7 +139,7 @@ namespace CCTavern.Player {
         public async Task<GuildQueueItem?> getNextTrackForGuild(DiscordGuild discordGuild, ulong? targetTrackId = null,
             CancellationToken cancellationToken = default
         ) {
-            await using var db = new TavernContext();
+            await using var db = await databaseFactory.CreateDbContextAsync();
             var guild = await db.GetOrCreateDiscordGuild(discordGuild, cancellationToken);
 
             if (GuildStates.ContainsKey(discordGuild.Id)) {
@@ -210,7 +213,7 @@ namespace CCTavern.Player {
             var (success, chapters) = await YoutubeChaptersParser.ParseChapters(videoUrl, cancellationToken).ConfigureAwait(false);
             if (success == false) return;
 
-            await using var db = new TavernContext();
+            await using var db = await databaseFactory.CreateDbContextAsync();
             var guild = await db.GetGuild(guildId);
 
             // Check if we are no longer on the same song, then dont update the chapter title.
@@ -271,7 +274,7 @@ namespace CCTavern.Player {
         }
 
         public async Task<ulong> EnqueueTrack(LavalinkTrack track, DiscordChannel channel, DiscordMember requestedBy, GuildQueuePlaylist? playlist, bool updateNextTrack) {
-            await using var db = new TavernContext();
+            await using var db = await databaseFactory.CreateDbContextAsync();
             var dbGuild = await db.GetOrCreateDiscordGuild(channel.Guild);
 
             dbGuild.TrackCount = dbGuild.TrackCount + 1;
@@ -294,7 +297,7 @@ namespace CCTavern.Player {
         }
 
         public async Task<ulong?> EnqueueTrack(ITrackQueueItem trackQueueItem, DiscordChannel channel, DiscordMember requestedBy, GuildQueuePlaylist? playlist, bool updateNextTrack) {
-            await using var db = new TavernContext();
+            await using var db = await databaseFactory.CreateDbContextAsync();
             var dbGuild = await db.GetOrCreateDiscordGuild(channel.Guild);
 
             dbGuild.TrackCount = dbGuild.TrackCount + 1;

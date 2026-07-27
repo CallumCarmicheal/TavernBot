@@ -19,8 +19,13 @@ namespace CCTavern.Commands
 {
     internal class TemporaryQueueModule : BaseCommandModule {
         const int ITEMS_PER_PAGE = 10;
+        private readonly IDbContextFactory<TavernContext> databaseFactory;
 
         public MusicBotHelper Music { private get; set; }
+
+        public TemporaryQueueModule(IDbContextFactory<TavernContext> databaseFactory) {
+            this.databaseFactory = databaseFactory;
+        }
 
         private ILogger _logger;
         private ILogger logger {
@@ -59,7 +64,7 @@ namespace CCTavern.Commands
             var tempQueue = Music.TemporaryTracks[ctx.Guild.Id];
 
             // Get the guild
-            await using var db = new TavernContext();
+            await using var db = await databaseFactory.CreateDbContextAsync();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
             var targetPage = 1;

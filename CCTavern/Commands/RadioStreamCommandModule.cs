@@ -1,4 +1,5 @@
 ﻿using CCTavern.Player;
+using CCTavern.Database;
 
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.CommandsNext;
@@ -6,6 +7,7 @@ using DSharpPlus;
 
 using Lavalink4NET;
 
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 using System;
@@ -19,8 +21,9 @@ namespace CCTavern.Commands {
     internal class RadioStreamCommandModule : BaseAudioCommandModule {
         private readonly ILogger<RadioStreamCommandModule> logger;
 
-        public RadioStreamCommandModule(MusicBotHelper mbHelper, ILogger<RadioStreamCommandModule> logger, IAudioService audioService)
-                : base(audioService, mbHelper) {
+        public RadioStreamCommandModule(MusicBotHelper mbHelper, ILogger<RadioStreamCommandModule> logger,
+                IAudioService audioService, IDbContextFactory<TavernContext> databaseFactory)
+                : base(audioService, mbHelper, databaseFactory) {
             this.logger = logger;
         }
 

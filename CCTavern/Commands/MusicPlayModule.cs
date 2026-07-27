@@ -13,6 +13,7 @@ using Lavalink4NET.Players;
 using Lavalink4NET.Rest.Entities.Tracks;
 using Lavalink4NET.Tracks;
 
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 using System;
@@ -29,8 +30,9 @@ namespace CCTavern.Commands {
     internal class MusicPlayModule : BaseAudioCommandModule {
         private readonly ILogger<MusicPlayModule> logger;
 
-        public MusicPlayModule(MusicBotHelper mbHelper, ILogger<MusicPlayModule> logger
-                , IAudioService audioService) : base(audioService, mbHelper) {
+        public MusicPlayModule(MusicBotHelper mbHelper, ILogger<MusicPlayModule> logger,
+                IAudioService audioService, IDbContextFactory<TavernContext> databaseFactory)
+                : base(audioService, mbHelper, databaseFactory) {
             this.logger = logger;
         }
 
@@ -80,7 +82,7 @@ namespace CCTavern.Commands {
                 return;
             }
 
-            await using var db = new TavernContext();
+            await using var db = await databaseFactory.CreateDbContextAsync();
             var player = playerResult.Player;
             TrackLoadResult? trackQueryResults;
 
@@ -401,7 +403,7 @@ namespace CCTavern.Commands {
 
                 // If we are continuing the playlist, play the next track.
                 if (resumePlaylist.Value && joined.playerResult.Player?.State == PlayerState.NotPlaying) {
-                    await using var db = new TavernContext();
+                    await using var db = await databaseFactory.CreateDbContextAsync();
                     var dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
                     var nextTrack = await mbHelper.getNextTrackForGuild(ctx.Guild);
 

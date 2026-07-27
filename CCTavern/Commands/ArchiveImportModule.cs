@@ -30,9 +30,12 @@ namespace CCTavern.Commands {
         };
 
         private readonly ILogger<ArchiveImportModule> logger;
+        private readonly IDbContextFactory<TavernContext> databaseFactory;
 
-        public ArchiveImportModule(ILogger<ArchiveImportModule> logger) {
+        public ArchiveImportModule(ILogger<ArchiveImportModule> logger,
+                IDbContextFactory<TavernContext> databaseFactory) {
             this.logger = logger;
+            this.databaseFactory = databaseFactory;
         }
 
         [Command("archive:d")]
@@ -97,7 +100,7 @@ namespace CCTavern.Commands {
             }
             // Get the last added message id.
             else {
-                var db = new TavernContext();
+                await using var db = await databaseFactory.CreateDbContextAsync();
                 lastMessageId = db.ArchivedTracks.OrderByDescending(x => x.MessageId).First().Id;
             }
 
@@ -114,7 +117,7 @@ namespace CCTavern.Commands {
             Dictionary<ulong, DiscordMember?> cachedDiscordMember = new Dictionary<ulong, DiscordMember?>();
 
             for (; ; ) {
-                var db = new TavernContext();
+                await using var db = await databaseFactory.CreateDbContextAsync();
                 var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
                 var startId = lastMessageId;
@@ -305,7 +308,7 @@ namespace CCTavern.Commands {
             }
             // Get the last added message id.
             else {
-                var db = new TavernContext();
+                await using var db = await databaseFactory.CreateDbContextAsync();
                 lastMessageId = db.ArchivedTracks.OrderByDescending(x => x.MessageId).First().Id;
             }
 
@@ -321,12 +324,10 @@ namespace CCTavern.Commands {
             Dictionary<ulong, ulong> cachedUserIds = new Dictionary<ulong, ulong>();
 
             for ( ; ; ) {
-                var db = new TavernContext();
+                await using var db = await databaseFactory.CreateDbContextAsync();
                 var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
                 var startId = lastMessageId;
-
-                
 
                 // I seem to have a problem of getting duplicates, I believe this was resolved by doing `messages.OrderByDescending(x => x.Id).First();`.
                 // I assume DiscordSharp was not returning an array of messaged sorted by their creation date so it was looping upon to itself.

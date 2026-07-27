@@ -34,8 +34,9 @@ namespace CCTavern.Commands
     internal class MusicCommandModule : BaseAudioCommandModule {
         private readonly ILogger<MusicCommandModule> logger;
         
-        public MusicCommandModule(MusicBotHelper mbHelper, ILogger<MusicCommandModule> logger, IAudioService audioService) 
-                : base(audioService, mbHelper) {
+        public MusicCommandModule(MusicBotHelper mbHelper, ILogger<MusicCommandModule> logger, IAudioService audioService,
+                IDbContextFactory<TavernContext> databaseFactory)
+                : base(audioService, mbHelper, databaseFactory) {
             this.logger = logger;
         }
 
@@ -188,7 +189,7 @@ namespace CCTavern.Commands
             var player = playerQuery.Player;
 
             // Get the next track
-            await using var db = new TavernContext();
+            await using var db = await databaseFactory.CreateDbContextAsync();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
             // Get the next song
@@ -244,7 +245,7 @@ namespace CCTavern.Commands
             }
 
             // Get the next track
-            await using var db = new TavernContext();
+            await using var db = await databaseFactory.CreateDbContextAsync();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
             var query = db
@@ -283,7 +284,7 @@ namespace CCTavern.Commands
             }
 
             // Get the next track
-            await using var db = new TavernContext();
+            await using var db = await databaseFactory.CreateDbContextAsync();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
             // Get the current song
@@ -370,7 +371,7 @@ namespace CCTavern.Commands
                 await ctx.RespondAsync($"Connected to <#{ctx.Member?.VoiceState.Channel.Id}>.");
             }
 
-            await using var db = new TavernContext();
+            await using var db = await databaseFactory.CreateDbContextAsync();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
             // Check if we have tracks in the queue

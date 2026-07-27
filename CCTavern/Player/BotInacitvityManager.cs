@@ -40,6 +40,7 @@ namespace CCTavern.Player {
         private readonly IAudioService audioService;
         private readonly ITavernSettings settings;
         private readonly BotInactivityManager inactivityManager;
+        private readonly IDbContextFactory<TavernContext> databaseFactory;
 
         internal ConcurrentDictionary<ulong, GuildActivityState> lastActivityTracker = new();
         private CancellationTokenSource cancelToken;
@@ -50,13 +51,15 @@ namespace CCTavern.Player {
         public TimeSpan TsTimeoutPaused; /// The amount of time of paused before the bot disconnects.
 
         public BotInactivityImplementation(DiscordClient client, MusicBotHelper mbHelper, BotInactivityManager inactivityManager
-                , IAudioService audioService, ITavernSettings settings, ILogger<BotInactivityManager> logger) {
+                , IAudioService audioService, ITavernSettings settings, ILogger<BotInactivityManager> logger
+                , IDbContextFactory<TavernContext> databaseFactory) {
             this.logger = logger;
             this.client = client;
             this.mbHelper = mbHelper;
             this.audioService = audioService;
             this.settings = settings;
             this.inactivityManager = inactivityManager;
+            this.databaseFactory = databaseFactory;
 
             cancelToken = new CancellationTokenSource();
             TsTimeoutInactivity = TimeSpan.FromMinutes(settings.InactivityTimerTimeoutInMinutes);
@@ -102,7 +105,7 @@ namespace CCTavern.Player {
             var sw = new Stopwatch();
             sw.Start();
 
-            await using var db = new TavernContext();
+            await using var db = await databaseFactory.CreateDbContextAsync();
             List<ulong> removals = new List<ulong>();
 
             for (int index = 0; index < lastActivityTracker.Count; index++) {

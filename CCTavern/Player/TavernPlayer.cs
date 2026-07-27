@@ -26,6 +26,7 @@ namespace CCTavern.Player {
         private readonly DiscordClient discordClient;
         private readonly IAudioService audioService;
         private readonly BotInactivityManager botInactivityManager;
+        private readonly IDbContextFactory<TavernContext> databaseFactory;
 
         private Timer _timer;
         private CancellationTokenSource _cancellationTokenSource;
@@ -37,6 +38,7 @@ namespace CCTavern.Player {
             discordClient = properties.ServiceProvider!.GetRequiredService<DiscordClient>();
             audioService = properties.ServiceProvider!.GetRequiredService<IAudioService>();
             botInactivityManager = properties.ServiceProvider!.GetRequiredService<BotInactivityManager>();
+            databaseFactory = properties.ServiceProvider!.GetRequiredService<IDbContextFactory<TavernContext>>();
 
             _cancellationTokenSource = new CancellationTokenSource();
             _timer = new Timer(callback: ProgressBarTimerCallback, state: null, dueTime: Timeout.Infinite, period: Timeout.Infinite);
@@ -139,7 +141,7 @@ namespace CCTavern.Player {
                 }
 
                 var discordGuild = await GetGuildAsync();
-                await using var db = new TavernContext();
+                await using var db = await databaseFactory.CreateDbContextAsync();
                 var dbGuild = await db.GetOrCreateDiscordGuild(discordGuild);
                 var guildState = mbHelper.GetOrCreateGuildState(dbGuild.Id);
 
@@ -287,7 +289,7 @@ namespace CCTavern.Player {
                 var guild = await GetGuildAsync();
 
                 // Check if we have a channel for the guild
-                await using var db = new TavernContext();
+                await using var db = await databaseFactory.CreateDbContextAsync();
                 var dbGuild = await db.GetOrCreateDiscordGuild(guild);
                 var guildState = mbHelper.GuildStates.ContainsKey(dbGuild.Id) ? mbHelper.GuildStates[dbGuild.Id] : null;
                 var shuffleEnabled = guildState != null && guildState.ShuffleEnabled;

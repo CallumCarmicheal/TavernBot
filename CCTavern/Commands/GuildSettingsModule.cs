@@ -8,6 +8,7 @@ using DSharpPlus.Entities;
 
 using Lavalink4NET;
 
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 using System;
@@ -21,8 +22,9 @@ namespace CCTavern.Commands {
     internal class GuildSettingsModule : BaseAudioCommandModule {
         private readonly ILogger<MusicCommandModule> logger;
 
-        public GuildSettingsModule(ILogger<MusicCommandModule> logger, IAudioService audioService, MusicBotHelper mbHelper) 
-                : base(audioService, mbHelper) {
+        public GuildSettingsModule(ILogger<MusicCommandModule> logger, IAudioService audioService, MusicBotHelper mbHelper,
+                IDbContextFactory<TavernContext> databaseFactory)
+                : base(audioService, mbHelper, databaseFactory) {
             this.logger = logger;
         }
 
@@ -39,7 +41,7 @@ namespace CCTavern.Commands {
             string joinedPrefixes = string.Join(Constants.PREFIX_SEPERATOR.ToString()
                 , prefixesList.Select(x => x.Replace(Constants.PREFIX_SEPERATOR.ToString(), "\\" + Constants.PREFIX_SEPERATOR)));
 
-            await using var db = new TavernContext();
+            await using var db = await databaseFactory.CreateDbContextAsync();
             Guild dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
             dbGuild.Prefixes = joinedPrefixes;
             await db.SaveChangesAsync();
@@ -63,7 +65,7 @@ namespace CCTavern.Commands {
         ) {
             logger.LogInformation(TLE.MBPlay, "Setting default music channel for {0} to {1}", channel.Guild.Name, channel.Name);
 
-            await using var db = new TavernContext();
+            await using var db = await databaseFactory.CreateDbContextAsync();
 
             Guild dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
@@ -82,7 +84,7 @@ namespace CCTavern.Commands {
         ) {
             logger.LogInformation(TLE.MBPlay, "Setting LeaveAfterPlaylist for {0} to {1}", ctx.Guild.Name, leaveAfterPlaylist);
 
-            await using var db = new TavernContext();
+            await using var db = await databaseFactory.CreateDbContextAsync();
 
             Guild dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 

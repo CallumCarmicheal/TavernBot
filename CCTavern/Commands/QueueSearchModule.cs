@@ -19,11 +19,14 @@ using System.Threading.Tasks;
 namespace CCTavern.Commands {
     public class QueueSearchModule : BaseCommandModule {
         public ILogger<QueueSearchModule> logger { get; private set; }
+        private readonly IDbContextFactory<TavernContext> databaseFactory;
 
         const int ITEMS_PER_PAGE = 10;
 
-        public QueueSearchModule(ILogger<QueueSearchModule> logger) {
+        public QueueSearchModule(ILogger<QueueSearchModule> logger,
+                IDbContextFactory<TavernContext> databaseFactory) {
             this.logger = logger;
+            this.databaseFactory = databaseFactory;
         }
 
 
@@ -33,7 +36,7 @@ namespace CCTavern.Commands {
         public async Task SearchQueue(CommandContext ctx,
             [RemainingText] string searchString
         ) {
-            await using var db = new TavernContext();
+            await using var db = await databaseFactory.CreateDbContextAsync();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
             IQueryable<GuildQueueItem> baseQuery = db.GuildQueueItems
@@ -837,7 +840,7 @@ namespace CCTavern.Commands {
                 queueContent += verbosePlan! + "\n";
 
             // Get the guild
-            await using var db = new TavernContext();
+            await using var db = await databaseFactory.CreateDbContextAsync();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
             // Get my own version of the GuildQueueItems just to get the current track index.

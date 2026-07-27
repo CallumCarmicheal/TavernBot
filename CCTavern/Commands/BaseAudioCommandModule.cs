@@ -1,5 +1,7 @@
 ﻿using DSharpPlus.CommandsNext;
 
+using CCTavern.Database;
+
 using Lavalink4NET.Players.Queued;
 using Lavalink4NET.Players;
 
@@ -12,6 +14,7 @@ using Lavalink4NET;
 using System.Threading;
 using CCTavern.Player;
 using DSharpPlus.Entities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using MySqlX.XDevAPI.Common;
 using ZstdSharp.Unsafe;
@@ -28,10 +31,13 @@ namespace CCTavern.Commands {
     public class BaseAudioCommandModule : BaseCommandModule {
         protected readonly IAudioService audioService;
         protected readonly MusicBotHelper mbHelper;
+        protected readonly IDbContextFactory<TavernContext> databaseFactory;
 
-        public BaseAudioCommandModule(IAudioService audioService, MusicBotHelper mbHelper) {
+        public BaseAudioCommandModule(IAudioService audioService, MusicBotHelper mbHelper,
+                IDbContextFactory<TavernContext> databaseFactory) {
             this.audioService = audioService;
             this.mbHelper = mbHelper;
+            this.databaseFactory = databaseFactory;
         }
 
         protected async ValueTask< (PlayerResult<TavernPlayer> playerResult, bool isPlayerConnected) > GetPlayerAsync(ulong guildId, ulong? voiceChannelId = null, bool connectToVoiceChannel = true) {

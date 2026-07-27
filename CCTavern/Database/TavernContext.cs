@@ -12,6 +12,7 @@ using DSharpPlus.Net.Models;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Identity.Client;
 
 namespace CCTavern.Database;
@@ -32,23 +33,29 @@ public partial class TavernContext : DbContext
         : base(options) { }
 
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) { 
-        // This means we are being invoked by Migration nuget commands.
-        if (Program.Settings == null) 
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) {
+        if (optionsBuilder.IsConfigured)
+            return;
+
+        // Keep parameterless construction available for Entity Framework tooling.
+        if (Program.Settings == null)
             Program.ReloadSettings();
 
-        // Ensure we have a configuration
-        System.Diagnostics.Debug.Assert(Program.Settings != null);
+        ConfigureOptions(optionsBuilder, Program.Settings!, Program.LoggerFactory);
+    }
 
-        // Choose database engine
-        if (Program.Settings.DatabaseEngine == "mssql") 
-            optionsBuilder.UseSqlServer(Program.Settings.DatabaseConnectionString);
-        else 
-            optionsBuilder.UseMySQL(Program.Settings.DatabaseConnectionString);
+    internal static void ConfigureOptions(
+        DbContextOptionsBuilder optionsBuilder,
+        ITavernSettings settings,
+        ILoggerFactory loggerFactory
+    ) {
+        if (settings.DatabaseEngine == "mssql")
+            optionsBuilder.UseSqlServer(settings.DatabaseConnectionString);
+        else
+            optionsBuilder.UseMySQL(settings.DatabaseConnectionString);
 
-        // Enable logging
-        if (Program.Settings.LogDatabaseQueries)
-            optionsBuilder.UseLoggerFactory(Program.LoggerFactory);
+        if (settings.LogDatabaseQueries)
+            optionsBuilder.UseLoggerFactory(loggerFactory);
     }
 
     #region Entity Framework: Model Configuration and Events

@@ -5,6 +5,7 @@ using CCTavern.Commands;
 using CCTavern.Database;
 using CCTavern.Logger;
 using CCTavern.Player;
+using CCTavern.Web;
 
 using Config.Net;
 
@@ -51,6 +52,7 @@ namespace CCTavern {
     public sealed class Program {
         public static string DotNetConfigurationMode { get => get_VarDotNetConfigurationMode(); }
         internal static ITavernSettings Settings { get; private set; } = null!;
+        internal static IDbContextFactory<TavernContext> DatabaseFactory { get; private set; } = null!;
 
         internal static Logger.TavernLoggerFactory LoggerFactory { get; private set; } = new CCTavern.Logger.TavernLoggerFactory();
         internal static Dictionary<ulong, IEnumerable<string>> ServerPrefixes = [];
@@ -97,6 +99,9 @@ namespace CCTavern {
             builder.Services.AddSingleton<BotInactivityImplementation>();
             builder.Services.AddSingleton<MusicBotHelper>();
 
+            builder.Services.AddDbContextFactory<TavernContext>(options =>
+                TavernContext.ConfigureOptions(options, Settings, LoggerFactory));
+
             builder.Services.AddLavalink();
             builder.Services.ConfigureLavalink(config => {
                 config.BaseAddress = new Uri($"http://{Settings.Lavalink.Hostname}:{Settings.Lavalink.Port}");
@@ -121,6 +126,9 @@ namespace CCTavern {
             }
 
             var serviceProvider = services.Services;
+            DatabaseFactory = serviceProvider.GetRequiredService<IDbContextFactory<TavernContext>>();
+
+            await setupDatabase(DatabaseFactory);
 
             var webServer = new WebServer(serviceProvider);
             var webServerStartTask = webServer.StartServer(applicationCancelTokenSource.Token).ConfigureAwait(false);
@@ -162,15 +170,12 @@ namespace CCTavern {
 #if (ARCHIVAL_MODE)
             logger.LogInformation("!!! ARCHIVE MODE ONLY !!!");
 #endif
-
-            // Setup database and load defaults
-            await setupDatabase();
         }
 
-        private static async Task setupDatabase() {
+        private static async Task setupDatabase(IDbContextFactory<TavernContext> databaseFactory) {
             logger.LogInformation(LoggerEvents.Startup, "Setting up database");
 
-            var ctx = new TavernContext();
+            await using var ctx = await databaseFactory.CreateDbContextAsync();
 
             var migrations = await ctx.Database.GetPendingMigrationsAsync();
             if (migrations.Any()) {
@@ -179,7 +184,6 @@ namespace CCTavern {
                 await ctx.SaveChangesAsync();
             }
 
-            ctx = new TavernContext();
             await ctx.Database.EnsureCreatedAsync();
 
             // Load the server prefixes

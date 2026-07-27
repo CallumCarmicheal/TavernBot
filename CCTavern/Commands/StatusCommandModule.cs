@@ -1,4 +1,5 @@
 ﻿using CCTavern.Player;
+using CCTavern.Database;
 
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
@@ -6,6 +7,7 @@ using DSharpPlus.CommandsNext.Attributes;
 using Lavalink4NET;
 using Lavalink4NET.Players;
 
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 using System;
@@ -19,8 +21,10 @@ namespace CCTavern.Commands {
         private readonly ILogger<StatusCommandModule> logger;
         private readonly BotInactivityImplementation  botInactivity;
 
-        public StatusCommandModule(MusicBotHelper mbHelper, BotInactivityImplementation botInactivity, IAudioService audioService, ILogger<StatusCommandModule> logger)
-                : base(audioService, mbHelper) {
+        public StatusCommandModule(MusicBotHelper mbHelper, BotInactivityImplementation botInactivity,
+                IAudioService audioService, ILogger<StatusCommandModule> logger,
+                IDbContextFactory<TavernContext> databaseFactory)
+                : base(audioService, mbHelper, databaseFactory) {
             this.logger = logger;
             this.botInactivity = botInactivity;
         }

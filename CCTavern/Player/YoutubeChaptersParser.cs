@@ -65,7 +65,7 @@ namespace CCTavern.Player
             string videoId,
             CancellationToken cancellationToken = default
         ) {
-            await using var ctx = new TavernContext();
+            await using var ctx = await Program.DatabaseFactory.CreateDbContextAsync(cancellationToken);
 
             var tracks = await ctx.TrackPlaylistPositions
                 .AsNoTracking()
@@ -184,7 +184,7 @@ namespace CCTavern.Player
             if (chapters.Count == 0)
                 return;
 
-            await using var ctx = new TavernContext();
+            await using var ctx = await Program.DatabaseFactory.CreateDbContextAsync(cancellationToken);
 
             var existingPositions = await ctx.TrackPlaylistPositions
                 .Where(track =>
