@@ -19,6 +19,8 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace CCTavern.Player
 {
+    public record struct YoutubeChapterDetails(bool success, SortedList<TimeSpan, IVideoChapter>? chapters);
+
     public class YoutubeChaptersParser {
 
         public static Regex RgxTimestampMatch = new Regex(@"(?<ts>(?:\d{1,2}:\d{2}(?::\d{2})?))", RegexOptions.Compiled);
@@ -26,134 +28,204 @@ namespace CCTavern.Player
         private static HttpClient cli = new HttpClient();
 
         // TEST: var chapters = await YoutubeChaptersParser.ParseChapters("vrMfm8-UBVM");
-        public static async Task<(bool success, SortedList<TimeSpan, IVideoChapter>? chapters)> ParseChapters(string videoId, CancellationToken cancellationToken = default) {
-            // snippet,chapters | if you want to get the description too. To parse it see below in commented function
-            string apiEndpoint = string.Format("{0}/videos?part=snippet,chapters&id={1}", Program.Settings.YoutubeIntegration.OperationalApi, videoId);
-            var response = await cli.GetAsync(apiEndpoint, cancellationToken);
+        public static async Task<YoutubeChapterDetails> ParseChapters(string videoId, CancellationToken cancellationToken = default) {
+            if (string.IsNullOrWhiteSpace(videoId))
+                throw new ArgumentException(
+                    "A YouTube video ID is required.",
+                    nameof(videoId));
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // 1. Check the database.
+            var chapters = await LoadChaptersFromDatabase(
+                videoId,
+                cancellationToken);
+
+            if (chapters.Count > 0)
+                return new(true, chapters);
+
+            // 2. Query and parse YouTube.
+            chapters = await GetChaptersFromYoutube(
+                videoId,
+                cancellationToken);
+
+            if (chapters.Count == 0)
+                return new(false, null);
+
+            // 3. Save the parsed chapters.
+            await SaveChaptersToDatabase(
+                videoId,
+                chapters,
+                cancellationToken);
+
+            return new(true, chapters);
+        }
+
+        private static async Task<SortedList<TimeSpan, IVideoChapter>> LoadChaptersFromDatabase(
+            string videoId,
+            CancellationToken cancellationToken = default
+        ) {
+            await using var ctx = new TavernContext();
+
+            var tracks = await ctx.TrackPlaylistPositions
+                .AsNoTracking()
+                .Where(track =>
+                    track.TrackSource == "youtube" &&
+                    track.TrackSourceId == videoId)
+                .OrderBy(track => track.Position)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            var chapters = new SortedList<TimeSpan, IVideoChapter>();
+
+            foreach (var track in tracks) {
+                if (chapters.ContainsKey(track.Position))
+                    continue;
+
+                chapters.Add(
+                    track.Position,
+                    new IVideoChapter {
+                        Title = track.DisplayText,
+                        Time = (int)track.Position.TotalSeconds,
+                        Thumbnails = new List<IThumbnail>()
+                    });
+            }
+
+            return chapters;
+        }
+
+        private static async Task<SortedList<TimeSpan, IVideoChapter>> GetChaptersFromYoutube(
+            string videoId,
+            CancellationToken cancellationToken = default
+        ) {
+            var chapters = new SortedList<TimeSpan, IVideoChapter>();
+
+            string apiEndpoint = string.Format(
+                "{0}/videos?part=snippet,chapters&id={1}",
+                Program.Settings.YoutubeIntegration.OperationalApi,
+                videoId);
+
+            using var response = await cli.GetAsync(
+                apiEndpoint,
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+                return chapters;
+
             var json = await response.Content.ReadAsStringAsync();
 
             if (string.IsNullOrWhiteSpace(json))
-                return await returnSuccessOrCheckDatabaseTracks(videoId, cancellationToken, false, null);
+                return chapters;
 
-            IYoutubeRequest? yt = JsonConvert.DeserializeObject<IYoutubeRequest>(json);
-            if (yt == null) return await returnSuccessOrCheckDatabaseTracks(videoId, cancellationToken, false, null);
-            if (yt.Error != null) return await returnSuccessOrCheckDatabaseTracks(videoId, cancellationToken, false, null);
-            if (yt.Items.Count == 0) return await returnSuccessOrCheckDatabaseTracks(videoId, cancellationToken, false, null);
+            var youtubeResponse =
+                JsonConvert.DeserializeObject<IYoutubeRequest>(json);
 
-            var slTracks = new SortedList<TimeSpan, IVideoChapter>();
-            var videoItem = yt.Items[0];
-            foreach (var chapter in videoItem.Chapters.Chapters) {
-                var timespan = TimeSpan.FromSeconds(chapter.Time);
-                slTracks.Add(timespan, chapter);
+            if (youtubeResponse == null ||
+                youtubeResponse.Error != null ||
+                youtubeResponse.Items == null ||
+                youtubeResponse.Items.Count == 0) {
+                return chapters;
             }
 
-            // Attempt to parse the chapters from the description.
-            if (slTracks.Count == 0) {
-                var splitDescription = videoItem.Snippet.Description
+            var videoItem = youtubeResponse.Items[0];
+
+            // First try YouTube's chapter data.
+            if (videoItem.Chapters?.Chapters != null) {
+                foreach (var chapter in videoItem.Chapters.Chapters) {
+                    var position = TimeSpan.FromSeconds(chapter.Time);
+
+                    if (chapters.ContainsKey(position))
+                        continue;
+
+                    chapters.Add(position, chapter);
+                }
+            }
+
+            // Fall back to timestamps in the description.
+            if (chapters.Count == 0 &&
+                !string.IsNullOrWhiteSpace(videoItem.Snippet?.Description)) {
+                var descriptionLines = videoItem.Snippet.Description
                     .Split('\n')
-                    .Select(x => x.Trim())
-                    .Where(x => !string.IsNullOrWhiteSpace(x))
-                    .ToArray();
+                    .Select(line => line.Trim())
+                    .Where(line => !string.IsNullOrWhiteSpace(line));
 
-                // Get Timestamps
-                foreach (var line in splitDescription) {
+                foreach (var line in descriptionLines) {
                     var matchTs = RgxTimestampMatch.Match(line);
-                    if (matchTs.Success) {
-                        // Parse into timestamp
-                        var ts = matchTs.Value.TryParseTimeStamp();
-                        if (ts == null) continue;
 
-                        slTracks.Add(ts.Value, new IVideoChapter() { Title = line, Time = (int)ts.Value.TotalSeconds, Thumbnails = new List<IThumbnail>() });
-                    }
+                    if (!matchTs.Success)
+                        continue;
+
+                    var timestamp = matchTs.Value.TryParseTimeStamp();
+
+                    if (timestamp == null)
+                        continue;
+
+                    if (chapters.ContainsKey(timestamp.Value))
+                        continue;
+
+                    chapters.Add(
+                        timestamp.Value,
+                        new IVideoChapter {
+                            Title = line,
+                            Time = (int)timestamp.Value.TotalSeconds,
+                            Thumbnails = new List<IThumbnail>()
+                        });
                 }
             }
 
-            return await returnSuccessOrCheckDatabaseTracks(videoId, cancellationToken, slTracks.Count != 0, slTracks);
+            return chapters;
         }
 
-        private static async Task<(bool success, SortedList<TimeSpan, IVideoChapter>? chapters)> returnSuccessOrCheckDatabaseTracks
-            (string videoId, CancellationToken cancellationToken, bool success, SortedList<TimeSpan, IVideoChapter>? chapters) {
-            if (success) 
-                return (success, chapters);
+        private static async Task SaveChaptersToDatabase(
+            string videoId,
+            SortedList<TimeSpan, IVideoChapter> chapters,
+            CancellationToken cancellationToken = default
+        ) {
+            if (chapters.Count == 0)
+                return;
 
-            // Check if the cancellation token was cancelled
-            if (cancellationToken.IsCancellationRequested)
-                return (false, null);
+            await using var ctx = new TavernContext();
 
-            // Check if the database contains the tracks
-            var ctx = new TavernContext();
-            var qry = ctx.TrackPlaylistPositions.Where(x => x.TrackSource == "youtube"
-                                                         && x.TrackSourceId == videoId);
+            var existingPositions = await ctx.TrackPlaylistPositions
+                .Where(track =>
+                    track.TrackSource == "youtube" &&
+                    track.TrackSourceId == videoId)
+                .Select(track => track.Position)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
 
-            if (qry.Any()) {
-                // Load the tracks
-                var tracks = await qry.ToListAsync().ConfigureAwait(false);
-                chapters = new SortedList<TimeSpan, IVideoChapter>();
+            var existingPositionSet = existingPositions.ToHashSet();
 
-                foreach (var t in tracks) {
-                    if (chapters.ContainsKey(t.Position)) continue;
+            foreach (var chapter in chapters) {
+                cancellationToken.ThrowIfCancellationRequested();
 
-                    var ivc = new IVideoChapter() { 
-                        Title = t.DisplayText,
-                        Time = (int)t.Position.TotalSeconds, 
-                        Thumbnails = new List<IThumbnail>() 
-                    };
+                if (!existingPositionSet.Add(chapter.Key))
+                    continue;
 
-                    chapters.Add(t.Position, ivc);
-                }
-
-                return (chapters.Count != 0, chapters);
+                ctx.TrackPlaylistPositions.Add(
+                    new TrackPlaylistPosition {
+                        TrackSource = "youtube",
+                        TrackSourceId = videoId,
+                        Position = chapter.Key,
+                        DisplayText = chapter.Value.Title ?? string.Empty
+                    });
             }
 
-            return (false, null);
+            if (!ctx.ChangeTracker.HasChanges())
+                return;
+
+            try {
+                await ctx.SaveChangesAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            } catch (DbUpdateException) {
+                /*
+                 * TODO: Handle concurrent exceptions like when a unique 
+                 * index may reject inserts when another request saves the 
+                 * same chapters concurrently. The parsed chapters are still 
+                 * valid, so duplicate inserts can be ignored here.
+                 */
+            }
         }
-
-        /*
-        private async Task<bool> ParsePlaylist(ulong guildId, ulong trackPosition, string videoId) {
-            return null;
-            
-        getTimestampsFromYoutubeDescription:
-            var service = YoutubeHelper.Instance.YoutubeService;
-            if (service == null) return false;
-
-            VideosResource.ListRequest listRequest = service.Videos.List("snippet,chapters");
-            listRequest.Id = videoId;
-
-            VideoListResponse response = listRequest.Execute();
-
-            if (response.Items.Any() == false) return false;
-            var videoItem = response.Items[0];
-            var splitDescription = videoItem.Snippet.Description
-                .Split('\n')
-                .Select(x => x.Trim())
-                .Where(x => !x.IsNullOrEmpty())
-                .ToArray();
-
-            SortedList<TimeSpan, string> slTracks = new SortedList<TimeSpan, string>();
-
-            // Get Timestamps
-            foreach (var line in splitDescription) {
-                var matchTs = RgxTimestampMatch.Match(line);
-                if (matchTs.Success) {
-                    // Parse into timestamp
-                    var ts = matchTs.Value.TryParseTimeStamp();
-                    if (ts == null) continue;
-
-                    slTracks.Add(ts.Value, matchTs.Value);
-                }
-            }
-
-            // Check if we are still playing the same song
-            await using var db = new TavernContext();
-            var guild = await db.GetGuild(guildId);
-
-            // Update the track list
-            if (guild?.CurrentTrack == trackPosition) {
-                GuildStates[guildId].PlaylistTracks = slTracks;
-            }
-
-            return false; 
-        }//*/
 
         // IYoutubeRequest myDeserializedClass = JsonConvert.DeserializeObject<IYoutubeRequest>(myJsonResponse);
         public class IYoutubeRequest

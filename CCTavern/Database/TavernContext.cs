@@ -134,14 +134,16 @@ public partial class TavernContext : DbContext
         }
 
         /*Track Playlist Position*/ {
-            modelBuilder.Entity<TrackPlaylistPosition>()
-                .Property(t => t.Id)
+            var tppEnt = modelBuilder.Entity<TrackPlaylistPosition>();
+            tppEnt.ToTable("TrackPlaylistPositions");
+            tppEnt.HasKey(x => x.Id);
+            tppEnt.Property(x => x.Id)
                 .ValueGeneratedOnAdd();
 
-            // Indexes
-            modelBuilder.Entity<TrackPlaylistPosition>()
-                .HasIndex(x => new { x.TrackSource, x.TrackSourceId, x.Position })
-                .IsUnique();
+            tppEnt.HasIndex(x => new { x.TrackSource, x.TrackSourceId, x.Position })
+                .IsUnique()
+                .HasDatabaseName(
+                    "UX_TrackPlaylistPositions_Source_SourceId_Position");
         }
 
         OnModelCreatingPartial(modelBuilder);

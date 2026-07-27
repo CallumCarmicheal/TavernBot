@@ -12,10 +12,10 @@ namespace CCTavern.Database {
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public ulong Id { get; set; }
 
-        public string TrackSource { get; set; }     // "youtube" etc.
-        public string TrackSourceId { get; set; }   // source id, if youtube then the ?v={TrackSourceId}
+        public string TrackSource { get; set; } = string.Empty;    // "youtube" etc.
+        public string TrackSourceId { get; set; } = string.Empty;  // source id, if youtube then the ?v={TrackSourceId}
 
-        public TimeSpan Position { get; set; }      // Position of the track
-        public string DisplayText { get; set; }
+        public TimeSpan Position { get; set; } = TimeSpan.Zero;     // Position of the track
+        public string DisplayText { get; set; } = string.Empty;
     }
 }
