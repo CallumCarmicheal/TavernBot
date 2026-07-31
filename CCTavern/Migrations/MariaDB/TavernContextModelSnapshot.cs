@@ -16,7 +16,7 @@ namespace CCTavern.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.3")
+                .HasAnnotation("ProductVersion", "10.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             modelBuilder.Entity("CCTavern.Database.ArchivedMessage", b =>
@@ -134,7 +134,8 @@ namespace CCTavern.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("GuildId");
+                    b.HasIndex("GuildId", "UserId")
+                        .IsUnique();
 
                     b.ToTable("CachedUsers", (string)null);
                 });
@@ -237,11 +238,12 @@ namespace CCTavern.Migrations
 
                     b.HasIndex("DeletedById");
 
-                    b.HasIndex("GuildId");
-
                     b.HasIndex("PlaylistId");
 
                     b.HasIndex("RequestedById");
+
+                    b.HasIndex("GuildId", "Position")
+                        .IsUnique();
 
                     b.ToTable("GuildQueueItems", (string)null);
                 });
@@ -275,7 +277,7 @@ namespace CCTavern.Migrations
                     b.ToTable("GuildQueuePlaylists", (string)null);
                 });
 
-            modelBuilder.Entity("CCTavern.Database.TrackPlaylistPositions", b =>
+            modelBuilder.Entity("CCTavern.Database.TrackPlaylistPosition", b =>
                 {
                     b.Property<ulong>("Id")
                         .ValueGeneratedOnAdd()
@@ -293,18 +295,22 @@ namespace CCTavern.Migrations
 
                     b.Property<string>("TrackSource")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasColumnType("varchar(255)");
 
                     b.Property<string>("TrackSourceId")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasColumnType("varchar(255)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)");
 
                     b.HasKey("Id");
 
-                    b.ToTable("TrackPlaylistPositions");
+                    b.HasIndex("TrackSource", "TrackSourceId", "Position")
+                        .IsUnique()
+                        .HasDatabaseName("UX_TrackPlaylistPositions_Source_SourceId_Position");
+
+                    b.ToTable("TrackPlaylistPositions", (string)null);
                 });
 
             modelBuilder.Entity("CCTavern.Database.ArchivedMessage", b =>
