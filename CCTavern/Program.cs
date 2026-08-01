@@ -1,8 +1,4 @@
-﻿using AngleSharp.Html.Dom;
-using AngleSharp.Html.Parser;
-
-using CCTavern.Commands;
-using CCTavern.Database;
+﻿using CCTavern.Database;
 using CCTavern.Logger;
 using CCTavern.Player;
 using CCTavern.Web;
@@ -10,15 +6,11 @@ using CCTavern.Web;
 using Config.Net;
 
 using DSharpPlus;
-using DSharpPlus.CommandsNext;
-using DSharpPlus.Entities;
-using DSharpPlus.Interactivity;
-using DSharpPlus.Interactivity.Enums;
-using DSharpPlus.Interactivity.Extensions;
 
 using Lavalink4NET;
 using Lavalink4NET.Extensions;
 
+using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -26,30 +18,15 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Console;
-using Microsoft.Identity.Client;
-
-using MySqlX.XDevAPI;
-
-using Newtonsoft.Json.Linq;
-
-using Org.BouncyCastle.Asn1.Pkcs;
-using Org.BouncyCastle.Asn1.X509.Qualified;
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace CCTavern {
     public sealed class Program {
@@ -92,7 +69,8 @@ namespace CCTavern {
                           | DiscordIntents.GuildVoiceStates | DiscordIntents.DirectMessageReactions
             };
 
-            var builder = new HostApplicationBuilder(args);
+            var builder = WebApplication.CreateBuilder(args);
+
             builder.Services.AddSingleton<ILoggerFactory>(LoggerFactory);
 
             builder.Services.AddSingleton<ITavernSettings>(Settings);
@@ -112,14 +90,18 @@ namespace CCTavern {
                 config.ResumptionOptions = new LavalinkSessionResumptionOptions(TimeSpan.FromSeconds(60));
             });
 
+            // Hosted services start sequentially in registration order. ApplicationHost does not
+            // complete startup until Discord and Lavalink are ready, so Kestrel starts afterward.
+            builder.Services.Configure<HostOptions>(options => options.ServicesStartConcurrently = false);
             builder.Services.AddHostedService<ApplicationHost>();
+            WebServer.Configure(builder);
 
             // Logging
-            builder.Services.AddLogging(s => s.AddConsole().SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Trace));
+            builder.Services.AddLogging(s => s.AddConsole().SetMinimumLevel(LogLevel.Debug));
 
-            IHost services = null!;
+            WebApplication app;
             try {
-                services = builder.Build();
+                app = builder.Build();
             } catch (Microsoft.Extensions.Hosting.HostAbortedException) {
                 // Entity Framework tooling deliberately aborts the host after discovering its services.
                 throw;
@@ -129,24 +111,20 @@ namespace CCTavern {
                 throw;
             }
 
-            var serviceProvider = services.Services;
+            var serviceProvider = app.Services;
             DatabaseFactory = serviceProvider.GetRequiredService<IDbContextFactory<TavernContext>>();
 
             await setupDatabase(DatabaseFactory);
-
-            var webServer = new WebServer(serviceProvider);
-            var webServerStartTask = webServer.StartServer(applicationCancelTokenSource.Token).ConfigureAwait(false);
-
-            // Run the application
-            //services.RunAsync(applicationCancelTokenSource.Token).GetAwaiter().GetResult();
-            //await builder.Build().RunAsync(applicationCancelTokenSource.Token);
+            WebServer.MapEndpoints(app);
 
             int shutdownDelayMilliseconds = (2 * 60) * 1000; // 2 minutes
             try {
-                // Build and run the application
-                await services.RunAsync(applicationCancelTokenSource.Token).ConfigureAwait(false);
+                await ((IHost)app).RunAsync(applicationCancelTokenSource.Token).ConfigureAwait(false);
 
                 logger.LogInformation("Host is running successfully.");
+                return;
+            } catch (OperationCanceledException) when (applicationCancelTokenSource.IsCancellationRequested) {
+                // Application shutdown is expected to cancel the host and HTTP server.
                 return;
             } catch (Exception ex) {
                 logger.LogError(TLE.Startup, ex, $"Startup attempt failed: {ex.Message}");

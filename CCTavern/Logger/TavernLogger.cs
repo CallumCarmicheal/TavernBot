@@ -10,7 +10,7 @@ using CCTavern;
 namespace CCTavern.Logger {
     public class TavernLogger : ILogger<Program> {
         private static readonly object _lock = new();
-        private const int CATEGORY_MAX_LENGTH = 12;
+        private const int CATEGORY_MAX_LENGTH = 14;
 
 
         private string CategoryName { get; }

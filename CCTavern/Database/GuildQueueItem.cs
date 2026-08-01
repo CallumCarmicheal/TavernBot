@@ -54,10 +54,9 @@ namespace CCTavern.Database {
                       + $"`{CreatedAt:dd/MM/yyyy HH:mm:ss}` ({Formatter.Timestamp(CreatedAt, TimestampFormat.RelativeTime)})");
             }
 
-            string? displayName = null;
             if (RequestedByUser != null) {
-                displayName = await ctx.GetUserDisplayNameForGuildAsync(RequestedByUser, GuildId, cancellationToken) ?? displayName;
-                return $"`{Title}` at position `{Position}`, requested by `{displayName ?? RequestedByUser.Username}` at "
+                //displayName = await ctx.GetUserDisplayNameForGuildAsync(RequestedByUser, GuildId, cancellationToken) ?? displayName;
+                return $"`{Title}` at position `{Position}`, requested by `{RequestedByUser.Username}` at "
                     + $"`{CreatedAt:dd/MM/yyyy HH:mm:ss}` ({Formatter.Timestamp(CreatedAt, TimestampFormat.RelativeTime)})";
             }
 

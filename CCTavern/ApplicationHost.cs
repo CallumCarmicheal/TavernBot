@@ -16,8 +16,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Identity.Client;
 
-using Swan.Logging;
-
 using System;
 using System.Collections.Generic;
 using System.Threading;

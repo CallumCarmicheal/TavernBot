@@ -6,8 +6,6 @@ using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
 
-using EmbedIO.Utilities;
-
 using Lavalink4NET;
 
 using LinqKit;
@@ -19,8 +17,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 using Org.BouncyCastle.Asn1.Cms;
-
-using Swan.Logging;
 
 using System;
 using System.Collections.Generic;
@@ -212,11 +208,8 @@ namespace CCTavern.Commands {
                 queueContent += $" {dbTrack.Position,4}";
                 queueContent += dateFormat == null ? "" : ", " + dbTrack.CreatedAt.ToString(dateFormat);
                 queueContent += $") {dbTrack.Title} - Requested by ";
-                queueContent += dbTrack.RequestedByUserId is ulong requestedByUserId
-                    ? guildDisplayNames.GetValueOrDefault(requestedByUserId)
-                        ?? dbTrack.RequestedByUser?.Username
-                        ?? "<#UNKNOWN>"
-                    : "<#UNKNOWN>";
+                queueContent += dbTrack.RequestedByUser?.Username
+                        ?? "<#UNKNOWN>";
                 queueContent += "\n";
             }
 
@@ -422,8 +415,8 @@ namespace CCTavern.Commands {
             if (result && trackUri != null
                     && (trackUri.Host == "youtube.com" || trackUri.Host == "www.youtube.com")) {
                 var uriQuery = HttpUtility.ParseQueryString(trackUri.Query);
-                if (uriQuery.ContainsKey("v"))
-                    ytVideoId = uriQuery["v"]!;
+                if (uriQuery["v"] is string videoId)
+                    ytVideoId = videoId;
             }
 
             var tracks = trackPositions.Split('\n')

@@ -17,7 +17,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace CCTavern.Commands {
-    internal class StatusCommandModule : BaseAudioCommandModule {
+    public class StatusCommandModule : BaseAudioCommandModule {
         private readonly ILogger<StatusCommandModule> logger;
         private readonly BotInactivityImplementation  botInactivity;
 

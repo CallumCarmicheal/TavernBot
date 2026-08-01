@@ -966,11 +966,7 @@ namespace CCTavern.Commands {
                 queueContent += $"  {dbTrack.Position,4}";
                 queueContent += dateFormat == null ? "" : ", " + dbTrack.CreatedAt.ToString(dateFormat);
                 queueContent += $") {dbTrack.Title} - Requested by ";
-                var guildUser = dbTrack.RequestedByUser?.GuildUsers
-                    .FirstOrDefault(x => x.GuildId == guild.Id);
-                queueContent += guildUser?.DisplayName
-                    ?? dbTrack.RequestedByUser?.Username
-                    ?? "<#UNKNOWN>";
+                queueContent += dbTrack.RequestedByUser?.Username ?? "<#UNKNOWN>";
                 queueContent += "\n";
             }
 

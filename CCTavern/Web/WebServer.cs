@@ -1,37 +1,86 @@
-﻿using EmbedIO;
-using EmbedIO.WebApi;
-
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace CCTavern.Web {
-    internal class WebServer {
-        public IServiceProvider ServiceProvider { get; }
+    internal static class WebServer {
+        private const int Port = 10001;
 
-        public WebServer(IServiceProvider serviceProvider) {
-            ServiceProvider = serviceProvider;
+        public static void Configure(WebApplicationBuilder builder) {
+            builder.WebHost.ConfigureKestrel(options => options.ListenAnyIP(Port));
+            builder.Services
+                .AddControllers()
+                .AddApplicationPart(typeof(StatusController).Assembly);
         }
 
-        public async Task StartServer(CancellationToken cancellationToken) {
-            using var server = new EmbedIO.WebServer(o => o
-                   .WithUrlPrefix("http://*:10001/")
-                   .WithMode(HttpListenerMode.EmbedIO));
+    #region Placeholder endpoints
 
-            // Inject dependencies into controller
-            server.WithLocalSessionManager();
-            _ = server.WithWebApi("Serve status page", "/api/status",
-                m => m.RegisterController( () => ServiceProvider.GetInstance<StatusController>()! )
-            );
-            server.WithAction("/", HttpVerbs.Any, async (ctx) => await ctx.SendStandardHtmlAsync(200, (x) => { x.WriteLine("Waiting for API requests"); }));
+        private const string HtmlContentType = "text/html; charset=utf-8";
 
-            // Start server
-            await server.RunAsync(cancellationToken);
+        private const string RootHtml = """
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <title>CCTavern</title>
+            </head>
+            <body>Waiting for API requests</body>
+            </html>
+            """;
+
+        private const string LoginHtml = """
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <title>Login - CCTavern</title>
+            </head>
+            <body>
+                <h1>Login</h1>
+                <p>Authentication is not available yet.</p>
+            </body>
+            </html>
+            """;
+
+        private const string LogoutHtml = """
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <title>Logout - CCTavern</title>
+            </head>
+            <body>
+                <h1>Logout</h1>
+                <p>Authentication is not available yet.</p>
+            </body>
+            </html>
+            """;
+
+        private const string HomeHtml = """
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <title>Home - CCTavern</title>
+            </head>
+            <body>
+                <h1>Welcome</h1>
+            </body>
+            </html>
+            """;
+
+        public static void MapEndpoints(WebApplication app) {
+            app.MapControllers();
+            app.MapGet("/", () => Results.Content(RootHtml, HtmlContentType));
+            app.MapGet("/app/auth/login", () => Results.Content(LoginHtml, HtmlContentType));
+            app.MapGet("/app/auth/logout", () => Results.Content(LogoutHtml, HtmlContentType));
+            app.MapGet("/app/home", () => Results.Content(HomeHtml, HtmlContentType));
         }
+        #endregion
     }
 }
