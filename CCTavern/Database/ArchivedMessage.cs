@@ -16,11 +16,9 @@ namespace CCTavern.Database {
 
         public DateTime DateMessageCreated { get; set; }
 
-        [ForeignKey("Id")]
-        public ulong? AuthorId { get; set; }
-        public virtual CachedUser Author { get; set; }
+        public ulong? AuthorUserId { get; set; }
+        public virtual TavernUser? AuthorUser { get; set; }
 
-        [ForeignKey("Id")]
         public ulong GuildId { get; set; }
         public virtual Guild Guild { get; set; }
 

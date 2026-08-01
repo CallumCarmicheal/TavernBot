@@ -66,14 +66,14 @@ namespace CCTavern.Player
 
             public int PlaylistSongCount => Songs.Count;
 
-            public ulong? CreatedById { get; set; }
+            public ulong? CreatedByUserId { get; set; }
 
             public List<GuildQueueItem> Songs { get; }
 
-            public TemporaryPlaylist(string title, ulong? createdById, List<GuildQueueItem> songs)
+            public TemporaryPlaylist(string title, ulong? createdByUserId, List<GuildQueueItem> songs)
             {
                 Title = title;
-                CreatedById = createdById;
+                CreatedByUserId = createdByUserId;
                 Songs = songs;
             }
 

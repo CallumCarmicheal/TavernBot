@@ -26,11 +26,9 @@ namespace CCTavern.Database {
 
         public string TrackString { get; set; }
 
-        [ForeignKey("Id")]
-        public ulong? RequestedById { get; set; }
-        public virtual CachedUser RequestedBy { get; set; }
+        public ulong? RequestedByUserId { get; set; }
+        public virtual TavernUser? RequestedByUser { get; set; }
 
-        [ForeignKey("Id")]
         public ulong GuildId { get; set; }
         public virtual Guild Guild { get; set; }
 

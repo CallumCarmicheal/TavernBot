@@ -43,6 +43,9 @@ namespace CCTavern {
         [Option(Alias = "dbConnectionString", DefaultValue = "")]
         public string DatabaseConnectionString { get; set; }
 
+        [Option(Alias = "applyDestructiveDatabaseMigrations", DefaultValue = false)]
+        public bool ApplyDestructiveDatabaseMigrations { get; set; }
+
         [Option(Alias = "debug")]
         public IDebugSettings ConnectionDebugging { get; set; }
 

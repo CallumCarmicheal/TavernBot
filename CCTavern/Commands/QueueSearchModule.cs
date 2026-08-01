@@ -40,7 +40,8 @@ namespace CCTavern.Commands {
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
             IQueryable<GuildQueueItem> baseQuery = db.GuildQueueItems
-                .Include(p => p.RequestedBy)
+                .Include(p => p.RequestedByUser)
+                    .ThenInclude(user => user!.GuildUsers)
                 .Include(p => p.Playlist)
                 .Where(qi => qi.GuildId == guild.Id && qi.IsDeleted == false);
 
@@ -430,31 +431,50 @@ namespace CCTavern.Commands {
                                     : Expression.AndAlso(notNull, inner);
                 }
             case "user": {
-                    // user:<@123> => RequestedBy.UserId == 123  (negate => !=)
+                    // user:<@123> => RequestedByUserId == 123  (negate => !=)
                     if (TryParseMentionId(t.Value, out var uid)) {
-                        var rb = F(g, "RequestedBy");
-                        var notNull = Expression.NotEqual(rb, Expression.Constant(null, typeof(CachedUser)));
-                        var userId = F(rb, "UserId");
-                        var rhs = Expression.Constant(uid);
+                        var userId = F(g, "RequestedByUserId");
+                        var rhs = Expression.Constant((ulong?)uid, typeof(ulong?));
+                        var hasUser = Expression.NotEqual(
+                            userId,
+                            Expression.Constant(null, typeof(ulong?)));
                         var cmp = t.Negate || t.Op == "!=" ? Expression.NotEqual(userId, rhs)
                                                            : Expression.Equal(userId, rhs);
-                        return Expression.AndAlso(notNull, cmp);
+                        return Expression.AndAlso(hasUser, cmp);
                     } else {
-                        var rb = F(g, "RequestedBy");
-                        var notNull = Expression.NotEqual(rb, Expression.Constant(null, typeof(CachedUser)));
+                        var rb = F(g, "RequestedByUser");
+                        var notNull = Expression.NotEqual(rb, Expression.Constant(null, typeof(TavernUser)));
                         var un = F(rb, "Username");
-                        var dn = F(rb, "DisplayName");
 
-                        Expression clause;
+                        var guildUsers = F(rb, "GuildUsers");
+                        var guildUser = Expression.Parameter(typeof(GuildUser), "guildUser");
+                        var sameGuild = Expression.Equal(F(guildUser, "GuildId"), F(g, "GuildId"));
+                        var displayName = F(guildUser, "DisplayName");
+
+                        Expression usernameClause;
+                        Expression displayNameClause;
                         if (t.Op == "=") {
-                            clause = Expression.OrElse(StrEquals(un, t.Value, caseSensitive), StrEquals(dn, t.Value, caseSensitive));
-                            if (t.Negate) clause = Expression.Not(clause);
+                            usernameClause = StrEquals(un, t.Value, caseSensitive);
+                            displayNameClause = StrEquals(displayName, t.Value, caseSensitive);
                         } else if (t.Op == "!=") {
-                            clause = Expression.Not(Expression.OrElse(StrContains(un, t.Value, caseSensitive), StrContains(dn, t.Value, caseSensitive)));
+                            usernameClause = StrContains(un, t.Value, caseSensitive);
+                            displayNameClause = StrContains(displayName, t.Value, caseSensitive);
                         } else { // contains
-                            clause = Expression.OrElse(StrContains(un, t.Value, caseSensitive), StrContains(dn, t.Value, caseSensitive));
-                            if (t.Negate) clause = Expression.Not(clause);
+                            usernameClause = StrContains(un, t.Value, caseSensitive);
+                            displayNameClause = StrContains(displayName, t.Value, caseSensitive);
                         }
+
+                        var displayPredicate = Expression.Lambda<Func<GuildUser, bool>>(
+                            Expression.AndAlso(sameGuild, displayNameClause), guildUser);
+                        var anyDisplayName = Expression.Call(
+                            typeof(Enumerable),
+                            nameof(Enumerable.Any),
+                            [typeof(GuildUser)],
+                            guildUsers,
+                            displayPredicate);
+                        Expression clause = Expression.OrElse(usernameClause, anyDisplayName);
+                        if (t.Negate || t.Op == "!=") clause = Expression.Not(clause);
+
                         return Expression.AndAlso(notNull, clause);
                     }
                 }
@@ -896,6 +916,8 @@ namespace CCTavern.Commands {
 
             List<GuildQueueItem> pageContents = guildQueueQuery
                 .Include(x => x.Playlist) // Ensure Playlist is included.
+                .Include(x => x.RequestedByUser)
+                    .ThenInclude(user => user!.GuildUsers)
                 .Page(targetPage, ITEMS_PER_PAGE)
                 .ToList();
             ulong? currentPlaylist = null;
@@ -944,7 +966,11 @@ namespace CCTavern.Commands {
                 queueContent += $"  {dbTrack.Position,4}";
                 queueContent += dateFormat == null ? "" : ", " + dbTrack.CreatedAt.ToString(dateFormat);
                 queueContent += $") {dbTrack.Title} - Requested by ";
-                queueContent += (dbTrack.RequestedBy == null) ? "<#DELETED>" : $"{dbTrack.RequestedBy.Username}";
+                var guildUser = dbTrack.RequestedByUser?.GuildUsers
+                    .FirstOrDefault(x => x.GuildId == guild.Id);
+                queueContent += guildUser?.DisplayName
+                    ?? dbTrack.RequestedByUser?.Username
+                    ?? "<#UNKNOWN>";
                 queueContent += "\n";
             }
 

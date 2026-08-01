@@ -16,10 +16,12 @@ namespace CCTavern.Database {
 
         public int PlaylistSongCount { get; set; }
 
-        [ForeignKey("Id")]
-        public ulong? CreatedById { get; set; }
-        public virtual CachedUser CreatedBy { get; set; }
+        public ulong? CreatedByUserId { get; set; }
+        public virtual TavernUser? CreatedByUser { get; set; }
 
-        public ICollection<GuildQueueItem> Songs { get; set; }
+        public ulong GuildId { get; set; }
+        public virtual Guild Guild { get; set; } = null!;
+
+        public ICollection<GuildQueueItem> Songs { get; set; } = [];
     }
 }

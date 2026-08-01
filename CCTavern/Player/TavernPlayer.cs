@@ -159,12 +159,16 @@ namespace CCTavern.Player {
                 var currentTrackIdx = dbGuild.CurrentTrack;
 
                 var requestedBy = "<#ERROR>";
-                var currentTrackQuery = db.GuildQueueItems.Include(p => p.RequestedBy)
-                                                          .Where(x => x.GuildId == dbGuild.Id && x.Position == currentTrackIdx);
-                if (currentTrackQuery.Any()) {
-                    dbTrack = await currentTrackQuery.FirstAsync(cancellationToken);
-                    requestedBy = (dbTrack?.RequestedBy == null) ? "<#NULL>" : dbTrack?.RequestedBy.DisplayName;
-                }
+                dbTrack = await db.GuildQueueItems
+                    .Include(p => p.RequestedByUser)
+                        .ThenInclude(user => user!.GuildUsers)
+                    .Where(x => x.GuildId == dbGuild.Id && x.Position == currentTrackIdx)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                requestedBy =
+                    dbTrack?.RequestedByUser?.GuildUsers?.Where(gu => gu.GuildId == GuildId)?.FirstOrDefault()?.DisplayName
+                    ?? dbTrack?.RequestedByUser?.Username
+                    ?? "<#NULL>";
 
                 string track_Author = track.Author;
                 string? track_AuthorUrl = null;

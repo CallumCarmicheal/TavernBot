@@ -11,6 +11,7 @@ using DSharpPlus.Entities;
 using DSharpPlus.Net.Models;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Identity.Client;
@@ -21,7 +22,8 @@ public partial class TavernContext : DbContext
 {
     public DbSet<Guild> Guilds { get; set; }
     public DbSet<GuildQueueItem> GuildQueueItems { get; set; }
-    public DbSet<CachedUser> CachedUsers { get; set; }
+    public DbSet<TavernUser> Users { get; set; }
+    public DbSet<GuildUser> GuildUsers { get; set; }
     public DbSet<GuildQueuePlaylist> GuildQueuePlaylists { get; set; }
     public DbSet<TrackPlaylistPosition> TrackPlaylistPositions { get; set; }
     public DbSet<ArchivedTrack> ArchivedTracks { get; set; }
@@ -51,8 +53,11 @@ public partial class TavernContext : DbContext
     ) {
         if (settings.DatabaseEngine == "mssql")
             optionsBuilder.UseSqlServer(settings.DatabaseConnectionString);
-        else
-            optionsBuilder.UseMySQL(settings.DatabaseConnectionString);
+        else {
+            optionsBuilder
+                .UseMySQL(settings.DatabaseConnectionString)
+                .ReplaceService<IHistoryRepository, MariaDbHistoryRepository>();
+        }
 
         if (settings.LogDatabaseQueries)
             optionsBuilder.UseLoggerFactory(loggerFactory);
@@ -63,37 +68,90 @@ public partial class TavernContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder) {
         base.OnModelCreating(modelBuilder);
 
-        /* Cached User */ {
-            modelBuilder.Entity<CachedUser>()
-                .Property(t => t.Id)
-                .ValueGeneratedOnAdd();
-            modelBuilder.Entity<CachedUser>()
-                .ToTable("CachedUsers")
-                .HasKey(t => t.Id);
+        /* Global Discord users and guild-specific profiles */ {
+            var user = modelBuilder.Entity<TavernUser>();
+            user.ToTable("Users");
+            user.HasKey(x => x.Id);
+            user.Property(x => x.Id).ValueGeneratedNever();
+            user.Property(x => x.Username).HasMaxLength(64).IsRequired();
 
-            // Indexes
+            var guildUser = modelBuilder.Entity<GuildUser>();
+            guildUser.ToTable("GuildUsers");
+            guildUser.HasKey(x => new { x.GuildId, x.UserId });
+            guildUser.Property(x => x.DisplayName).HasMaxLength(255).IsRequired();
+            guildUser.HasIndex(x => x.UserId);
 
-            modelBuilder.Entity<CachedUser>()
-                .HasIndex(x => new { x.GuildId, x.UserId })
-                .IsUnique();
+            guildUser.HasOne(x => x.Guild)
+                .WithMany(x => x.Users)
+                .HasForeignKey(x => x.GuildId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            guildUser.HasOne(x => x.User)
+                .WithMany(x => x.GuildUsers)
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
 
         modelBuilder.Entity<Guild>()
            .ToTable("Guilds")
            .HasKey(t => t.Id);
 
-        modelBuilder.Entity<GuildQueuePlaylist>()
-            .ToTable("GuildQueuePlaylists")
-            .HasKey(t => t.Id);
+        {
+            var playlist = modelBuilder.Entity<GuildQueuePlaylist>();
+            playlist.ToTable("GuildQueuePlaylists");
+            playlist.HasKey(t => t.Id);
+
+            playlist.HasOne(x => x.Guild)
+                .WithMany(x => x.Playlists)
+                .HasForeignKey(x => x.GuildId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
+
+            playlist.HasOne(x => x.CreatedByUser)
+                .WithMany(x => x.CreatedPlaylists)
+                .HasForeignKey(x => x.CreatedByUserId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+        }
 
         /* Archived Tracks */ {
-            modelBuilder.Entity<ArchivedTrack>()
-                .Property(t => t.Id)
+            var archivedTrack = modelBuilder.Entity<ArchivedTrack>();
+            archivedTrack.Property(t => t.Id)
                 .ValueGeneratedOnAdd();
 
-            modelBuilder.Entity<ArchivedTrack>()
+            archivedTrack
                 .ToTable("ArchivedTracks")
                 .HasKey(t => t.Id);
+
+            archivedTrack
+                .HasOne(x => x.RequestedByUser)
+                .WithMany(x => x.RequestedArchivedTracks)
+                .HasForeignKey(x => x.RequestedByUserId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            archivedTrack
+                .HasOne(x => x.Guild)
+                .WithMany()
+                .HasForeignKey(x => x.GuildId)
+                .OnDelete(DeleteBehavior.Cascade);
+        }
+
+        /* Archived Messages */ {
+            var archivedMessage = modelBuilder.Entity<ArchivedMessage>();
+            archivedMessage.ToTable("ArchivedMessages").HasKey(x => x.Id);
+            archivedMessage.Property(x => x.Id).ValueGeneratedOnAdd();
+            archivedMessage
+                .HasOne(x => x.AuthorUser)
+                .WithMany(x => x.AuthoredArchivedMessages)
+                .HasForeignKey(x => x.AuthorUserId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+            archivedMessage
+                .HasOne(x => x.Guild)
+                .WithMany()
+                .HasForeignKey(x => x.GuildId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
 
         /*Guild Queue Item*/ {
@@ -102,16 +160,16 @@ public partial class TavernContext : DbContext
                 .ValueGeneratedOnAdd();
 
             modelBuilder.Entity<GuildQueueItem>()
-                .HasOne(qi => qi.RequestedBy)
+                .HasOne(qi => qi.RequestedByUser)
                     .WithMany(usr => usr.RequestedSongs)
-                .HasForeignKey(qi => qi.RequestedById)
+                .HasForeignKey(qi => qi.RequestedByUserId)
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<GuildQueueItem>()
-                .HasOne(qi => qi.DeletedBy)
+                .HasOne(qi => qi.DeletedByUser)
                     .WithMany(usr => usr.DeletedSongs)
-                .HasForeignKey(qi => qi.DeletedById)
+                .HasForeignKey(qi => qi.DeletedByUserId)
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.SetNull);
 
@@ -198,31 +256,6 @@ public partial class TavernContext : DbContext
 
     #region Query Functions
 
-    public async Task<CachedUser> GetOrCreateCachedUser(Guild guild, DiscordMember user) {
-        CachedUser cachedUser;
-
-        var query = CachedUsers.Where(x => x.UserId == user.Id && x.GuildId == guild.Id);
-
-        if (await query.AnyAsync() == false) {
-            cachedUser = new CachedUser() {
-                UserId = user.Id,
-                DisplayName = user.DisplayName,
-                Username = user.Username,
-                GuildId = guild.Id
-            };
-
-            CachedUsers.Add(cachedUser);
-            await SaveChangesAsync();
-        } else cachedUser = await query.FirstAsync();
-
-        if (cachedUser.DisplayName != user.DisplayName) {
-            cachedUser.DisplayName = user.DisplayName;
-            await SaveChangesAsync();
-        }
-
-        return cachedUser;
-    }
-
     public async Task<Guild> GetOrCreateDiscordGuild(DiscordGuild guild, CancellationToken cancellationToken = default) {
         Guild dbGuild;
         
@@ -254,6 +287,72 @@ public partial class TavernContext : DbContext
             return null;
 
         return await query.FirstAsync();
+    }
+
+    public async Task<string> GetUserDisplayNameForGuildAsync(
+        TavernUser user,
+        ulong guildId,
+        CancellationToken cancellationToken = default
+    ) {
+        var guildUsers = this.Entry(user)
+            .Collection(x => x.GuildUsers);
+
+        // Check if our GuildUsers collection is loaded
+        if (guildUsers.IsLoaded) {
+            return user.GuildUsers.FirstOrDefault(x => x.GuildId == guildId)?.DisplayName
+                ?? user.Username;
+        }
+
+        // If its not loaded lets fall back to load the username
+        return await this.GuildUsers
+            .Where(x => x.GuildId == guildId && x.UserId == user.Id)
+            .Select(x => x.DisplayName)
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? user.Username;
+    }
+
+    public async Task<ResolvedGuildUser> ResolveGuildUserAsync(
+        DiscordMember member,
+        CancellationToken cancellationToken = default
+    ) {
+        ArgumentNullException.ThrowIfNull(member);
+
+        var user = Users.Local.FirstOrDefault(x => x.Id == member.Id)
+            ?? await Users.SingleOrDefaultAsync(x => x.Id == member.Id, cancellationToken);
+
+        if (user == null) {
+            user = new TavernUser {
+                Id = member.Id,
+                Username = member.Username
+            };
+
+            Users.Add(user);
+        } else if (user.Username != member.Username) {
+            user.Username = member.Username;
+        }
+
+        var guildId = member.Guild.Id;
+        var guildUser = GuildUsers.Local
+            .FirstOrDefault(x => x.GuildId == guildId && x.UserId == member.Id)
+            ?? await GuildUsers
+                .SingleOrDefaultAsync(
+                    x => x.GuildId == guildId && x.UserId == member.Id,
+                    cancellationToken);
+
+        if (guildUser == null) {
+            guildUser = new GuildUser {
+                GuildId = guildId,
+                UserId = member.Id,
+                User = user,
+                DisplayName = member.DisplayName
+            };
+
+            GuildUsers.Add(guildUser);
+        } else if (guildUser.DisplayName != member.DisplayName) {
+            guildUser.DisplayName = member.DisplayName;
+        }
+
+        return new ResolvedGuildUser(user, guildUser);
     }
 
 

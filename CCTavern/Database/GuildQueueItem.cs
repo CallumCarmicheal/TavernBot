@@ -9,6 +9,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Numerics;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace CCTavern.Database {
@@ -17,7 +18,6 @@ namespace CCTavern.Database {
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public ulong Id { get; set; }
 
-        [ForeignKey("Id")]
         public ulong GuildId { get; set; }
         public virtual Guild Guild { get; set; }
 
@@ -30,47 +30,39 @@ namespace CCTavern.Database {
 
         public string TrackString { get; set; }
 
-
         public bool IsDeleted { get; set; } = false;
 
         public DateTime? DateDeleted { get; set; }
 
-        [ForeignKey("Id")]
-        public ulong? DeletedById { get; set; }
-        public virtual CachedUser DeletedBy { get; set; }
+        public ulong? DeletedByUserId { get; set; }
+        public virtual TavernUser? DeletedByUser { get; set; }
 
         public string? DeletedReason { get; set; }
 
-        [ForeignKey("Id")]
-        public ulong? RequestedById { get; set; }
-        public virtual CachedUser RequestedBy { get; set; }
+        public ulong? RequestedByUserId { get; set; }
+        public virtual TavernUser? RequestedByUser { get; set; }
 
 
-        [ForeignKey("Id")]
         public ulong? PlaylistId { get; set; }
         public virtual GuildQueuePlaylist Playlist { get; set; }
 
 
-        public async Task<string> GetTagline(TavernContext? ctx = null, bool fetchUserIfNotPresent = false) {
+        public async Task<string> GetTagline(TavernContext? ctx = null, bool fetchUserIfNotPresent = false, CancellationToken cancellationToken = default) {
 
-            if (ctx == null && RequestedBy == null) {
+            if (ctx == null || RequestedByUser == null) {
                 return ($"`{Title}` at position `{Position}`, requested at "
                       + $"`{CreatedAt:dd/MM/yyyy HH:mm:ss}` ({Formatter.Timestamp(CreatedAt, TimestampFormat.RelativeTime)})");
             }
 
-            if (fetchUserIfNotPresent && RequestedBy == null) {
-                var userQuery = ctx?.CachedUsers.Where(x => x.UserId == RequestedById);
-                if (userQuery != null && await userQuery.AnyAsync()) 
-                    RequestedBy = await userQuery.FirstAsync();
+            string? displayName = null;
+            if (RequestedByUser != null) {
+                displayName = await ctx.GetUserDisplayNameForGuildAsync(RequestedByUser, GuildId, cancellationToken) ?? displayName;
+                return $"`{Title}` at position `{Position}`, requested by `{displayName ?? RequestedByUser.Username}` at "
+                    + $"`{CreatedAt:dd/MM/yyyy HH:mm:ss}` ({Formatter.Timestamp(CreatedAt, TimestampFormat.RelativeTime)})";
             }
 
-            if (RequestedBy == null) {
-                return ($"`{Title}` at position `{Position}`, requested at "
-                      + $"`{CreatedAt:dd/MM/yyyy HH:mm:ss}` ({Formatter.Timestamp(CreatedAt, TimestampFormat.RelativeTime)})");
-            }
-
-            return $"`{Title}` at position `{Position}`, requested by `{RequestedBy.Username}` at "
-                +  $"`{CreatedAt:dd/MM/yyyy HH:mm:ss}` ({Formatter.Timestamp(CreatedAt, TimestampFormat.RelativeTime)})";
+            return $"`{Title}` at position `{Position}`, requested at "
+                      + $"`{CreatedAt:dd/MM/yyyy HH:mm:ss}` ({Formatter.Timestamp(CreatedAt, TimestampFormat.RelativeTime)})";
         }
     }
 }

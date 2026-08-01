@@ -163,18 +163,16 @@ namespace CCTavern.Commands {
                         }
                     }
 
-                    CachedUser? dbUser = null;
-
                     ulong? dbUserId = null;
                     if (cachedUserIds.ContainsKey(msg.Author.Id) == false) {
                         if (member == null) {
                             dbUserId = null;
                         }
                         else {
-                            dbUser = await db.GetOrCreateCachedUser(guild, member);
+                            var dbUser = await db.ResolveGuildUserAsync(member);
 
-                            cachedUserIds.Add(msg.Author.Id, dbUser.Id);
-                            dbUserId = dbUser.Id;
+                            cachedUserIds.Add(msg.Author.Id, dbUser.User.Id);
+                            dbUserId = dbUser.User.Id;
                             processedUniqueUsers = cachedUserIds.Count;
                         }
                     } else {
@@ -182,9 +180,9 @@ namespace CCTavern.Commands {
                     }
 
                     var archivedMessage = new ArchivedMessage();
-                    archivedMessage.AuthorId = dbUserId;
+                    archivedMessage.AuthorUserId = dbUserId;
                     archivedMessage.MessageId = msg.Id;
-                    //archivedMessage.GuildId = guild.Id;
+                    archivedMessage.GuildId = guild.Id;
                     archivedMessage.MessageContents = msg.Content;
                     archivedMessage.DateMessageCreated = msg.CreationTimestamp.DateTime;
 
@@ -365,9 +363,9 @@ namespace CCTavern.Commands {
                                 ulong dbUserId = 0;
                                 if (cachedUserIds.ContainsKey(msg.Author.Id) == false) {
                                     var member = await ctx.Guild.GetMemberAsync(msg.Author.Id);
-                                    var dbUser = await db.GetOrCreateCachedUser(guild, member);
-                                    cachedUserIds.Add(msg.Author.Id, dbUser.Id);
-                                    dbUserId = dbUser.Id;
+                                    var dbUser = await db.ResolveGuildUserAsync(member);
+                                    cachedUserIds.Add(msg.Author.Id, dbUser.User.Id);
+                                    dbUserId = dbUser.User.Id;
                                     processedUniqueUsers = cachedUserIds.Count;
                                 } else {
                                     dbUserId = cachedUserIds[msg.Author.Id];
@@ -464,9 +462,9 @@ namespace CCTavern.Commands {
                                 ulong dbUserId = 0;
                                 if (cachedUserIds.ContainsKey(msg.Author.Id) == false) {
                                     var member = await ctx.Guild.GetMemberAsync(msg.Author.Id);
-                                    var dbUser = await db.GetOrCreateCachedUser(guild, member);
-                                    cachedUserIds.Add(msg.Author.Id, dbUser.Id);
-                                    dbUserId = dbUser.Id;
+                                    var dbUser = await db.ResolveGuildUserAsync(member);
+                                    cachedUserIds.Add(msg.Author.Id, dbUser.User.Id);
+                                    dbUserId = dbUser.User.Id;
                                     processedUniqueUsers = cachedUserIds.Count;
                                 } else {
                                     dbUserId = cachedUserIds[msg.Author.Id];
@@ -563,7 +561,7 @@ namespace CCTavern.Commands {
                 Length = track.Length,
                 Position = 0,
 
-                RequestedById = dbUserId,
+                RequestedByUserId = dbUserId,
                 Title = track.Title,
                 TrackString = track.TrackString,
 

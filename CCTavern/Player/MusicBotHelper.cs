@@ -175,7 +175,7 @@ namespace CCTavern.Player {
 
             // Get the track from the database
             var query = db.GuildQueueItems
-                .Include(x => x.RequestedBy)
+                .Include(x => x.RequestedByUser)
                 .Where(x => x.GuildId == guild.Id
                          && x.Position >= targetTrackId // Get target track or the next available track
                          && x.IsDeleted == false)
@@ -226,16 +226,16 @@ namespace CCTavern.Player {
         internal GuildState GetOrCreateGuildState(ulong guildId) => 
             GuildStates.GetOrAdd(guildId, id => new GuildState(id));
 
-        public static async Task<GuildQueueItem> CreateGuildQueueItem(
+        public async Task<GuildQueueItem> CreateGuildQueueItem(
             TavernContext db, Guild dbGuild,
             LavalinkTrack track, DiscordChannel channel, DiscordMember requestedBy, GuildQueuePlaylist? playlist, ulong trackPosition
         ) {
-            var requestedUser = await db.GetOrCreateCachedUser(dbGuild, requestedBy);
+            var requestedUser = await db.ResolveGuildUserAsync(requestedBy);
             var qi = new GuildQueueItem() {
                 GuildId = channel.Guild.Id,
                 Length = track.Duration,
                 Position = trackPosition,
-                RequestedById = requestedUser.Id,
+                RequestedByUserId = requestedUser.User.Id,
                 Title = track.Title,
                 TrackString = track.ToString(),
                 PlaylistId = playlist?.Id
@@ -244,7 +244,7 @@ namespace CCTavern.Player {
             return qi;
         }
 
-        public static async Task<GuildQueueItem?> CreateGuildQueueItem(
+        public async Task<GuildQueueItem?> CreateGuildQueueItem(
             TavernContext db, Guild dbGuild,
             ITrackQueueItem trackQueueItem, DiscordChannel channel, DiscordMember requestedBy, GuildQueuePlaylist? playlist, ulong trackPosition
         ) {
@@ -259,12 +259,12 @@ namespace CCTavern.Player {
                 trackTitle = tpqi.TrackTitle;
             }
 
-            var requestedUser = await db.GetOrCreateCachedUser(dbGuild, requestedBy);
+            var requestedUser = await db.ResolveGuildUserAsync(requestedBy);
             var qi = new GuildQueueItem() {
                 GuildId = channel.Guild.Id,
                 Length = track.Duration,
                 Position = trackPosition,
-                RequestedById = requestedUser.Id,
+                RequestedByUserId = requestedUser.User.Id,
                 Title = trackTitle,
                 TrackString = track.ToString(),
                 PlaylistId = playlist?.Id
@@ -279,7 +279,6 @@ namespace CCTavern.Player {
 
             dbGuild.TrackCount = dbGuild.TrackCount + 1;
             var trackPosition = dbGuild.TrackCount;
-            await db.SaveChangesAsync();
 
             logger.LogInformation(TLE.Misc, $"Queue Music into {channel.Guild.Name}.{channel.Name} [{trackPosition}] from {requestedBy.Username}: {track.Title}, {track.Duration.ToString(@"hh\:mm\:ss")}");
 
@@ -302,7 +301,6 @@ namespace CCTavern.Player {
 
             dbGuild.TrackCount = dbGuild.TrackCount + 1;
             var trackPosition = dbGuild.TrackCount;
-            await db.SaveChangesAsync();
 
             logger.LogInformation(TLE.Misc, $"Queue Music into {channel.Guild.Name}.{channel.Name} [{trackPosition}] from {requestedBy.Username}: {trackQueueItem.Track?.Title}, {trackQueueItem.Track?.Duration.ToString(@"hh\:mm\:ss")}");
 

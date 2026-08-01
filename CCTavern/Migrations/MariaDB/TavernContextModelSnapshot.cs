@@ -25,7 +25,7 @@ namespace CCTavern.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint unsigned");
 
-                    b.Property<ulong?>("AuthorId")
+                    b.Property<ulong?>("AuthorUserId")
                         .HasColumnType("bigint unsigned");
 
                     b.Property<bool>("ContainsPrefix")
@@ -52,11 +52,11 @@ namespace CCTavern.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AuthorId");
+                    b.HasIndex("AuthorUserId");
 
                     b.HasIndex("GuildId");
 
-                    b.ToTable("ArchivedMessages");
+                    b.ToTable("ArchivedMessages", (string)null);
                 });
 
             modelBuilder.Entity("CCTavern.Database.ArchivedTrack", b =>
@@ -83,7 +83,7 @@ namespace CCTavern.Migrations
                     b.Property<ulong>("Position")
                         .HasColumnType("bigint unsigned");
 
-                    b.Property<ulong?>("RequestedById")
+                    b.Property<ulong?>("RequestedByUserId")
                         .HasColumnType("bigint unsigned");
 
                     b.Property<string>("Title")
@@ -101,43 +101,9 @@ namespace CCTavern.Migrations
 
                     b.HasIndex("GuildId");
 
-                    b.HasIndex("RequestedById");
+                    b.HasIndex("RequestedByUserId");
 
                     b.ToTable("ArchivedTracks", (string)null);
-                });
-
-            modelBuilder.Entity("CCTavern.Database.CachedUser", b =>
-                {
-                    b.Property<ulong>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint unsigned");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("DisplayName")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<ulong>("GuildId")
-                        .HasColumnType("bigint unsigned");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<ulong>("UserId")
-                        .HasColumnType("bigint unsigned");
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("GuildId", "UserId")
-                        .IsUnique();
-
-                    b.ToTable("CachedUsers", (string)null);
                 });
 
             modelBuilder.Entity("CCTavern.Database.Guild", b =>
@@ -199,7 +165,7 @@ namespace CCTavern.Migrations
                     b.Property<DateTime?>("DateDeleted")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<ulong?>("DeletedById")
+                    b.Property<ulong?>("DeletedByUserId")
                         .HasColumnType("bigint unsigned");
 
                     b.Property<string>("DeletedReason")
@@ -220,7 +186,7 @@ namespace CCTavern.Migrations
                     b.Property<ulong>("Position")
                         .HasColumnType("bigint unsigned");
 
-                    b.Property<ulong?>("RequestedById")
+                    b.Property<ulong?>("RequestedByUserId")
                         .HasColumnType("bigint unsigned");
 
                     b.Property<string>("Title")
@@ -236,11 +202,11 @@ namespace CCTavern.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("DeletedById");
+                    b.HasIndex("DeletedByUserId");
 
                     b.HasIndex("PlaylistId");
 
-                    b.HasIndex("RequestedById");
+                    b.HasIndex("RequestedByUserId");
 
                     b.HasIndex("GuildId", "Position")
                         .IsUnique();
@@ -257,7 +223,10 @@ namespace CCTavern.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<ulong?>("CreatedById")
+                    b.Property<ulong?>("CreatedByUserId")
+                        .HasColumnType("bigint unsigned");
+
+                    b.Property<ulong>("GuildId")
                         .HasColumnType("bigint unsigned");
 
                     b.Property<int>("PlaylistSongCount")
@@ -272,9 +241,58 @@ namespace CCTavern.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CreatedById");
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("GuildId");
 
                     b.ToTable("GuildQueuePlaylists", (string)null);
+                });
+
+            modelBuilder.Entity("CCTavern.Database.GuildUser", b =>
+                {
+                    b.Property<ulong>("GuildId")
+                        .HasColumnType("bigint unsigned");
+
+                    b.Property<ulong>("UserId")
+                        .HasColumnType("bigint unsigned");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("GuildId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("GuildUsers", (string)null);
+                });
+
+            modelBuilder.Entity("CCTavern.Database.TavernUser", b =>
+                {
+                    b.Property<ulong>("Id")
+                        .HasColumnType("bigint unsigned");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("CCTavern.Database.TrackPlaylistPosition", b =>
@@ -315,9 +333,10 @@ namespace CCTavern.Migrations
 
             modelBuilder.Entity("CCTavern.Database.ArchivedMessage", b =>
                 {
-                    b.HasOne("CCTavern.Database.CachedUser", "Author")
-                        .WithMany()
-                        .HasForeignKey("AuthorId");
+                    b.HasOne("CCTavern.Database.TavernUser", "AuthorUser")
+                        .WithMany("AuthoredArchivedMessages")
+                        .HasForeignKey("AuthorUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("CCTavern.Database.Guild", "Guild")
                         .WithMany()
@@ -325,7 +344,7 @@ namespace CCTavern.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Author");
+                    b.Navigation("AuthorUser");
 
                     b.Navigation("Guild");
                 });
@@ -338,31 +357,21 @@ namespace CCTavern.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("CCTavern.Database.CachedUser", "RequestedBy")
-                        .WithMany("ArchivedTracks")
-                        .HasForeignKey("RequestedById");
+                    b.HasOne("CCTavern.Database.TavernUser", "RequestedByUser")
+                        .WithMany("RequestedArchivedTracks")
+                        .HasForeignKey("RequestedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Guild");
 
-                    b.Navigation("RequestedBy");
-                });
-
-            modelBuilder.Entity("CCTavern.Database.CachedUser", b =>
-                {
-                    b.HasOne("CCTavern.Database.Guild", "Guild")
-                        .WithMany()
-                        .HasForeignKey("GuildId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Guild");
+                    b.Navigation("RequestedByUser");
                 });
 
             modelBuilder.Entity("CCTavern.Database.GuildQueueItem", b =>
                 {
-                    b.HasOne("CCTavern.Database.CachedUser", "DeletedBy")
+                    b.HasOne("CCTavern.Database.TavernUser", "DeletedByUser")
                         .WithMany("DeletedSongs")
-                        .HasForeignKey("DeletedById")
+                        .HasForeignKey("DeletedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("CCTavern.Database.Guild", "Guild")
@@ -376,46 +385,84 @@ namespace CCTavern.Migrations
                         .HasForeignKey("PlaylistId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("CCTavern.Database.CachedUser", "RequestedBy")
+                    b.HasOne("CCTavern.Database.TavernUser", "RequestedByUser")
                         .WithMany("RequestedSongs")
-                        .HasForeignKey("RequestedById")
+                        .HasForeignKey("RequestedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.Navigation("DeletedBy");
+                    b.Navigation("DeletedByUser");
 
                     b.Navigation("Guild");
 
                     b.Navigation("Playlist");
 
-                    b.Navigation("RequestedBy");
+                    b.Navigation("RequestedByUser");
                 });
 
             modelBuilder.Entity("CCTavern.Database.GuildQueuePlaylist", b =>
                 {
-                    b.HasOne("CCTavern.Database.CachedUser", "CreatedBy")
-                        .WithMany()
-                        .HasForeignKey("CreatedById");
+                    b.HasOne("CCTavern.Database.TavernUser", "CreatedByUser")
+                        .WithMany("CreatedPlaylists")
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
-                    b.Navigation("CreatedBy");
+                    b.HasOne("CCTavern.Database.Guild", "Guild")
+                        .WithMany("Playlists")
+                        .HasForeignKey("GuildId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("Guild");
                 });
 
-            modelBuilder.Entity("CCTavern.Database.CachedUser", b =>
+            modelBuilder.Entity("CCTavern.Database.GuildUser", b =>
                 {
-                    b.Navigation("ArchivedTracks");
+                    b.HasOne("CCTavern.Database.Guild", "Guild")
+                        .WithMany("Users")
+                        .HasForeignKey("GuildId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.Navigation("DeletedSongs");
+                    b.HasOne("CCTavern.Database.TavernUser", "User")
+                        .WithMany("GuildUsers")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.Navigation("RequestedSongs");
+                    b.Navigation("Guild");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("CCTavern.Database.Guild", b =>
                 {
+                    b.Navigation("Playlists");
+
                     b.Navigation("Tracks");
+
+                    b.Navigation("Users");
                 });
 
             modelBuilder.Entity("CCTavern.Database.GuildQueuePlaylist", b =>
                 {
                     b.Navigation("Songs");
+                });
+
+            modelBuilder.Entity("CCTavern.Database.TavernUser", b =>
+                {
+                    b.Navigation("AuthoredArchivedMessages");
+
+                    b.Navigation("CreatedPlaylists");
+
+                    b.Navigation("DeletedSongs");
+
+                    b.Navigation("GuildUsers");
+
+                    b.Navigation("RequestedArchivedTracks");
+
+                    b.Navigation("RequestedSongs");
                 });
 #pragma warning restore 612, 618
         }

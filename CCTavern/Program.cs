@@ -20,6 +20,9 @@ using Lavalink4NET;
 using Lavalink4NET.Extensions;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -98,7 +101,6 @@ namespace CCTavern {
             builder.Services.AddSingleton<BotInactivityManager>();
             builder.Services.AddSingleton<BotInactivityImplementation>();
             builder.Services.AddSingleton<MusicBotHelper>();
-
             builder.Services.AddDbContextFactory<TavernContext>(options =>
                 TavernContext.ConfigureOptions(options, Settings, LoggerFactory));
 
@@ -118,7 +120,9 @@ namespace CCTavern {
             IHost services = null!;
             try {
                 services = builder.Build();
-            //} catch (Microsoft.Extensions.Hosting.HostAbortedException ex) {
+            } catch (Microsoft.Extensions.Hosting.HostAbortedException) {
+                // Entity Framework tooling deliberately aborts the host after discovering its services.
+                throw;
             } catch (Exception ex) {
                 logger.LogError(TLE.Startup, ex, $"Failed to build application host, waiting 5 seconds: {ex.Message}");
                 await Task.Delay(5000);
@@ -173,15 +177,60 @@ namespace CCTavern {
         }
 
         private static async Task setupDatabase(IDbContextFactory<TavernContext> databaseFactory) {
+            const string removeCachedUsersMigration = "20260731161550_RemoveCachedUsers";
+            const string introduceUsersMigration = "20260731160315_IntroduceUsersAndGuildUsers";
+
             logger.LogInformation(LoggerEvents.Startup, "Setting up database");
 
             await using var ctx = await databaseFactory.CreateDbContextAsync();
 
-            var migrations = await ctx.Database.GetPendingMigrationsAsync();
-            if (migrations.Any()) {
-                logger.LogInformation(LoggerEvents.Startup, "Migrations required: {migrations}.", string.Join(", ", migrations));
-                await ctx.Database.MigrateAsync();
-                await ctx.SaveChangesAsync();
+            if (Settings?.DatabaseEngine != "mssql"
+                    && ctx.GetService<IHistoryRepository>() is not MariaDbHistoryRepository) {
+                throw new InvalidOperationException(
+                    "The MariaDB-safe migration history repository was not registered.");
+            }
+
+            var databaseCreator = ctx.GetService<IRelationalDatabaseCreator>();
+            var databaseExists = await databaseCreator.ExistsAsync();
+            var isInitialDatabaseSeed = !databaseExists
+                || !await databaseCreator.HasTablesAsync();
+
+            var pendingMigrations = (await ctx.Database.GetPendingMigrationsAsync()).ToList();
+            if (pendingMigrations.Count > 0) {
+                logger.LogInformation(
+                    LoggerEvents.Startup,
+                    "Migrations required: {migrations}.",
+                    string.Join(", ", pendingMigrations));
+
+                if (pendingMigrations.Contains(removeCachedUsersMigration)
+                        && !isInitialDatabaseSeed
+                        && Settings?.ApplyDestructiveDatabaseMigrations != true) {
+                    var migrationsBeforeContract = pendingMigrations
+                        .TakeWhile(migration => migration != removeCachedUsersMigration)
+                        .ToList();
+
+                    logger.LogWarning(
+                        LoggerEvents.Startup,
+                        "The destructive {migration} migration is pending. Migrations will be applied only through {target}. "
+                            + "Run validation and set applyDestructiveDatabaseMigrations=true when the contract migration is approved.",
+                        removeCachedUsersMigration,
+                        introduceUsersMigration);
+
+                    if (migrationsBeforeContract.Count > 0) {
+                        var migrator = ctx.GetService<IMigrator>();
+                        await migrator.MigrateAsync(migrationsBeforeContract[^1]);
+                    }
+                } else {
+                    if (isInitialDatabaseSeed
+                            && pendingMigrations.Contains(removeCachedUsersMigration)) {
+                        logger.LogInformation(
+                            LoggerEvents.Startup,
+                            "The database contains no tables. Applying the complete migration chain, including {migration}, during initial setup.",
+                            removeCachedUsersMigration);
+                    }
+
+                    await ctx.Database.MigrateAsync();
+                }
             }
 
             await ctx.Database.EnsureCreatedAsync();

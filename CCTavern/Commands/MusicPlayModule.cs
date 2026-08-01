@@ -282,7 +282,7 @@ namespace CCTavern.Commands {
             // 
             bool isPlayEvent = player.State == Lavalink4NET.Players.PlayerState.NotPlaying;
             var dbGuild      = await db.GetOrCreateDiscordGuild(ctx.Guild);
-            var requestedBy  = await db.GetOrCreateCachedUser(new Guild { Id = ctx.Guild.Id }, ctx.Member);
+            var requestedBy  = await db.ResolveGuildUserAsync(ctx.Member);
 
             // Add all the tracks to the queue
             var list = trackResults.Tracks.ToList();
@@ -291,7 +291,8 @@ namespace CCTavern.Commands {
             // Create the queue 
             var playlist = new GuildQueuePlaylist();
             playlist.Title = trackResults.Playlist.Name;
-            playlist.CreatedById = requestedBy.Id;
+            playlist.GuildId = ctx.Guild.Id;
+            playlist.CreatedByUserId = requestedBy.User.Id;
             playlist.PlaylistSongCount = list.Count;
             db.GuildQueuePlaylists.Add(playlist);
             await db.SaveChangesAsync();

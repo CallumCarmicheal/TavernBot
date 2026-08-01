@@ -115,7 +115,7 @@ namespace CCTavern.Commands {
             // Get the guild
             await using var db = await databaseFactory.CreateDbContextAsync();
             var guild = await db.GetOrCreateDiscordGuild(ctx.Guild);
-            var guildQueueQuery = db.GuildQueueItems.Include(p => p.RequestedBy).Where(qi => qi.GuildId == guild.Id && qi.IsDeleted == false);
+            var guildQueueQuery = db.GuildQueueItems.Include(p => p.RequestedByUser).Where(qi => qi.GuildId == guild.Id && qi.IsDeleted == false);
             var currentPosition = await guildQueueQuery.Where(qi => qi.Position <= guild.CurrentTrack).CountAsync();
 
             var targetPage = (int)Math.Ceiling((decimal)currentPosition / ITEMS_PER_PAGE);
@@ -162,6 +162,15 @@ namespace CCTavern.Commands {
                     .Include(x => x.Playlist)
                 .Page(targetPage, ITEMS_PER_PAGE)
                 .ToList();
+
+            var requestedUserIds = pageContents
+                .Where(x => x.RequestedByUserId.HasValue)
+                .Select(x => x.RequestedByUserId!.Value)
+                .Distinct()
+                .ToList();
+            var guildDisplayNames = await db.GuildUsers
+                .Where(x => x.GuildId == guild.Id && requestedUserIds.Contains(x.UserId))
+                .ToDictionaryAsync(x => x.UserId, x => x.DisplayName);
             ulong? currentPlaylist = null;
 
             string?[] dateFormatArr = new string?[] { null, null }; // "dd/MM/yy";
@@ -203,7 +212,11 @@ namespace CCTavern.Commands {
                 queueContent += $" {dbTrack.Position,4}";
                 queueContent += dateFormat == null ? "" : ", " + dbTrack.CreatedAt.ToString(dateFormat);
                 queueContent += $") {dbTrack.Title} - Requested by ";
-                queueContent += (dbTrack.RequestedBy == null) ? "<#DELETED>" : $"{dbTrack.RequestedBy.Username}";
+                queueContent += dbTrack.RequestedByUserId is ulong requestedByUserId
+                    ? guildDisplayNames.GetValueOrDefault(requestedByUserId)
+                        ?? dbTrack.RequestedByUser?.Username
+                        ?? "<#UNKNOWN>"
+                    : "<#UNKNOWN>";
                 queueContent += "\n";
             }
 
@@ -251,13 +264,13 @@ namespace CCTavern.Commands {
             await using var db = await databaseFactory.CreateDbContextAsync();
             var dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
-            CachedUser? dbUser = null;
+            ResolvedGuildUser? dbUser = null;
             if (ctx.Member != null)
-                dbUser = await db.GetOrCreateCachedUser(dbGuild, ctx.Member);
+                dbUser = await db.ResolveGuildUserAsync(ctx.Member);
 
             // Get the song
             var guildQueueQuery = db.GuildQueueItems
-                .Include(p => p.RequestedBy)
+                .Include(p => p.RequestedByUser)
                 .Where(x => x.GuildId == dbGuild.Id && x.IsDeleted == false && x.Position == songIndex);
 
             // Check if the song doesn't exist
@@ -279,7 +292,7 @@ namespace CCTavern.Commands {
             await ctx.RespondAsync($"Successfully removed {await dbTrack.GetTagline(db, true)}.");
 
             dbTrack.IsDeleted = true;
-            dbTrack.DeletedById = dbUser?.Id;
+            dbTrack.DeletedByUserId = dbUser?.User.Id;
             await db.SaveChangesAsync();
         }
 
@@ -462,42 +475,5 @@ namespace CCTavern.Commands {
             }
         }
 
-        /*/[Command("searchQueue"), Aliases("sq")]
-        [Description("Search queue for ")]
-        [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
-        public async Task SearchQueue(CommandContext ctx,
-            [Description("Fields to search")]
-            [RemainingText]
-            string searchFields
-        ) {
-
-            await using var db = await databaseFactory.CreateDbContextAsync();
-            var guild = await db.GetOrCreateDiscordGuild(ctx.Guild, false);
-
-            var predicate = PredicateBuilder.New<GuildQueueItem>();
-
-            var searchFieldsSplit = searchFields.Split("(?<!\\\\),");
-            bool hasSearch = false;
-
-            foreach (var field in searchFieldsSplit) {
-                var searchSplit = field.Split("(?<!\\\\)=");
-
-                for (int x = 0; x < searchSplit.Length; x++)
-                    searchSplit[x] = searchSplit[x].Trim();
-
-
-                // TODO: Finish user search queue functionality
-                switch (field) {
-                    case "user":
-                        predicate.Or(p => p.RequestedBy.DisplayName == "");
-                        break;
-                    case "title":
-                        break;
-                    case "author":
-
-                        break;
-                }
-            } 
-        } //*/
     }
 }

@@ -135,13 +135,18 @@ namespace CCTavern.Commands
                 queueContent += $"{x,3}) ";
                 queueContent += $"{dbTrack.Title} - Requested by ";
 
-                var query = db.CachedUsers.Where(x => x.UserId == dbTrack.RequestedById && x.GuildId == guild.Id);
-                CachedUser? requestedBy = null;
+                GuildUser? requestedBy = null;
+                if (dbTrack.RequestedByUserId.HasValue) {
+                    requestedBy = await db.GuildUsers
+                        .Include(x => x.User)
+                        .SingleOrDefaultAsync(x => x.GuildId == guild.Id
+                                                && x.UserId == dbTrack.RequestedByUserId.Value);
+                }
 
-                if (await query.AnyAsync())
-                    requestedBy = await query.FirstAsync();
-
-                queueContent += (dbTrack.RequestedBy == null) ? "<#DELETED>" : $"{dbTrack.RequestedBy.Username}\n";
+                queueContent += requestedBy?.DisplayName
+                    ?? requestedBy?.User.Username
+                    ?? "<#UNKNOWN>";
+                queueContent += "\n";
             }
 
             await message.ModifyAsync($"```{queueContent}```");
