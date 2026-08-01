@@ -26,7 +26,7 @@ namespace CCTavern.Web {
                 <meta name="viewport" content="width=device-width, initial-scale=1">
                 <title>CCTavern</title>
             </head>
-            <body>Waiting for API requests</body>
+            <body>OK</body>
             </html>
             """;
 
