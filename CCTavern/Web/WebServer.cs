@@ -5,10 +5,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CCTavern.Web {
     internal static class WebServer {
-        private const int Port = 10001;
 
         public static void Configure(WebApplicationBuilder builder) {
-            builder.WebHost.ConfigureKestrel(options => options.ListenAnyIP(Port));
             builder.Services
                 .AddControllers()
                 .AddApplicationPart(typeof(StatusController).Assembly);

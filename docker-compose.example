@@ -1,8 +1,11 @@
-version: '3.4'
-
 services:
   cctavern:
+    container_name: cctavern
     image: cctavern-image
     restart: always
+    environment:
+      ASPNETCORE_HTTP_PORTS: "10001"
     volumes:
-      - ./Configuration.json:/App/Configuration.json
+      - ./Configuration.json:/app/Configuration.json:ro
+    ports:
+      - "10001:10001"

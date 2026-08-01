@@ -258,8 +258,11 @@ namespace CCTavern {
             string jsonFile = "./Configuration.json";
 
             // Check if the configuration file exists
-            if (System.IO.File.Exists("Configuration.json") == false) {
+            if (System.IO.File.Exists(jsonFile) == false) {
                 // Attempt to load it from the bin folder assuming we are in the root of the source.
+                if (logger != null)
+                     logger?.LogWarning("Failed to find json file in app directory {directory}, searching for development config.", Environment.CurrentDirectory);
+                else Console.WriteLine($"Failed to find json file in app directory {Environment.CurrentDirectory}, searching for development config.");
 
                 var folder = "";
                 var dnConfiguration = DotNetConfigurationMode;
@@ -282,9 +285,8 @@ namespace CCTavern {
             }
 
             if (logger != null) 
-                logger?.LogInformation("Loading/Reloading configuration file: {file}", jsonFile);
-            else
-                Console.WriteLine("Loading/Reloading configuration file: " + jsonFile);
+                 logger?.LogInformation("Loading/Reloading configuration file: {file}", jsonFile);
+            else Console.WriteLine("Loading/Reloading configuration file: " + jsonFile);
 
             var absoluteJsonFilePath = Path.GetFullPath(jsonFile);
 
