@@ -1,7 +1,5 @@
 **/bin/
 **/obj/
-.git/
-.gitignore
 .vs/
 .idea/
 *.user

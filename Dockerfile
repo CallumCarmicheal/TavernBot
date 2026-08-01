@@ -6,7 +6,7 @@ COPY CCTavern/CCTavern.csproj CCTavern/
 RUN dotnet restore CCTavern/CCTavern.csproj
 
 # Copy the rest of the source
-COPY CCTavern/ CCTavern/
+COPY . .
 
 # Publish from the project file
 RUN dotnet publish CCTavern/CCTavern.csproj \
