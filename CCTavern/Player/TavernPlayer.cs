@@ -256,6 +256,12 @@ namespace CCTavern.Player {
 
                 dbGuild.LastMessageStatusId = message.Id;
                 dbGuild.IsPlaying = true;
+                db.AddGuildEvent(
+                    dbGuild.Id,
+                    GuildEventKind.TrackStarted,
+                    GuildEventSource.Player,
+                    new TrackPlaybackPayload(dbTrack?.Position, track_Title),
+                    queueItem: dbTrack);
                 await db.SaveChangesAsync(cancellationToken);
 
                 var embedIndex = embed.Fields.FindIndex(x => x.Name == "Progress");
@@ -302,6 +308,19 @@ namespace CCTavern.Player {
 
                 // Set IsPlaying to false.
                 dbGuild.IsPlaying = false;
+                var finishedTrack = await db.GuildQueueItems
+                    .FirstOrDefaultAsync(
+                        x => x.GuildId == dbGuild.Id && x.Position == dbGuild.CurrentTrack,
+                        cancellationToken);
+                db.AddGuildEvent(
+                    dbGuild.Id,
+                    GuildEventKind.TrackFinished,
+                    GuildEventSource.Player,
+                    new TrackPlaybackPayload(
+                        finishedTrack?.Position,
+                        finishedTrack?.Title ?? trackQueueItem.Track?.Title ?? "Unknown title",
+                        endReason.ToString()),
+                    queueItem: finishedTrack);
                 await db.SaveChangesAsync();
 
                 // Get the output music chanenl
@@ -374,6 +393,11 @@ namespace CCTavern.Player {
                                 messageText = "Disconnected after finished queue.";
                                 await DisconnectAsync().ConfigureAwait(false);
                                 mbHelper.AnnounceLeave(dbGuild.Id);
+                                db.AddGuildEvent(
+                                    dbGuild.Id,
+                                    GuildEventKind.PlayerDisconnected,
+                                    GuildEventSource.Player,
+                                    new PlayerConnectionPayload(VoiceChannelId, "queue finished"));
                             }
 
                             await outputChannel.SendMessageAsync(messageText);
@@ -404,6 +428,12 @@ namespace CCTavern.Player {
                         // Disconnecting
                         await DisconnectAsync().ConfigureAwait(false);
                         mbHelper.AnnounceLeave(dbGuild.Id);
+                        db.AddGuildEvent(
+                            dbGuild.Id,
+                            GuildEventKind.PlayerDisconnected,
+                            GuildEventSource.Player,
+                            new PlayerConnectionPayload(VoiceChannelId, "failed to load queued tracks"));
+                        await db.SaveChangesAsync(cancellationToken);
 
                         if (outputChannel != null)
                             await outputChannel.SendMessageAsync("Disconnected after finished queue.");

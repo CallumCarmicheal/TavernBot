@@ -77,17 +77,34 @@ namespace CCTavern.Commands {
                 return;
             }
 
-            if (mbHelper.GuildStates.ContainsKey(guild.Id) == false)
-                mbHelper.GuildStates[guild.Id] = new GuildState(guild.Id);
+            var guildState = mbHelper.GuildStates.GetOrAdd(
+                guild.Id,
+                guildId => new GuildState(guildId));
+            var oldValue = guildState.ShuffleEnabled;
 
             // Check if the flag is empty then we are to toggle.
             if (string.IsNullOrWhiteSpace(flag_str)) {
-                mbHelper.GuildStates[guild.Id].ShuffleEnabled = !mbHelper.GuildStates[guild.Id].ShuffleEnabled;
+                guildState.ShuffleEnabled = !guildState.ShuffleEnabled;
             } else {
-                mbHelper.GuildStates[guild.Id].ShuffleEnabled = flag;
+                guildState.ShuffleEnabled = flag;
             }
 
-            await ctx.RespondAsync(mbHelper.GuildStates[guild.Id].ShuffleEnabled ? "Shuffle enabled." : "Shuffle disabled.");
+            try {
+                if (oldValue != guildState.ShuffleEnabled) {
+                    await db.AddGuildEventAsync(
+                        guild.Id,
+                        GuildEventKind.ShuffleChanged,
+                        GuildEventSource.DiscordCommand,
+                        new BooleanOptionChangedPayload(oldValue, guildState.ShuffleEnabled),
+                        ctx.Member);
+                    await db.SaveChangesAsync();
+                }
+            } catch {
+                guildState.ShuffleEnabled = oldValue;
+                throw;
+            }
+
+            await ctx.RespondAsync(guildState.ShuffleEnabled ? "Shuffle enabled." : "Shuffle disabled.");
         }
 
         [Command("queue"), Aliases("q")]
@@ -286,6 +303,13 @@ namespace CCTavern.Commands {
 
             dbTrack.IsDeleted = true;
             dbTrack.DeletedByUserId = dbUser?.User.Id;
+            db.AddGuildEvent(
+                dbGuild.Id,
+                GuildEventKind.TrackRemoved,
+                GuildEventSource.DiscordCommand,
+                new TrackRemovedPayload(dbTrack.Position, dbTrack.Title, dbTrack.DeletedReason),
+                dbUser,
+                queueItem: dbTrack);
             await db.SaveChangesAsync();
         }
 
@@ -325,7 +349,14 @@ namespace CCTavern.Commands {
                 guildId => new GuildState(guildId));
 
             guildState.SetNextFlag = true;
+            var oldPosition = dbGuild.NextTrack;
             dbGuild.NextTrack = songIndex;
+            await db.AddGuildEventAsync(
+                dbGuild.Id,
+                GuildEventKind.NextTrackChanged,
+                GuildEventSource.DiscordCommand,
+                new NextTrackChangedPayload(oldPosition, songIndex),
+                ctx.Member);
             await db.SaveChangesAsync();
         }
 
@@ -377,12 +408,28 @@ namespace CCTavern.Commands {
                 dbGuild.Id,
                 guildId => new GuildState(guildId));
 
+            var oldValue = guildState.RepeatEnabled;
 
             // Check if the flag is empty then we are to toggle.
             if (string.IsNullOrWhiteSpace(flag)) {
                 guildState.RepeatEnabled = !guildState.RepeatEnabled;
             } else {
                 guildState.RepeatEnabled = enabled.Value;
+            }
+
+            try {
+                if (oldValue != guildState.RepeatEnabled) {
+                    await db.AddGuildEventAsync(
+                        dbGuild.Id,
+                        GuildEventKind.RepeatChanged,
+                        GuildEventSource.DiscordCommand,
+                        new BooleanOptionChangedPayload(oldValue, guildState.RepeatEnabled),
+                        ctx.Member);
+                    await db.SaveChangesAsync();
+                }
+            } catch {
+                guildState.RepeatEnabled = oldValue;
+                throw;
             }
 
             if (guildState.RepeatEnabled)

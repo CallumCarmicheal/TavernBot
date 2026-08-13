@@ -273,7 +273,14 @@ namespace CCTavern.Player {
             return qi;
         }
 
-        public async Task<ulong> EnqueueTrack(LavalinkTrack track, DiscordChannel channel, DiscordMember requestedBy, GuildQueuePlaylist? playlist, bool updateNextTrack) {
+        public async Task<ulong> EnqueueTrack(
+            LavalinkTrack track,
+            DiscordChannel channel,
+            DiscordMember requestedBy,
+            GuildQueuePlaylist? playlist,
+            bool updateNextTrack,
+            Guid? correlationId = null
+        ) {
             await using var db = await databaseFactory.CreateDbContextAsync();
             var dbGuild = await db.GetOrCreateDiscordGuild(channel.Guild);
 
@@ -290,12 +297,31 @@ namespace CCTavern.Player {
             }
 
             db.GuildQueueItems.Add(qi);
+            await db.AddGuildEventAsync(
+                dbGuild.Id,
+                GuildEventKind.TrackQueued,
+                GuildEventSource.DiscordCommand,
+                new TrackQueuedPayload(
+                    trackPosition,
+                    qi.Title,
+                    track.Uri?.Host ?? "unknown",
+                    playlist?.Id),
+                requestedBy,
+                queueItem: qi,
+                correlationId: correlationId);
             await db.SaveChangesAsync();
 
             return trackPosition;
         }
 
-        public async Task<ulong?> EnqueueTrack(ITrackQueueItem trackQueueItem, DiscordChannel channel, DiscordMember requestedBy, GuildQueuePlaylist? playlist, bool updateNextTrack) {
+        public async Task<ulong?> EnqueueTrack(
+            ITrackQueueItem trackQueueItem,
+            DiscordChannel channel,
+            DiscordMember requestedBy,
+            GuildQueuePlaylist? playlist,
+            bool updateNextTrack,
+            Guid? correlationId = null
+        ) {
             await using var db = await databaseFactory.CreateDbContextAsync();
             var dbGuild = await db.GetOrCreateDiscordGuild(channel.Guild);
 
@@ -317,6 +343,18 @@ namespace CCTavern.Player {
             }
 
             db.GuildQueueItems.Add(qi);
+            await db.AddGuildEventAsync(
+                dbGuild.Id,
+                GuildEventKind.TrackQueued,
+                GuildEventSource.DiscordCommand,
+                new TrackQueuedPayload(
+                    trackPosition,
+                    qi.Title,
+                    trackQueueItem.Track?.Uri?.Host ?? "unknown",
+                    playlist?.Id),
+                requestedBy,
+                queueItem: qi,
+                correlationId: correlationId);
             await db.SaveChangesAsync();
 
             return trackPosition;

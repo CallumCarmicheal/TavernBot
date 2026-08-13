@@ -71,6 +71,7 @@ namespace CCTavern.Commands {
             if (playerIsConnected && !wasPlayerConnected) {
                 await ctx.RespondAsync($"Connected to <#{ctx.Member?.VoiceState.Channel.Id}>.");
                 mbHelper.AnnounceJoin(voiceState.Channel.GuildId.Value, voiceChannel.Id);
+                await RecordPlayerConnectionAsync(ctx, voiceChannel.Id, "play command");
             }
 
             // Check if the player is paused and the user didn't enter a search result, assume they want to resume.
@@ -296,11 +297,18 @@ namespace CCTavern.Commands {
             playlist.PlaylistSongCount = list.Count;
             db.GuildQueuePlaylists.Add(playlist);
             await db.SaveChangesAsync();
+            var correlationId = Guid.NewGuid();
 
             // Loop the tracks
             for (int x = 0; x < list.Count; x++) {
                 var lt = list[x];
-                var trackIdx = await mbHelper.EnqueueTrack(lt, ctx.Channel, ctx.Member, playlist, (x == 0 && isPlayEvent));
+                var trackIdx = await mbHelper.EnqueueTrack(
+                    lt,
+                    ctx.Channel,
+                    ctx.Member,
+                    playlist,
+                    x == 0 && isPlayEvent,
+                    correlationId);
 
                 // If we are the first track and join event then start playing it.
                 if (x == 0 && isPlayEvent) {
@@ -400,6 +408,7 @@ namespace CCTavern.Commands {
                 }
 
                 mbHelper.AnnounceJoin(voiceState.Channel.GuildId.Value, voiceChannel.Id);
+                await RecordPlayerConnectionAsync(ctx, voiceChannel.Id, "join command");
                 await ctx.RespondAsync($"Joined <#{voiceChannel.Id}>!");
 
                 // If we are continuing the playlist, play the next track.
@@ -428,6 +437,22 @@ namespace CCTavern.Commands {
                 logger.LogError(TLE.MBJoin, ex, "Join voice failed with exception.");
                 await ctx.RespondAsync($"Failed to join voice: `{ex.GetType().Name}` - `{ex.Message}`");
             }
+        }
+
+        private async Task RecordPlayerConnectionAsync(
+            CommandContext ctx,
+            ulong voiceChannelId,
+            string reason
+        ) {
+            await using var db = await databaseFactory.CreateDbContextAsync();
+            var dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
+            await db.AddGuildEventAsync(
+                dbGuild.Id,
+                GuildEventKind.PlayerConnected,
+                GuildEventSource.DiscordCommand,
+                new PlayerConnectionPayload(voiceChannelId, reason),
+                ctx.Member);
+            await db.SaveChangesAsync();
         }
     }
 }

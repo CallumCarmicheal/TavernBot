@@ -153,6 +153,74 @@ namespace CCTavern.Migrations
                     b.ToTable("Guilds", (string)null);
                 });
 
+            modelBuilder.Entity("CCTavern.Database.GuildEventRecord", b =>
+                {
+                    b.Property<ulong>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint unsigned");
+
+                    b.Property<string>("ActorDisplayName")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<ulong?>("ActorUserId")
+                        .HasColumnType("bigint unsigned");
+
+                    b.Property<string>("ActorUsername")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<Guid>("CorrelationId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<ulong>("GuildId")
+                        .HasColumnType("bigint unsigned");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("json")
+                        .HasDefaultValue("{}");
+
+                    b.Property<ushort>("PayloadVersion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint unsigned")
+                        .HasDefaultValue((ushort)1);
+
+                    b.Property<ulong?>("QueueItemId")
+                        .HasColumnType("bigint unsigned");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CorrelationId");
+
+                    b.HasIndex("QueueItemId");
+
+                    b.HasIndex("ActorUserId", "OccurredAtUtc", "Id");
+
+                    b.HasIndex("GuildId", "OccurredAtUtc", "Id");
+
+                    b.HasIndex("GuildId", "Kind", "OccurredAtUtc", "Id");
+
+                    b.ToTable("GuildEvents", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_GuildEvents_PayloadJson", "JSON_VALID(`PayloadJson`)");
+                        });
+                });
+
             modelBuilder.Entity("CCTavern.Database.GuildQueueItem", b =>
                 {
                     b.Property<ulong>("Id")
@@ -365,6 +433,31 @@ namespace CCTavern.Migrations
                     b.Navigation("Guild");
 
                     b.Navigation("RequestedByUser");
+                });
+
+            modelBuilder.Entity("CCTavern.Database.GuildEventRecord", b =>
+                {
+                    b.HasOne("CCTavern.Database.TavernUser", "ActorUser")
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CCTavern.Database.Guild", "Guild")
+                        .WithMany()
+                        .HasForeignKey("GuildId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CCTavern.Database.GuildQueueItem", "QueueItem")
+                        .WithMany()
+                        .HasForeignKey("QueueItemId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ActorUser");
+
+                    b.Navigation("Guild");
+
+                    b.Navigation("QueueItem");
                 });
 
             modelBuilder.Entity("CCTavern.Database.GuildQueueItem", b =>

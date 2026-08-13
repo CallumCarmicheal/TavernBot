@@ -160,6 +160,16 @@ namespace CCTavern.Player {
                         // Disconnect the bot
                         await playerQueryTavern.playerResult.Player.DisconnectAsync().ConfigureAwait(false);
                         mbHelper.AnnounceLeave(guildId);
+                        db.AddGuildEvent(
+                            guildId,
+                            GuildEventKind.PlayerDisconnected,
+                            GuildEventSource.System,
+                            new PlayerConnectionPayload(
+                                voiceChannelId,
+                                timeout.Value.State == PlayerState.Paused
+                                    ? "paused timeout"
+                                    : "inactivity timeout"));
+                        await db.SaveChangesAsync();
 
                         // Dispose the player
                         await playerQueryTavern.playerResult.Player.DisposeAsync().ConfigureAwait(false);

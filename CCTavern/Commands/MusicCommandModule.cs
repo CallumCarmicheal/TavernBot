@@ -45,16 +45,30 @@ namespace CCTavern.Commands
         [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
         public async Task Leave(CommandContext ctx) {
             // Check if we have a valid voice state
-            if (ctx.Member?.VoiceState == null || ctx.Member.VoiceState.Channel == null) {
+            var member = ctx.Member;
+            var voiceChannel = member?.VoiceState?.Channel;
+            if (member == null || voiceChannel == null) {
                 await ctx.RespondAsync("You are not in a voice channel.");
                 return;
             }
 
-            (var playerState, var playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, ctx.Member?.VoiceState.Channel.Id, connectToVoiceChannel: false).ConfigureAwait(false);
+            (var playerState, var playerIsConnected) = await GetPlayerAsync(ctx.Guild.Id, voiceChannel.Id, connectToVoiceChannel: false).ConfigureAwait(false);
 
             if (playerIsConnected && playerState.Player != null) {
+                var voiceChannelId = voiceChannel.Id;
                 await playerState.Player.DisconnectAsync().ConfigureAwait(false);
-                await ctx.RespondAsync($"Left <#{ctx?.Member?.VoiceState.Channel.Id}>!");
+                await using (var db = await databaseFactory.CreateDbContextAsync()) {
+                    var dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
+                    await db.AddGuildEventAsync(
+                        dbGuild.Id,
+                        GuildEventKind.PlayerDisconnected,
+                        GuildEventSource.DiscordCommand,
+                        new PlayerConnectionPayload(voiceChannelId, "leave command"),
+                        member);
+                    await db.SaveChangesAsync();
+                }
+
+                await ctx.RespondAsync($"Left <#{voiceChannelId}>!");
 
                 if (ctx?.Guild != null) 
                     mbHelper.AnnounceLeave(ctx.Guild.Id);
@@ -208,8 +222,16 @@ namespace CCTavern.Commands
             }
 
             // Update the guild queue location.
+            var previousPosition = guild.CurrentTrack;
             guild.CurrentTrack = dbTrack.Position;
             guild.NextTrack = dbTrack.Position + 1;
+            await db.AddGuildEventAsync(
+                guild.Id,
+                GuildEventKind.TrackSkipped,
+                GuildEventSource.DiscordCommand,
+                new TrackPositionChangedPayload(previousPosition, dbTrack.Position),
+                ctx.Member,
+                queueItem: dbTrack);
             await db.SaveChangesAsync();
             await ctx.RespondAsync("Skipped track.");
 
@@ -264,8 +286,16 @@ namespace CCTavern.Commands
                 return;
             }
 
+            var previousPosition = guild.CurrentTrack;
             guild.CurrentTrack = dbTrack.Position;
             guild.NextTrack = dbTrack.Position + 1;
+            await db.AddGuildEventAsync(
+                guild.Id,
+                GuildEventKind.TrackJumped,
+                GuildEventSource.DiscordCommand,
+                new TrackPositionChangedPayload(previousPosition, dbTrack.Position),
+                ctx.Member,
+                queueItem: dbTrack);
             await db.SaveChangesAsync();
 
             await playerState.Player.PlayAsync(track).ConfigureAwait(false);
@@ -405,8 +435,8 @@ namespace CCTavern.Commands
                 return;
             }
 
-            guild.CurrentTrack = dbTrack.Position;
-            guild.NextTrack    = dbTrack.Position + 1;
+            var previousCurrentPosition = guild.CurrentTrack;
+            var previousNextPosition = guild.NextTrack;
 
             // Parse the track from the database
             var track = LavalinkTrack.Parse(dbTrack.TrackString, provider: null);
@@ -419,6 +449,13 @@ namespace CCTavern.Commands
             if (replaceCurrentTrack) {
                 guild.CurrentTrack = dbTrack.Position;
                 guild.NextTrack    = dbTrack.Position + 1;
+                await db.AddGuildEventAsync(
+                    guild.Id,
+                    GuildEventKind.TrackJumped,
+                    GuildEventSource.DiscordCommand,
+                    new TrackPositionChangedPayload(previousCurrentPosition, dbTrack.Position),
+                    ctx.Member,
+                    queueItem: dbTrack);
                 await db.SaveChangesAsync();
 
                 // Swap the track
@@ -428,6 +465,13 @@ namespace CCTavern.Commands
             else {
                 // Update the next track
                 guild.NextTrack = dbTrack.Position;
+                await db.AddGuildEventAsync(
+                    guild.Id,
+                    GuildEventKind.NextTrackChanged,
+                    GuildEventSource.DiscordCommand,
+                    new NextTrackChangedPayload(previousNextPosition, dbTrack.Position),
+                    ctx.Member,
+                    queueItem: dbTrack);
                 await db.SaveChangesAsync();
 
                 await ctx.RespondAsync($"Next track set to {await dbTrack.GetTagline(db, true)}.");

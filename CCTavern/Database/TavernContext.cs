@@ -28,6 +28,7 @@ public partial class TavernContext : DbContext
     public DbSet<TrackPlaylistPosition> TrackPlaylistPositions { get; set; }
     public DbSet<ArchivedTrack> ArchivedTracks { get; set; }
     public DbSet<ArchivedMessage> ArchivedMessages { get; set; }
+    public DbSet<GuildEventRecord> GuildEvents { get; set; }
 
 
     public TavernContext() { }
@@ -95,6 +96,53 @@ public partial class TavernContext : DbContext
         modelBuilder.Entity<Guild>()
            .ToTable("Guilds")
            .HasKey(t => t.Id);
+
+        /* Append-only guild activity and audit events */ {
+            var guildEvent = modelBuilder.Entity<GuildEventRecord>();
+            guildEvent.ToTable("GuildEvents", table => {
+                table.HasCheckConstraint(
+                    "CK_GuildEvents_PayloadJson",
+                    Database.IsSqlServer()
+                        ? "ISJSON([PayloadJson]) = 1"
+                        : "JSON_VALID(`PayloadJson`)");
+            });
+
+            guildEvent.HasKey(x => x.Id);
+            guildEvent.Property(x => x.Id).ValueGeneratedOnAdd();
+            guildEvent.Property(x => x.Kind).HasConversion<string>().HasMaxLength(64).IsRequired();
+            guildEvent.Property(x => x.Source).HasConversion<string>().HasMaxLength(32).IsRequired();
+            guildEvent.Property(x => x.ActorUsername).HasMaxLength(64);
+            guildEvent.Property(x => x.ActorDisplayName).HasMaxLength(255);
+            guildEvent.Property(x => x.OccurredAtUtc)
+                .HasColumnType(Database.IsSqlServer() ? "datetime2(6)" : "datetime(6)")
+                .IsRequired();
+            guildEvent.Property(x => x.PayloadVersion).HasDefaultValue((ushort)1).IsRequired();
+            guildEvent.Property(x => x.PayloadJson)
+                .HasColumnType(Database.IsSqlServer() ? "nvarchar(max)" : "json")
+                .HasDefaultValue("{}")
+                .IsRequired();
+
+            guildEvent.HasIndex(x => new { x.GuildId, x.OccurredAtUtc, x.Id });
+            guildEvent.HasIndex(x => new { x.GuildId, x.Kind, x.OccurredAtUtc, x.Id });
+            guildEvent.HasIndex(x => new { x.ActorUserId, x.OccurredAtUtc, x.Id });
+            guildEvent.HasIndex(x => x.CorrelationId);
+            guildEvent.HasIndex(x => x.QueueItemId);
+
+            guildEvent.HasOne(x => x.Guild)
+                .WithMany()
+                .HasForeignKey(x => x.GuildId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            guildEvent.HasOne(x => x.ActorUser)
+                .WithMany()
+                .HasForeignKey(x => x.ActorUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            guildEvent.HasOne(x => x.QueueItem)
+                .WithMany()
+                .HasForeignKey(x => x.QueueItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+        }
 
         {
             var playlist = modelBuilder.Entity<GuildQueuePlaylist>();
@@ -235,6 +283,14 @@ public partial class TavernContext : DbContext
     }
 
     private void updateChangeTrackerDates() {
+        var changedEvents = ChangeTracker
+            .Entries<GuildEventRecord>()
+            .Where(x => x.State is EntityState.Modified or EntityState.Deleted)
+            .ToList();
+
+        if (changedEvents.Count > 0)
+            throw new InvalidOperationException("Guild events are append-only and cannot be modified or deleted.");
+
         var entries = ChangeTracker
             .Entries()
             .Where(e => (e.Entity is BaseDbEntity)

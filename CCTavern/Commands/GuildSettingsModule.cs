@@ -69,8 +69,22 @@ namespace CCTavern.Commands {
 
             Guild dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
+            var oldChannelId = dbGuild.MusicChannelId;
+            var oldChannelName = dbGuild.MusicChannelName;
             dbGuild.MusicChannelId = channel.Id;
             dbGuild.MusicChannelName = channel.Name;
+            if (oldChannelId != channel.Id || oldChannelName != channel.Name) {
+                await db.AddGuildEventAsync(
+                    dbGuild.Id,
+                    GuildEventKind.MusicChannelChanged,
+                    GuildEventSource.DiscordCommand,
+                    new MusicChannelChangedPayload(
+                        oldChannelId,
+                        oldChannelName,
+                        channel.Id,
+                        channel.Name),
+                    ctx.Member);
+            }
             await db.SaveChangesAsync();
 
             await ctx.RespondAsync($"Updated music output channel to <#{channel.Id}>.");
@@ -88,7 +102,16 @@ namespace CCTavern.Commands {
 
             Guild dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
 
+            var oldValue = dbGuild.LeaveAfterQueue;
             dbGuild.LeaveAfterQueue = leaveAfterPlaylist;
+            if (oldValue != leaveAfterPlaylist) {
+                await db.AddGuildEventAsync(
+                    dbGuild.Id,
+                    GuildEventKind.LeaveAfterQueueChanged,
+                    GuildEventSource.DiscordCommand,
+                    new BooleanOptionChangedPayload(oldValue, leaveAfterPlaylist),
+                    ctx.Member);
+            }
             await db.SaveChangesAsync();
 
             await ctx.RespondAsync($"Updated leave after playlist to " + (leaveAfterPlaylist

@@ -79,6 +79,7 @@ namespace CCTavern {
             builder.Services.AddSingleton<BotInactivityManager>();
             builder.Services.AddSingleton<BotInactivityImplementation>();
             builder.Services.AddSingleton<MusicBotHelper>();
+            builder.Services.AddSingleton<GuildEventWriter>();
             builder.Services.AddDbContextFactory<TavernContext>(options =>
                 TavernContext.ConfigureOptions(options, Settings, LoggerFactory));
 
