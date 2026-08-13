@@ -160,8 +160,7 @@ namespace CCTavern.Player {
 
                 var requestedBy = "<#ERROR>";
                 dbTrack = await db.GuildQueueItems
-                    .Include(p => p.RequestedByUser)
-                        //.ThenInclude(user => user!.GuildUsers)
+                    .Include(p => p.RequestedByUser)//.ThenInclude(user => user!.GuildUsers)
                     .Where(x => x.GuildId == dbGuild.Id && x.Position == currentTrackIdx)
                     .FirstOrDefaultAsync(cancellationToken);
 

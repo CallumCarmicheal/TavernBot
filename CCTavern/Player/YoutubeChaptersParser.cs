@@ -23,9 +23,90 @@ namespace CCTavern.Player
 
     public class YoutubeChaptersParser {
 
-        public static Regex RgxTimestampMatch = new Regex(@"(?<ts>(?:\d{1,2}:\d{2}(?::\d{2})?))", RegexOptions.Compiled);
+        public static readonly Regex RgxTimestampMatch = new(
+            @"(?<![\p{L}\p{N}_:])(?<ts>(?:\d+:[0-5]\d:[0-5]\d|\d+:[0-5]\d))(?![\p{L}\p{N}_:])",
+            RegexOptions.Compiled);
+
+        private static readonly Regex RgxRepeatedWhitespace = new(
+            @"\s+",
+            RegexOptions.Compiled);
+
+        private static readonly char[] ChapterTitleSeparators = [
+            ' ', '\t', '-', '–', '—', '|', ':', ';', '·', '•', '.', ',', '/', '\\',
+            '(', ')', '[', ']', '{', '}'
+        ];
 
         private static HttpClient cli = new HttpClient();
+
+        public static bool TryParseChapterLine(
+            string line,
+            out TimeSpan timestamp,
+            out string displayText
+        ) {
+            timestamp = default;
+            displayText = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(line))
+                return false;
+
+            var timestampMatch = RgxTimestampMatch.Match(line);
+            if (!timestampMatch.Success)
+                return false;
+
+            if (!TryParseTimestamp(timestampMatch.Groups["ts"].Value, out timestamp))
+                return false;
+
+            displayText = RemoveTimestampFromTitle(line, timestampMatch);
+            if (string.IsNullOrWhiteSpace(displayText))
+                return false;
+
+            return true;
+        }
+
+        private static bool TryParseTimestamp(string value, out TimeSpan timestamp) {
+            timestamp = default;
+            var components = value.Split(':');
+
+            if (components.Length is not (2 or 3))
+                return false;
+
+            if (!long.TryParse(components[^1], out var seconds)
+                    || !long.TryParse(components[^2], out var minutes))
+                return false;
+
+            long hours = 0;
+            if (components.Length == 3
+                    && !long.TryParse(components[0], out hours))
+                return false;
+
+            try {
+                var totalSeconds = checked(
+                    checked(hours * 60 * 60)
+                    + checked(minutes * 60)
+                    + seconds);
+
+                timestamp = TimeSpan.FromSeconds(totalSeconds);
+                return true;
+            } catch (OverflowException) {
+                return false;
+            }
+        }
+
+        public static string RemoveTimestampFromTitle(string title) {
+            if (string.IsNullOrWhiteSpace(title))
+                return string.Empty;
+
+            var timestampMatch = RgxTimestampMatch.Match(title);
+            return timestampMatch.Success
+                ? RemoveTimestampFromTitle(title, timestampMatch)
+                : title.Trim();
+        }
+
+        private static string RemoveTimestampFromTitle(string title, Match timestampMatch) {
+            var cleanedTitle = title.Remove(timestampMatch.Index, timestampMatch.Length);
+            cleanedTitle = RgxRepeatedWhitespace.Replace(cleanedTitle, " ");
+            return cleanedTitle.Trim(ChapterTitleSeparators);
+        }
 
         // TEST: var chapters = await YoutubeChaptersParser.ParseChapters("vrMfm8-UBVM");
         public static async Task<YoutubeChapterDetails> ParseChapters(string videoId, CancellationToken cancellationToken = default) {
@@ -49,7 +130,8 @@ namespace CCTavern.Player
                 videoId,
                 cancellationToken);
 
-            if (chapters.Count == 0)
+            // Do not store if there is only 1 chapter. 
+            if (chapters.Count < 1)
                 return new(false, null);
 
             // 3. Save the parsed chapters.
@@ -85,7 +167,7 @@ namespace CCTavern.Player
                 chapters.Add(
                     track.Position,
                     new IVideoChapter {
-                        Title = track.DisplayText,
+                        Title = RemoveTimestampFromTitle(track.DisplayText),
                         Time = (int)track.Position.TotalSeconds,
                         Thumbnails = new List<IThumbnail>()
                     });
@@ -150,24 +232,17 @@ namespace CCTavern.Player
                     .Where(line => !string.IsNullOrWhiteSpace(line));
 
                 foreach (var line in descriptionLines) {
-                    var matchTs = RgxTimestampMatch.Match(line);
-
-                    if (!matchTs.Success)
+                    if (!TryParseChapterLine(line, out var timestamp, out var displayText))
                         continue;
 
-                    var timestamp = matchTs.Value.TryParseTimeStamp();
-
-                    if (timestamp == null)
-                        continue;
-
-                    if (chapters.ContainsKey(timestamp.Value))
+                    if (chapters.ContainsKey(timestamp))
                         continue;
 
                     chapters.Add(
-                        timestamp.Value,
+                        timestamp,
                         new IVideoChapter {
-                            Title = line,
-                            Time = (int)timestamp.Value.TotalSeconds,
+                            Title = displayText,
+                            Time = (int)timestamp.TotalSeconds,
                             Thumbnails = new List<IThumbnail>()
                         });
                 }

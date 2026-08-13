@@ -485,15 +485,13 @@ namespace CCTavern.Commands {
             var slTracks = new SortedDictionary<TimeSpan, string>();
 
             foreach (var trackString in tracks) {
-                // Get Timestamps
-                var matchTs = YoutubeChaptersParser.RgxTimestampMatch.Match(trackString);
-                if (matchTs.Success) {
-                    // Parse into timestamp
-                    var ts = matchTs.Value.TryParseTimeStamp();
-                    if (ts == null) continue;
+                if (!TryParseChapterLine(
+                        trackString,
+                        out var timestamp,
+                        out var displayText))
+                    continue;
 
-                    slTracks.Add(ts.Value, trackString);
-                }
+                slTracks.Add(timestamp, displayText);
             }
 
             // Add to the database
