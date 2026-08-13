@@ -126,6 +126,7 @@ public partial class TavernContext : DbContext
             guildEvent.HasIndex(x => new { x.GuildId, x.Kind, x.OccurredAtUtc, x.Id });
             guildEvent.HasIndex(x => new { x.ActorUserId, x.OccurredAtUtc, x.Id });
             guildEvent.HasIndex(x => x.CorrelationId);
+            guildEvent.HasIndex(x => x.MessageId);
             guildEvent.HasIndex(x => x.QueueItemId);
 
             guildEvent.HasOne(x => x.Guild)

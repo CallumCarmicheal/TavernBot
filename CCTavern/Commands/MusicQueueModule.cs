@@ -96,7 +96,8 @@ namespace CCTavern.Commands {
                         GuildEventKind.ShuffleChanged,
                         GuildEventSource.DiscordCommand,
                         new BooleanOptionChangedPayload(oldValue, guildState.ShuffleEnabled),
-                        ctx.Member);
+                        ctx.Member,
+                        messageId: ctx.Message.Id);
                     await db.SaveChangesAsync();
                 }
             } catch {
@@ -309,6 +310,7 @@ namespace CCTavern.Commands {
                 GuildEventSource.DiscordCommand,
                 new TrackRemovedPayload(dbTrack.Position, dbTrack.Title, dbTrack.DeletedReason),
                 dbUser,
+                messageId: ctx.Message.Id,
                 queueItem: dbTrack);
             await db.SaveChangesAsync();
         }
@@ -356,7 +358,8 @@ namespace CCTavern.Commands {
                 GuildEventKind.NextTrackChanged,
                 GuildEventSource.DiscordCommand,
                 new NextTrackChangedPayload(oldPosition, songIndex),
-                ctx.Member);
+                ctx.Member,
+                messageId: ctx.Message.Id);
             await db.SaveChangesAsync();
         }
 
@@ -424,7 +427,8 @@ namespace CCTavern.Commands {
                         GuildEventKind.RepeatChanged,
                         GuildEventSource.DiscordCommand,
                         new BooleanOptionChangedPayload(oldValue, guildState.RepeatEnabled),
-                        ctx.Member);
+                        ctx.Member,
+                        messageId: ctx.Message.Id);
                     await db.SaveChangesAsync();
                 }
             } catch {
@@ -496,6 +500,7 @@ namespace CCTavern.Commands {
             if (slTracks.Count > 1) {
                 // Add to the database
                 await using var dbCtx = await databaseFactory.CreateDbContextAsync();
+                var dbGuild = await dbCtx.GetOrCreateDiscordGuild(ctx.Guild);
 
                 foreach (var track in slTracks) {
                     var tpp = new TrackPlaylistPosition() {
@@ -506,6 +511,14 @@ namespace CCTavern.Commands {
                     };
                     await dbCtx.TrackPlaylistPositions.AddAsync(tpp).ConfigureAwait(false);
                 }
+
+                await dbCtx.AddGuildEventAsync(
+                    dbGuild.Id,
+                    GuildEventKind.YoutubeTrackListSet,
+                    GuildEventSource.DiscordCommand,
+                    new YoutubeTrackListSetPayload(ytVideoId, slTracks.Count),
+                    ctx.Member,
+                    messageId: ctx.Message.Id);
 
                 await dbCtx.SaveChangesAsync().ConfigureAwait(false);
                 await ctx.RespondAsync($"Added {slTracks.Count} tracks to youtube {ytVideoId}.");

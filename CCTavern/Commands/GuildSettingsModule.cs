@@ -43,7 +43,17 @@ namespace CCTavern.Commands {
 
             await using var db = await databaseFactory.CreateDbContextAsync();
             Guild dbGuild = await db.GetOrCreateDiscordGuild(ctx.Guild);
+            var oldPrefixes = dbGuild.Prefixes;
             dbGuild.Prefixes = joinedPrefixes;
+            if (oldPrefixes != joinedPrefixes) {
+                await db.AddGuildEventAsync(
+                    dbGuild.Id,
+                    GuildEventKind.PrefixesChanged,
+                    GuildEventSource.DiscordCommand,
+                    new PrefixesChangedPayload(oldPrefixes, joinedPrefixes),
+                    ctx.Member,
+                    messageId: ctx.Message.Id);
+            }
             await db.SaveChangesAsync();
 
             var prefixListEnumerable = prefixesList.AsEnumerable();
@@ -83,7 +93,8 @@ namespace CCTavern.Commands {
                         oldChannelName,
                         channel.Id,
                         channel.Name),
-                    ctx.Member);
+                    ctx.Member,
+                    messageId: ctx.Message.Id);
             }
             await db.SaveChangesAsync();
 
@@ -110,7 +121,8 @@ namespace CCTavern.Commands {
                     GuildEventKind.LeaveAfterQueueChanged,
                     GuildEventSource.DiscordCommand,
                     new BooleanOptionChangedPayload(oldValue, leaveAfterPlaylist),
-                    ctx.Member);
+                    ctx.Member,
+                    messageId: ctx.Message.Id);
             }
             await db.SaveChangesAsync();
 

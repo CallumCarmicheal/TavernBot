@@ -45,5 +45,26 @@ namespace CCTavern.Commands {
         }
 
         protected string GetPlayerErrorMessage(PlayerRetrieveStatus status) => mbHelper.GetPlayerErrorMessage(status);
+
+        protected async Task RecordCurrentTrackCommandEventAsync<TPayload>(
+            CommandContext context,
+            GuildEventKind kind,
+            TPayload payload
+        ) {
+            await using var database = await databaseFactory.CreateDbContextAsync();
+            var guild = await database.GetOrCreateDiscordGuild(context.Guild);
+            var queueItem = await database.GuildQueueItems.FirstOrDefaultAsync(
+                x => x.GuildId == guild.Id && x.Position == guild.CurrentTrack);
+
+            await database.AddGuildEventAsync(
+                guild.Id,
+                kind,
+                GuildEventSource.DiscordCommand,
+                payload,
+                context.Member,
+                messageId: context.Message.Id,
+                queueItem: queueItem);
+            await database.SaveChangesAsync();
+        }
     }
 }

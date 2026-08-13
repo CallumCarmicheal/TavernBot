@@ -76,7 +76,12 @@ namespace CCTavern.Commands {
 
             // Check if the player is paused and the user didn't enter a search result, assume they want to resume.
             if (playerIsConnected && string.IsNullOrWhiteSpace(search) && playerResult.Player.IsPaused) {
+                var playbackPosition = playerResult.Player.Position?.RelativePosition;
                 await playerResult.Player.ResumeAsync().ConfigureAwait(false);
+                await RecordCurrentTrackCommandEventAsync(
+                    ctx,
+                    GuildEventKind.TrackResumed,
+                    new TrackPlaybackPositionPayload(playbackPosition));
 
                 var emoji = DiscordEmoji.FromName(ctx.Client, ":arrow_forward:");
                 await ctx.Message.CreateReactionAsync(emoji);
@@ -220,7 +225,13 @@ namespace CCTavern.Commands {
             }
 
             var isPlayEvent = player.State == Lavalink4NET.Players.PlayerState.NotPlaying;
-            var trackPosition = await mbHelper.EnqueueTrack(track, ctx.Channel, ctx.Member, null, isPlayEvent);
+            var trackPosition = await mbHelper.EnqueueTrack(
+                track,
+                ctx.Channel,
+                ctx.Member,
+                null,
+                isPlayEvent,
+                messageId: ctx.Message.Id);
             await ctx.RespondAsync($"Enqueued `{track.Title}` in position `{trackPosition}`.");
 
             if (isPlayEvent) {
@@ -250,7 +261,13 @@ namespace CCTavern.Commands {
                 trackTitle = sunoTrackQueueItem.TrackTitle;
 
             var isPlayEvent = player.State == Lavalink4NET.Players.PlayerState.NotPlaying;
-            var trackPosition = await mbHelper.EnqueueTrack(trackQueueItem, ctx.Channel, ctx.Member, null, isPlayEvent);
+            var trackPosition = await mbHelper.EnqueueTrack(
+                trackQueueItem,
+                ctx.Channel,
+                ctx.Member,
+                null,
+                isPlayEvent,
+                messageId: ctx.Message.Id);
 
             if (trackPosition == null) {
                 await ctx.RespondAsync($"Failed to queue track `{trackTitle}`.");
@@ -308,7 +325,8 @@ namespace CCTavern.Commands {
                     ctx.Member,
                     playlist,
                     x == 0 && isPlayEvent,
-                    correlationId);
+                    correlationId,
+                    ctx.Message.Id);
 
                 // If we are the first track and join event then start playing it.
                 if (x == 0 && isPlayEvent) {
@@ -451,7 +469,8 @@ namespace CCTavern.Commands {
                 GuildEventKind.PlayerConnected,
                 GuildEventSource.DiscordCommand,
                 new PlayerConnectionPayload(voiceChannelId, reason),
-                ctx.Member);
+                ctx.Member,
+                messageId: ctx.Message.Id);
             await db.SaveChangesAsync();
         }
     }

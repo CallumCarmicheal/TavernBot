@@ -1,3 +1,5 @@
+using System;
+
 namespace CCTavern.Database;
 
 public sealed record TrackQueuedPayload(
@@ -16,6 +18,12 @@ public sealed record TrackPlaybackPayload(
     string Title,
     string? EndReason = null);
 
+public sealed record TrackPlaybackPositionPayload(TimeSpan? PlaybackPosition);
+
+public sealed record TrackSeekedPayload(
+    TimeSpan? FromPosition,
+    TimeSpan ToPosition);
+
 public sealed record TrackPositionChangedPayload(
     ulong FromPosition,
     ulong ToPosition);
@@ -33,6 +41,14 @@ public sealed record MusicChannelChangedPayload(
     string? OldChannelName,
     ulong? NewChannelId,
     string? NewChannelName);
+
+public sealed record PrefixesChangedPayload(
+    string? OldPrefixes,
+    string NewPrefixes);
+
+public sealed record YoutubeTrackListSetPayload(
+    string VideoId,
+    int TrackCount);
 
 public sealed record PlayerConnectionPayload(
     ulong? VoiceChannelId,

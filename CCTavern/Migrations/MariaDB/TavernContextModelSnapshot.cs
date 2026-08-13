@@ -181,6 +181,9 @@ namespace CCTavern.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("varchar(64)");
 
+                    b.Property<ulong?>("MessageId")
+                        .HasColumnType("bigint unsigned");
+
                     b.Property<DateTime>("OccurredAtUtc")
                         .HasColumnType("datetime(6)");
 
@@ -206,6 +209,8 @@ namespace CCTavern.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CorrelationId");
+
+                    b.HasIndex("MessageId");
 
                     b.HasIndex("QueueItemId");
 

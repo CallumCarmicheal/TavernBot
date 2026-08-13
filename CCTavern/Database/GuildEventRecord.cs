@@ -7,6 +7,9 @@ public enum GuildEventKind {
     TrackRemoved,
     TrackStarted,
     TrackFinished,
+    TrackPaused,
+    TrackResumed,
+    TrackSeeked,
     TrackSkipped,
     TrackJumped,
     NextTrackChanged,
@@ -16,6 +19,8 @@ public enum GuildEventKind {
     RepeatChanged,
     LeaveAfterQueueChanged,
     MusicChannelChanged,
+    PrefixesChanged,
+    YoutubeTrackListSet,
     PlayerConnected,
     PlayerDisconnected
 }
@@ -44,6 +49,8 @@ public sealed class GuildEventRecord {
     public GuildEventSource Source { get; set; }
 
     public DateTime OccurredAtUtc { get; set; } = DateTime.UtcNow;
+
+    public ulong? MessageId { get; set; }
 
     public ulong? QueueItemId { get; set; }
     public GuildQueueItem? QueueItem { get; set; }

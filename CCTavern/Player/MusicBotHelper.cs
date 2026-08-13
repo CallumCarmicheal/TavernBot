@@ -279,7 +279,8 @@ namespace CCTavern.Player {
             DiscordMember requestedBy,
             GuildQueuePlaylist? playlist,
             bool updateNextTrack,
-            Guid? correlationId = null
+            Guid? correlationId = null,
+            ulong? messageId = null
         ) {
             await using var db = await databaseFactory.CreateDbContextAsync();
             var dbGuild = await db.GetOrCreateDiscordGuild(channel.Guild);
@@ -305,8 +306,9 @@ namespace CCTavern.Player {
                     trackPosition,
                     qi.Title,
                     track.Uri?.Host ?? "unknown",
-                    playlist?.Id),
+                playlist?.Id),
                 requestedBy,
+                messageId: messageId,
                 queueItem: qi,
                 correlationId: correlationId);
             await db.SaveChangesAsync();
@@ -320,7 +322,8 @@ namespace CCTavern.Player {
             DiscordMember requestedBy,
             GuildQueuePlaylist? playlist,
             bool updateNextTrack,
-            Guid? correlationId = null
+            Guid? correlationId = null,
+            ulong? messageId = null
         ) {
             await using var db = await databaseFactory.CreateDbContextAsync();
             var dbGuild = await db.GetOrCreateDiscordGuild(channel.Guild);
@@ -351,8 +354,9 @@ namespace CCTavern.Player {
                     trackPosition,
                     qi.Title,
                     trackQueueItem.Track?.Uri?.Host ?? "unknown",
-                    playlist?.Id),
+                playlist?.Id),
                 requestedBy,
+                messageId: messageId,
                 queueItem: qi,
                 correlationId: correlationId);
             await db.SaveChangesAsync();

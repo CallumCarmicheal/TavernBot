@@ -64,7 +64,8 @@ namespace CCTavern.Commands
                         GuildEventKind.PlayerDisconnected,
                         GuildEventSource.DiscordCommand,
                         new PlayerConnectionPayload(voiceChannelId, "leave command"),
-                        member);
+                        member,
+                        messageId: ctx.Message.Id);
                     await db.SaveChangesAsync();
                 }
 
@@ -99,7 +100,12 @@ namespace CCTavern.Commands
                     await ctx.RespondAsync("Music bot not currently playing any music.");
                 } else {
                     // Pause the music bot
+                    var playbackPosition = playerState.Player.Position?.RelativePosition;
                     await playerState.Player.PauseAsync().ConfigureAwait(false);
+                    await RecordCurrentTrackCommandEventAsync(
+                        ctx,
+                        GuildEventKind.TrackPaused,
+                        new TrackPlaybackPositionPayload(playbackPosition));
 
                     DiscordEmoji? emoji = DiscordEmoji.FromName(ctx.Client, ":pause_button:");
                     await ctx.Message.CreateReactionAsync(emoji);
@@ -129,7 +135,12 @@ namespace CCTavern.Commands
                     await ctx.RespondAsync("Music bot not currently paused.");
                 } else {
                     // Resume the music bot
+                    var playbackPosition = playerState.Player.Position?.RelativePosition;
                     await playerState.Player.ResumeAsync().ConfigureAwait(false);
+                    await RecordCurrentTrackCommandEventAsync(
+                        ctx,
+                        GuildEventKind.TrackResumed,
+                        new TrackPlaybackPositionPayload(playbackPosition));
 
                     DiscordEmoji? emoji = DiscordEmoji.FromName(ctx.Client, ":arrow_forward:");
                     await ctx.Message.CreateReactionAsync(emoji);
@@ -165,7 +176,12 @@ namespace CCTavern.Commands
             }
             // If the music bot is paused then resume it.
             else if (playerState.Player.State == PlayerState.Paused) {
+                var playbackPosition = playerState.Player.Position?.RelativePosition;
                 await playerState.Player.ResumeAsync().ConfigureAwait(false);
+                await RecordCurrentTrackCommandEventAsync(
+                    ctx,
+                    GuildEventKind.TrackResumed,
+                    new TrackPlaybackPositionPayload(playbackPosition));
 
                 var emoji = DiscordEmoji.FromName(ctx.Client, ":arrow_forward:");
                 await ctx.Message.CreateReactionAsync(emoji);
@@ -231,6 +247,7 @@ namespace CCTavern.Commands
                 GuildEventSource.DiscordCommand,
                 new TrackPositionChangedPayload(previousPosition, dbTrack.Position),
                 ctx.Member,
+                messageId: ctx.Message.Id,
                 queueItem: dbTrack);
             await db.SaveChangesAsync();
             await ctx.RespondAsync("Skipped track.");
@@ -273,8 +290,9 @@ namespace CCTavern.Commands
             var query = db
                 .GuildQueueItems.Include(x => x.RequestedByUser)
                 .Where(x => x.GuildId == ctx.Guild.Id && x.Position == nextTrackPosition && x.IsDeleted == false);
+
             if (query.Any() == false) {
-                await ctx.RespondAsync("Failed to jump to track (could not be found).");
+                await ctx.RespondAsync($"Failed to jump to track (could not be found at index {nextTrackPosition}).");
                 return;
             }
 
@@ -295,6 +313,7 @@ namespace CCTavern.Commands
                 GuildEventSource.DiscordCommand,
                 new TrackPositionChangedPayload(previousPosition, dbTrack.Position),
                 ctx.Member,
+                messageId: ctx.Message.Id,
                 queueItem: dbTrack);
             await db.SaveChangesAsync();
 
@@ -365,7 +384,12 @@ namespace CCTavern.Commands
             }
 
             // Seek the player
+            var previousPosition = playerQuery.Player.Position?.RelativePosition;
             await playerQuery.Player.SeekAsync(timespan.Value);
+            await RecordCurrentTrackCommandEventAsync(
+                ctx,
+                GuildEventKind.TrackSeeked,
+                new TrackSeekedPayload(previousPosition, timespan.Value));
             await ctx.RespondAsync($"Seeked to `{timespan.Value.Humanize()}`.");
         }
 
@@ -455,6 +479,7 @@ namespace CCTavern.Commands
                     GuildEventSource.DiscordCommand,
                     new TrackPositionChangedPayload(previousCurrentPosition, dbTrack.Position),
                     ctx.Member,
+                    messageId: ctx.Message.Id,
                     queueItem: dbTrack);
                 await db.SaveChangesAsync();
 
@@ -471,6 +496,7 @@ namespace CCTavern.Commands
                     GuildEventSource.DiscordCommand,
                     new NextTrackChangedPayload(previousNextPosition, dbTrack.Position),
                     ctx.Member,
+                    messageId: ctx.Message.Id,
                     queueItem: dbTrack);
                 await db.SaveChangesAsync();
 
