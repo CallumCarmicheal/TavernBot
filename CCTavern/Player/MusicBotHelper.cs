@@ -102,7 +102,7 @@ namespace CCTavern.Player {
             if (GuildStates.ContainsKey(guildId))
                 GuildStates.TryRemove(guildId, out var _);
 
-            inactivityManager.GuildStateChanged(guildId, PlayerState.NotPlaying);
+            inactivityManager.GuildStateChanged(guildId, PlayerState.Destroyed);
         }
 
         public async Task<bool> DeletePastStatusMessage(Guild guild, DiscordChannel outputChannel) {
