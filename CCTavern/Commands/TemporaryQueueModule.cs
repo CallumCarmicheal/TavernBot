@@ -22,13 +22,14 @@ namespace CCTavern.Commands {
         const int ITEMS_PER_PAGE = 10;
         private readonly IDbContextFactory<TavernContext> databaseFactory;
 
-        public MusicBotHelper Music { private get; set; }
+        private readonly MusicBotHelper mbHelper = null!;
 
-        public TemporaryQueueModule(IDbContextFactory<TavernContext> databaseFactory) {
+        public TemporaryQueueModule(MusicBotHelper mbHelper, IDbContextFactory<TavernContext> databaseFactory) {
             this.databaseFactory = databaseFactory;
+            this.mbHelper = mbHelper;
         }
 
-        private ILogger _logger;
+        private ILogger _logger = null!;
         private ILogger logger {
             get {
                 if (_logger == null) _logger = Program.LoggerFactory.CreateLogger<MusicPlayModule>();
@@ -57,12 +58,12 @@ namespace CCTavern.Commands {
             string queueContent = "";
 
             // Check if the current guild has temporary music
-            if (!Music.TemporaryTracks.ContainsKey(ctx.Guild.Id)) {
+            if (!mbHelper.TemporaryTracks.ContainsKey(ctx.Guild.Id)) {
                 await message.ModifyAsync($"Temporary queue is empty.");
                 return;
             }
 
-            var tempQueue = Music.TemporaryTracks[ctx.Guild.Id];
+            var tempQueue = mbHelper.TemporaryTracks[ctx.Guild.Id];
 
             // Get the guild
             await using var db = await databaseFactory.CreateDbContextAsync();

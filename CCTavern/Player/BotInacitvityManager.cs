@@ -21,7 +21,7 @@ namespace CCTavern.Player {
     public delegate void DUpdateGuildPlayerState(ulong guildId, PlayerState state);
 
     public class BotInactivityManager {
-        public event DUpdateGuildPlayerState OnGuildStateUpdated;
+        public event DUpdateGuildPlayerState? OnGuildStateUpdated;
 
         public void GuildStateChanged(ulong guildId, PlayerState state) => OnGuildStateUpdated?.Invoke(guildId, state);
     }

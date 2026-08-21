@@ -14,7 +14,7 @@ namespace CCTavern.Logger {
         private const int CATEGORY_MAX_LENGTH = 14;
 
 
-        private string CategoryName { get; }
+        private string CategoryName { get; } = string.Empty;
         private LogLevel MinimumLevel { get; }
         private string TimestampFormat { get; }
 

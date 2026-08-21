@@ -565,14 +565,17 @@ namespace CCTavern.Player {
         }
 
         private bool UpdateEmbedState(GuildState guildState, DiscordEmbedBuilder? embedBuilder) {
+            var embed = guildState?.MusicEmbed;
+
             // Null check all our pre-reqs.
-            if (guildState?.MusicEmbed is null
+            if (guildState is null 
+                || embed is null
                 || this.Position is null
                 || CurrentTrack is null
                 || embedBuilder is null)
                 return false;
 
-            var progressFieldIdx = guildState.MusicEmbed.ProgressFieldIdx;
+            var progressFieldIdx = embed.ProgressFieldIdx;
             var Position = this.Position.Value.RelativePosition;
 
             // Check if the track exits early (maybe seeking?) 
@@ -608,11 +611,10 @@ namespace CCTavern.Player {
                     embedBuilder.Fields[progressFieldIdx].Value = progressText + $"```{currentTrack.Title}\n{remainingText.currentTime} {progressBar} {remainingText.timeLeft}```";
 
                     // Update the thumbnail
-                    if (currentTrack.Thumbnails.Any())
+                    if (currentTrack.Thumbnails is not null && currentTrack.Thumbnails.Any())
                         embedBuilder.Thumbnail.Url = currentTrack.Thumbnails.OrderByDescending(x => x.Height).First().Url;
                 }
             }
-
 
             // Update with lyrics if we have any
             if (currentLyrics is { Lines.Count: > 0 }) {
@@ -660,7 +662,7 @@ namespace CCTavern.Player {
             }
 
             // Update player state
-            var playerStateIdx = guildState.MusicEmbed.StateFieldIdx;
+            var playerStateIdx = embed.StateFieldIdx;
             embedBuilder.Fields[playerStateIdx].Value = State.ToString();
 
             // Update the progress text

@@ -20,17 +20,17 @@ namespace CCTavern.Database {
 
         public ulong Position { get; set; }
 
-        public string Title { get; set; }
+        public string Title { get; set; } = string.Empty;
 
         public TimeSpan Length { get; set; }
 
-        public string TrackString { get; set; }
+        public string TrackString { get; set; } = string.Empty;
 
         public ulong? RequestedByUserId { get; set; }
         public virtual TavernUser? RequestedByUser { get; set; }
 
         public ulong GuildId { get; set; }
-        public virtual Guild Guild { get; set; }
+        public virtual Guild Guild { get; set; } = null!;
 
         #endregion
 

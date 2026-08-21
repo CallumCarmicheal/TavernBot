@@ -20,7 +20,7 @@ using System.Threading.Tasks;
 namespace CCTavern.Library {
     internal class SunoAIParser {
 
-        private static ILogger<SunoAIParser> _logger;
+        private static ILogger<SunoAIParser> _logger = null!;
 
         private static ILogger<SunoAIParser> logger {
             get {

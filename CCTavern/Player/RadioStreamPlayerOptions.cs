@@ -9,6 +9,6 @@ using System.Threading.Tasks;
 namespace CCTavern.Player {
     internal record RadioStreamPlayerOptions : LavalinkPlayerOptions {
 
-        public string StreamUrl { get; set; }
+        public string StreamUrl { get; set; } = string.Empty;
     }
 }

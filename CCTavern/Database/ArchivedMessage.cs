@@ -20,10 +20,10 @@ namespace CCTavern.Database {
         public virtual TavernUser? AuthorUser { get; set; }
 
         public ulong GuildId { get; set; }
-        public virtual Guild Guild { get; set; }
+        public virtual Guild Guild { get; set; } = null!;
 
         public bool ContainsPrefix { get; set; }
 
-        public string MessageContents { get; set; }
+        public string MessageContents { get; set; } = string.Empty;
     }
 }

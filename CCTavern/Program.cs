@@ -1,4 +1,5 @@
 ﻿using CCTavern.Database;
+using CCTavern.Library;
 using CCTavern.Logger;
 using CCTavern.Player;
 using CCTavern.Web;
@@ -90,6 +91,13 @@ namespace CCTavern {
                 config.ReadyTimeout = TimeSpan.FromSeconds(10);
                 config.ResumptionOptions = new LavalinkSessionResumptionOptions(TimeSpan.FromSeconds(60));
             });
+
+            builder.Services.AddHttpClient("LavaLyrics", client => {
+                client.BaseAddress = new Uri($"http://{Settings.Lavalink.Hostname}:{Settings.Lavalink.Port}");
+                client.DefaultRequestHeaders.Add("Authorization", Settings.Lavalink.Password);
+                client.Timeout = TimeSpan.FromSeconds(10);
+            });
+            builder.Services.AddSingleton<LavaLyricsProvider>();
 
             // Hosted services start sequentially in registration order. ApplicationHost does not
             // complete startup until Discord and Lavalink are ready, so Kestrel starts afterward.

@@ -13,7 +13,7 @@ namespace CCTavern.Database {
         [DatabaseGenerated(DatabaseGeneratedOption.None)]
         public ulong Id { get; set; }
 
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
         public string? Prefixes { get; set; } = null;
 
         public ulong? MusicChannelId { get; set; }
