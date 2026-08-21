@@ -15,6 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,20 +29,23 @@ namespace CCTavern.Player {
         private readonly IAudioService audioService;
         private readonly BotInactivityManager botInactivityManager;
         private readonly IDbContextFactory<TavernContext> databaseFactory;
+        private readonly LavaLyricsProvider lyricsProvider;
+
+        private LavaLyricsResponse? currentLyrics = null;
 
         private Timer _timer;
-        private CancellationTokenSource _cancellationTokenSource;
+        private CancellationTokenSource cancellationTokenSource;
 
-        public TavernPlayer(IPlayerProperties<LavalinkPlayer, LavalinkPlayerOptions> properties)
-            : base(properties) {
+        public TavernPlayer(IPlayerProperties<LavalinkPlayer, LavalinkPlayerOptions> properties) : base(properties) {
             logger = properties.ServiceProvider!.GetRequiredService<ILogger<TavernPlayer>>();
             mbHelper = properties.ServiceProvider!.GetRequiredService<MusicBotHelper>();
             discordClient = properties.ServiceProvider!.GetRequiredService<DiscordClient>();
             audioService = properties.ServiceProvider!.GetRequiredService<IAudioService>();
             botInactivityManager = properties.ServiceProvider!.GetRequiredService<BotInactivityManager>();
             databaseFactory = properties.ServiceProvider!.GetRequiredService<IDbContextFactory<TavernContext>>();
+            lyricsProvider = properties.ServiceProvider!.GetRequiredService<LavaLyricsProvider>();
 
-            _cancellationTokenSource = new CancellationTokenSource();
+            cancellationTokenSource = new CancellationTokenSource();
             _timer = new Timer(callback: ProgressBarTimerCallback, state: null, dueTime: Timeout.Infinite, period: Timeout.Infinite);
 
             logger.LogDebug("TavernPlayer <<<<<<<<< Constructor");
@@ -51,7 +55,7 @@ namespace CCTavern.Player {
         protected override async ValueTask DisposeAsyncCore() {
             try {
                 if (Interlocked.Exchange(ref _cleanupStarted, 1) == 0) {
-                    _cancellationTokenSource.Cancel();
+                    cancellationTokenSource.Cancel();
 
                     StopProgressTimer();
 
@@ -84,7 +88,7 @@ namespace CCTavern.Player {
 
         private async void ProgressBarTimerCallback(object? state) {
             // Stop the timer if requested
-            if (_cancellationTokenSource.Token.IsCancellationRequested) {
+            if (cancellationTokenSource.Token.IsCancellationRequested) {
                 StopProgressTimer();
                 return;
             }
@@ -114,7 +118,7 @@ namespace CCTavern.Player {
                 return;
             }
 
-            if (updateEmbedState(guildState, embed) == false)
+            if (UpdateEmbedState(guildState, embed) == false)
                 goto Finish;
 
             var message = guildState?.MusicEmbed.Message;
@@ -273,8 +277,12 @@ namespace CCTavern.Player {
                     StateFieldIdx = stateIndex,
                 };
 
+                // Get the youtube chapters
                 if (isYoutubeUrl && Program.Settings.YoutubeIntegration.Enabled && track.Duration.TotalMinutes >= 5)
-                    _ = Task.Run(() => mbHelper.ParseYoutubeChaptersPlaylist(dbGuild.Id, currentTrackIdx, track.Identifier, _cancellationTokenSource.Token), _cancellationTokenSource.Token);
+                    _ = mbHelper.ParseYoutubeChaptersPlaylist(dbGuild.Id, currentTrackIdx, track.Identifier, cancellationTokenSource.Token);
+
+                // Attempt to get the lyrics
+                _ = LoadLyricsAsync();
 
                 StartProgressTimer();
             } finally {
@@ -283,9 +291,9 @@ namespace CCTavern.Player {
             }
         }
 
-        protected override async ValueTask NotifyTrackEndedAsync(ITrackQueueItem trackQueueItem, TrackEndReason endReason
-            , CancellationToken cancellationToken = default) {
+        protected override async ValueTask NotifyTrackEndedAsync(ITrackQueueItem trackQueueItem, TrackEndReason endReason, CancellationToken cancellationToken = default) {
             logger.LogInformation(TLE.MBFin, "-------------PlaybackFinished : {reason}", endReason.ToString());
+
             try {
                 if (endReason == TrackEndReason.Replaced) {
                     botInactivityManager.GuildStateChanged(GuildId, State);
@@ -497,7 +505,7 @@ namespace CCTavern.Player {
             if (guildState == null || guildState.MusicEmbed == null)
                 return;
 
-            var updateMessage = updateEmbedState(guildState, guildState.MusicEmbed.Embed);
+            var updateMessage = UpdateEmbedState(guildState, guildState.MusicEmbed.Embed);
             if (updateMessage) {
                 var message = guildState?.MusicEmbed.Message;
                 if (guildState != null && message != null) {
@@ -525,7 +533,7 @@ namespace CCTavern.Player {
             if (guildState == null || guildState.MusicEmbed == null)
                 return;
 
-            var updateMessage = updateEmbedState(guildState, guildState.MusicEmbed.Embed);
+            var updateMessage = UpdateEmbedState(guildState, guildState.MusicEmbed.Embed);
             if (updateMessage) {
                 var message = guildState?.MusicEmbed.Message;
                 if (guildState != null && message != null) {
@@ -539,8 +547,29 @@ namespace CCTavern.Player {
         }
 
 
-        private bool updateEmbedState(GuildState guildState, DiscordEmbedBuilder embedBuilder) {
-            if (guildState == null || guildState.MusicEmbed == null || this.Position == null || CurrentTrack == null)
+        private async Task LoadLyricsAsync() {
+            try {
+                currentLyrics = await lyricsProvider.GetCurrentLyricsAsync(
+                    SessionId,
+                    GuildId,
+                    skipTrackSource: false,
+                    cancellationTokenSource.Token);
+            } catch (OperationCanceledException) when (cancellationTokenSource.IsCancellationRequested) {
+                // Expected when the player/track is being torn down.
+            } catch (Exception ex) {
+                logger.LogWarning(
+                    ex,
+                    "Failed to load lyrics for guild {GuildId}",
+                    GuildId);
+            }
+        }
+
+        private bool UpdateEmbedState(GuildState guildState, DiscordEmbedBuilder? embedBuilder) {
+            // Null check all our pre-reqs.
+            if (guildState?.MusicEmbed is null
+                || this.Position is null
+                || CurrentTrack is null
+                || embedBuilder is null)
                 return false;
 
             var progressFieldIdx = guildState.MusicEmbed.ProgressFieldIdx;
@@ -556,18 +585,14 @@ namespace CCTavern.Player {
             var progressText = $"```{remainingText.currentTime} {progressBar} {remainingText.timeLeft}```";
 
             // Update track chapter
-            if (guildState.TrackChapters == null || guildState.TrackChapters?.Count <= 1) {
-                embedBuilder.Fields[progressFieldIdx].Value = progressText;
-            } else {
-                var result = guildState.TrackChapters?.GetNearestByItemTimeSpanWithTimespanRegion(Position);
+            if (guildState.TrackChapters != null && guildState?.TrackChapters?.Count <= 1) {
+                var nearestChapter = guildState.TrackChapters?.GetNearestByItemTimeSpanWithTimespanRegion(Position);
 
-                if (result == null || result.Value.item == null) {
-                    embedBuilder.Fields[progressFieldIdx].Value = progressText;
-                } else {
+                if (nearestChapter != null && nearestChapter.Value.Entry != null) {
                     var posTotalSeconds = Position.TotalSeconds;
-                    var currentTrack = result.Value.item;
-                    var startTime = result.Value.startTime;
-                    var endTime = result.Value.endTime;
+                    var currentTrack = nearestChapter.Value.Entry;
+                    var startTime = nearestChapter.Value.StartTime;
+                    var endTime = nearestChapter.Value.EndTime;
 
                     if (endTime == null) {
                         var trackLength = CurrentTrack.Duration;
@@ -588,20 +613,69 @@ namespace CCTavern.Player {
                 }
             }
 
+
+            // Update with lyrics if we have any
+            if (currentLyrics is { Lines.Count: > 0 }) {
+                var nowMs = (long)Position.TotalMilliseconds;
+                var endMs = nowMs + 9000; // 7 sec refresh + small safety margin
+
+                var lines = currentLyrics.Lines
+                    .OrderBy(x => x.Timestamp)
+                    .ToList();
+
+                var currentIndex = -1;
+
+                for (var i = 0; i < lines.Count; i++) {
+                    if (lines[i].Timestamp <= nowMs)
+                        currentIndex = i;
+                    else
+                        break;
+                }
+
+                var output = new List<string>();
+
+                // Current lyric
+                if (currentIndex >= 0) {
+                    var current = lines[currentIndex];
+
+                    if (!string.IsNullOrWhiteSpace(current.Line))
+                        output.Add($"\u001b[1;32m▶ {current.Line}\u001b[0m");
+                }
+
+                // Upcoming lyrics
+                var startIndex = currentIndex >= 0 ? currentIndex + 1 : 0;
+                for (var i = startIndex; i < lines.Count; i++) {
+                    var line = lines[i];
+
+                    if (line.Timestamp > endMs)               break;
+                    if (string.IsNullOrWhiteSpace(line.Line)) continue;
+                    
+                    output.Add($"\u001b[0;37m  {line.Line}\u001b[0m");
+                }
+
+                if (output.Count > 0) {
+                    var lyricsCodeblock = "```ansi\n" +string.Join('\n', output) + "\n```";
+
+                }
+            }
+
             // Update player state
             var playerStateIdx = guildState.MusicEmbed.StateFieldIdx;
             embedBuilder.Fields[playerStateIdx].Value = State.ToString();
 
+            // Update the progress text
+            embedBuilder.Fields[progressFieldIdx].Value = progressText;
+
             return true;
         }
 
-        #region Guild and Track Functions
+    #region Guild and Track Functions
 
-        private DiscordGuild _guild;
+        private DiscordGuild? _guild = null;
         private async Task<DiscordGuild> GetGuildAsync() {
             return _guild ??= await discordClient.GetGuildAsync(GuildId);
         }
 
-        #endregion
+    #endregion
     }
 }

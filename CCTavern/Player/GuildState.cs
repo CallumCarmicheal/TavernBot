@@ -23,7 +23,6 @@ namespace CCTavern.Player {
         public MusicEmbedState? MusicEmbed { get; set; } = null!;
         public SortedList<TimeSpan, IVideoChapter>? TrackChapters { get; set; }
 
-
         public GuildState(ulong guildId) {
             GuildId = guildId;
         }
@@ -32,7 +31,7 @@ namespace CCTavern.Player {
     internal class MusicEmbedState {
         //public ulong MessageId { get; set; } 
 
-        public DiscordEmbedBuilder Embed { get; set; }
+        public DiscordEmbedBuilder? Embed { get; set; } = null;
 
         public int ProgressFieldIdx { get; set; }
         public int StateFieldIdx { get; set; }
@@ -40,6 +39,6 @@ namespace CCTavern.Player {
 
         // public DateTime NextUpdate { get; set; }
 
-        public DiscordMessage Message { get; set; }
+        public DiscordMessage? Message { get; set; } = null;
     }
 }
