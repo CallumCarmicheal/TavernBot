@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using static CCTavern.Player.YoutubeChaptersParser;
+using static CCTavern.Library.YoutubeChaptersParser;
 
 namespace CCTavern.Player
 {

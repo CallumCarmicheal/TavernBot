@@ -14,10 +14,10 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
-using static CCTavern.Player.YoutubeChaptersParser;
+using static CCTavern.Library.YoutubeChaptersParser;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
-namespace CCTavern.Player
+namespace CCTavern.Library
 {
     public record struct YoutubeChapterDetails(bool success, SortedList<TimeSpan, IVideoChapter>? chapters);
 

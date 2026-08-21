@@ -1,4 +1,5 @@
 ﻿using CCTavern.Database;
+using CCTavern.Library;
 using CCTavern.Logger;
 
 using DSharpPlus;

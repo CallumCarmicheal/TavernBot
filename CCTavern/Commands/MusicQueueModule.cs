@@ -29,7 +29,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web;
 
-using static CCTavern.Player.YoutubeChaptersParser;
+using static CCTavern.Library.YoutubeChaptersParser;
 
 namespace CCTavern.Commands {
     internal class MusicQueueModule : BaseAudioCommandModule {

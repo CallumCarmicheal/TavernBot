@@ -1,6 +1,8 @@
 ﻿using AngleSharp;
 using AngleSharp.Html.Parser;
 
+using CCTavern.Player;
+
 using Microsoft.Extensions.Logging;
 
 using Newtonsoft.Json.Linq;
@@ -15,7 +17,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace CCTavern.Player {
+namespace CCTavern.Library {
     internal class SunoAIParser {
 
         private static ILogger<SunoAIParser> _logger;
