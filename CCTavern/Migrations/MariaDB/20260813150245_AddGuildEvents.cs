@@ -1,21 +1,19 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
+
 using MySql.EntityFrameworkCore.Metadata;
+
+using System;
 
 #nullable disable
 
-namespace CCTavern.Migrations.MariaDB
-{
+namespace CCTavern.Migrations.MariaDB {
     /// <inheritdoc />
-    public partial class AddGuildEvents : Migration
-    {
+    public partial class AddGuildEvents : Migration {
         /// <inheritdoc />
-        protected override void Up(MigrationBuilder migrationBuilder)
-        {
+        protected override void Up(MigrationBuilder migrationBuilder) {
             migrationBuilder.CreateTable(
                 name: "GuildEvents",
-                columns: table => new
-                {
+                columns: table => new {
                     Id = table.Column<ulong>(type: "bigint unsigned", nullable: false)
                         .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
                     GuildId = table.Column<ulong>(type: "bigint unsigned", nullable: false),
@@ -30,8 +28,7 @@ namespace CCTavern.Migrations.MariaDB
                     PayloadVersion = table.Column<ushort>(type: "smallint unsigned", nullable: false, defaultValue: (ushort)1),
                     PayloadJson = table.Column<string>(type: "json", nullable: false, defaultValue: "{}")
                 },
-                constraints: table =>
-                {
+                constraints: table => {
                     table.PrimaryKey("PK_GuildEvents", x => x.Id);
                     table.CheckConstraint("CK_GuildEvents_PayloadJson", "JSON_VALID(`PayloadJson`)");
                     table.ForeignKey(
@@ -82,8 +79,7 @@ namespace CCTavern.Migrations.MariaDB
         }
 
         /// <inheritdoc />
-        protected override void Down(MigrationBuilder migrationBuilder)
-        {
+        protected override void Down(MigrationBuilder migrationBuilder) {
             migrationBuilder.DropTable(
                 name: "GuildEvents");
         }

@@ -2,14 +2,11 @@
 
 #nullable disable
 
-namespace CCTavern.Migrations
-{
+namespace CCTavern.Migrations {
     /// <inheritdoc />
-    public partial class AddDeletedByToGuildQueueItemTable : Migration
-    {
+    public partial class AddDeletedByToGuildQueueItemTable : Migration {
         /// <inheritdoc />
-        protected override void Up(MigrationBuilder migrationBuilder)
-        {
+        protected override void Up(MigrationBuilder migrationBuilder) {
             migrationBuilder.AddColumn<string>(
                 name: "DeletedReason",
                 table: "GuildQueueItems",
@@ -18,8 +15,7 @@ namespace CCTavern.Migrations
         }
 
         /// <inheritdoc />
-        protected override void Down(MigrationBuilder migrationBuilder)
-        {
+        protected override void Down(MigrationBuilder migrationBuilder) {
             migrationBuilder.DropColumn(
                 name: "DeletedReason",
                 table: "GuildQueueItems");

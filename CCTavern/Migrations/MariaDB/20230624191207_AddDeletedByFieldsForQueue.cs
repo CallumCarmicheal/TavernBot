@@ -1,16 +1,14 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
+
+using System;
 
 #nullable disable
 
-namespace CCTavern.Migrations
-{
+namespace CCTavern.Migrations {
     /// <inheritdoc />
-    public partial class AddDeletedByFieldsForQueue : Migration
-    {
+    public partial class AddDeletedByFieldsForQueue : Migration {
         /// <inheritdoc />
-        protected override void Up(MigrationBuilder migrationBuilder)
-        {
+        protected override void Up(MigrationBuilder migrationBuilder) {
             migrationBuilder.AddColumn<DateTime>(
                 name: "DateDeleted",
                 table: "GuildQueueItems",
@@ -39,8 +37,7 @@ namespace CCTavern.Migrations
         }
 
         /// <inheritdoc />
-        protected override void Down(MigrationBuilder migrationBuilder)
-        {
+        protected override void Down(MigrationBuilder migrationBuilder) {
             migrationBuilder.DropForeignKey(
                 name: "FK_GuildQueueItems_CachedUsers_DeletedById",
                 table: "GuildQueueItems");

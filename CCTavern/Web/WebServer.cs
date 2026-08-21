@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CCTavern.Web {
@@ -12,7 +12,7 @@ namespace CCTavern.Web {
                 .AddApplicationPart(typeof(StatusController).Assembly);
         }
 
-    #region Placeholder endpoints
+        #region Placeholder endpoints
 
         private const string HtmlContentType = "text/html; charset=utf-8";
 

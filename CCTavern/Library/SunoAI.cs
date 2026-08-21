@@ -24,7 +24,7 @@ namespace CCTavern.Library {
 
         private static ILogger<SunoAIParser> logger {
             get {
-                if (_logger == null) 
+                if (_logger == null)
                     _logger = Program.LoggerFactory.CreateLogger<SunoAIParser>();
                 return _logger;
             }
@@ -127,7 +127,7 @@ namespace CCTavern.Library {
 
             // each RSC chunk (0,1,5,12, …)
             foreach (var kvp in buckets) {
-                string fullChunk = string.Concat(kvp.Value); 
+                string fullChunk = string.Concat(kvp.Value);
                 string unesc = Regex.Unescape(fullChunk);
 
                 // Find and extract the "clip" object and its parent, this is the 
@@ -258,7 +258,7 @@ namespace CCTavern.Library {
                     return m.Groups["url"].Value;
             }
 
-            return m == null ? null 
+            return m == null ? null
                 : (m.Success ? m.Groups["url"].Value : null);
         }
 

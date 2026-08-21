@@ -1,12 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-
-using CCTavern;
+﻿using CCTavern;
 
 using DSharpPlus;
 
 using Microsoft.Extensions.Logging;
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace CCTavern.Logger {
     internal class TavernLoggerFactory : ILoggerFactory {

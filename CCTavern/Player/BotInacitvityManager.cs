@@ -150,7 +150,7 @@ namespace CCTavern.Player {
                         if (outputChannel != null) {
                             var leaveMessage = "Left the voice channel <#" + voiceChannelId + "> due to inactivity";
                             if (timeout.Value.State == PlayerState.Paused)
-                                 leaveMessage += " (Paused for too long).";
+                                leaveMessage += " (Paused for too long).";
                             else leaveMessage += ".";
 
                             await client.SendMessageAsync(outputChannel, leaveMessage);

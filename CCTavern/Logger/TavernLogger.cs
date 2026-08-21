@@ -1,11 +1,12 @@
-﻿using System;
+﻿using CCTavern;
+
+using Microsoft.Extensions.Logging;
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
-using Microsoft.Extensions.Logging;
-using CCTavern;
 
 namespace CCTavern.Logger {
     public class TavernLogger : ILogger<Program> {
@@ -43,30 +44,30 @@ namespace CCTavern.Logger {
                 Console.Write($"[{DateTimeOffset.Now.ToString(this.TimestampFormat)}] [{eventId.Id,-4}/{ename,-CATEGORY_MAX_LENGTH}] ");
 
                 switch (logLevel) {
-                    case LogLevel.Trace:
-                        Console.ForegroundColor = ConsoleColor.Gray;
-                        break;
+                case LogLevel.Trace:
+                    Console.ForegroundColor = ConsoleColor.Gray;
+                    break;
 
-                    case LogLevel.Debug:
-                        Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                        break;
+                case LogLevel.Debug:
+                    Console.ForegroundColor = ConsoleColor.DarkMagenta;
+                    break;
 
-                    case LogLevel.Information:
-                        Console.ForegroundColor = ConsoleColor.DarkCyan;
-                        break;
+                case LogLevel.Information:
+                    Console.ForegroundColor = ConsoleColor.DarkCyan;
+                    break;
 
-                    case LogLevel.Warning:
-                        Console.ForegroundColor = ConsoleColor.Yellow;
-                        break;
+                case LogLevel.Warning:
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    break;
 
-                    case LogLevel.Error:
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        break;
+                case LogLevel.Error:
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    break;
 
-                    case LogLevel.Critical:
-                        Console.BackgroundColor = ConsoleColor.Red;
-                        Console.ForegroundColor = ConsoleColor.Black;
-                        break;
+                case LogLevel.Critical:
+                    Console.BackgroundColor = ConsoleColor.Red;
+                    Console.ForegroundColor = ConsoleColor.Black;
+                    break;
                 }
                 Console.Write(logLevel switch {
                     LogLevel.Trace => "[Trace] ",
@@ -101,7 +102,7 @@ namespace CCTavern.Logger {
 
         private class DisposableStim : IDisposable {
             public void Dispose() { }
-        } 
+        }
 #pragma warning restore CS8633 // Nullability in constraints for type parameter doesn't match the constraints for type parameter in implicitly implemented interface method'.
     }
 }

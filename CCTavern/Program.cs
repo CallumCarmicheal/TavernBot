@@ -144,8 +144,8 @@ namespace CCTavern {
             loadVersionString();
             ReloadSettings();
 
-            LoggerFactory = new CCTavern.Logger.TavernLoggerFactory();
-            LoggerFactory.AddProvider(new CCTavern.Logger.TavernLoggerProvider( Settings?.LogLevel ?? Microsoft.Extensions.Logging.LogLevel.Information ));
+            LoggerFactory = new TavernLoggerFactory();
+            LoggerFactory.AddProvider( new TavernLoggerProvider(Settings?.LogLevel ?? LogLevel.Information) );
 
             logger = LoggerFactory.CreateLogger<Program>();
             logger.LogInformation(TLE.Startup, "Application starting, Version = {version}", VERSION_Full);
@@ -262,31 +262,31 @@ namespace CCTavern {
             if (System.IO.File.Exists(jsonFile) == false) {
                 // Attempt to load it from the bin folder assuming we are in the root of the source.
                 if (logger != null)
-                     logger?.LogWarning("Failed to find json file in app directory {directory}, searching for development config.", Environment.CurrentDirectory);
+                    logger?.LogWarning("Failed to find json file in app directory {directory}, searching for development config.", Environment.CurrentDirectory);
                 else Console.WriteLine($"Failed to find json file in app directory {Environment.CurrentDirectory}, searching for development config.");
 
                 var folder = "";
                 var dnConfiguration = DotNetConfigurationMode;
                 switch (dnConfiguration) {
-                    case "Debug|Archival_Mode":
-                        folder = "bin\\Archival_Debug\\net10.0\\";
-                        break;
-                    case "Release|Archival_Mode":
-                        folder = "bin\\Archival_Release\\net10.0\\";
-                        break;
-                    case "Debug":
-                        folder = "bin\\Debug\\net10.0\\";
-                        break;
-                    case "Release":
-                        folder = "bin\\Release\\net10.0\\";
-                        break;
+                case "Debug|Archival_Mode":
+                    folder = "bin\\Archival_Debug\\net10.0\\";
+                    break;
+                case "Release|Archival_Mode":
+                    folder = "bin\\Archival_Release\\net10.0\\";
+                    break;
+                case "Debug":
+                    folder = "bin\\Debug\\net10.0\\";
+                    break;
+                case "Release":
+                    folder = "bin\\Release\\net10.0\\";
+                    break;
                 }
 
                 jsonFile = Path.Join(Directory.GetCurrentDirectory(), folder, "Configuration.json");
             }
 
-            if (logger != null) 
-                 logger?.LogInformation("Loading/Reloading configuration file: {file}", jsonFile);
+            if (logger != null)
+                logger?.LogInformation("Loading/Reloading configuration file: {file}", jsonFile);
             else Console.WriteLine("Loading/Reloading configuration file: " + jsonFile);
 
             var absoluteJsonFilePath = Path.GetFullPath(jsonFile);

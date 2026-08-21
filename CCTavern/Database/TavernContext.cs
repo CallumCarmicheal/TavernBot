@@ -1,13 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Data;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-
-using DSharpPlus.Entities;
+﻿using DSharpPlus.Entities;
 using DSharpPlus.Net.Models;
 
 using Microsoft.EntityFrameworkCore;
@@ -16,10 +7,18 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Identity.Client;
 
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Data;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace CCTavern.Database;
 
-public partial class TavernContext : DbContext
-{
+public partial class TavernContext : DbContext {
     public DbSet<Guild> Guilds { get; set; }
     public DbSet<GuildQueueItem> GuildQueueItems { get; set; }
     public DbSet<TavernUser> Users { get; set; }
@@ -69,7 +68,8 @@ public partial class TavernContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder) {
         base.OnModelCreating(modelBuilder);
 
-        /* Global Discord users and guild-specific profiles */ {
+        /* Global Discord users and guild-specific profiles */
+        {
             var user = modelBuilder.Entity<TavernUser>();
             user.ToTable("Users");
             user.HasKey(x => x.Id);
@@ -97,7 +97,8 @@ public partial class TavernContext : DbContext
            .ToTable("Guilds")
            .HasKey(t => t.Id);
 
-        /* Append-only guild activity and audit events */ {
+        /* Append-only guild activity and audit events */
+        {
             var guildEvent = modelBuilder.Entity<GuildEventRecord>();
             guildEvent.ToTable("GuildEvents", table => {
                 table.HasCheckConstraint(
@@ -163,7 +164,8 @@ public partial class TavernContext : DbContext
                 .OnDelete(DeleteBehavior.SetNull);
         }
 
-        /* Archived Tracks */ {
+        /* Archived Tracks */
+        {
             var archivedTrack = modelBuilder.Entity<ArchivedTrack>();
             archivedTrack.Property(t => t.Id)
                 .ValueGeneratedOnAdd();
@@ -186,7 +188,8 @@ public partial class TavernContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         }
 
-        /* Archived Messages */ {
+        /* Archived Messages */
+        {
             var archivedMessage = modelBuilder.Entity<ArchivedMessage>();
             archivedMessage.ToTable("ArchivedMessages").HasKey(x => x.Id);
             archivedMessage.Property(x => x.Id).ValueGeneratedOnAdd();
@@ -203,7 +206,8 @@ public partial class TavernContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         }
 
-        /*Guild Queue Item*/ {
+        /*Guild Queue Item*/
+        {
             modelBuilder.Entity<GuildQueueItem>()
                 .Property(t => t.Id)
                 .ValueGeneratedOnAdd();
@@ -247,7 +251,8 @@ public partial class TavernContext : DbContext
                 .IsUnique();
         }
 
-        /*Track Playlist Position*/ {
+        /*Track Playlist Position*/
+        {
             var tppEnt = modelBuilder.Entity<TrackPlaylistPosition>();
             tppEnt.ToTable("TrackPlaylistPositions");
             tppEnt.HasKey(x => x.Id);
@@ -315,7 +320,7 @@ public partial class TavernContext : DbContext
 
     public async Task<Guild> GetOrCreateDiscordGuild(DiscordGuild guild, CancellationToken cancellationToken = default) {
         Guild dbGuild;
-        
+
         var query = Guilds
             .Where(x => x.Id == guild.Id);
 
@@ -340,7 +345,7 @@ public partial class TavernContext : DbContext
         var query = Guilds
             .Where(x => x.Id == guildId);
 
-        if (await query.AnyAsync() == false) 
+        if (await query.AnyAsync() == false)
             return null;
 
         return await query.FirstAsync();

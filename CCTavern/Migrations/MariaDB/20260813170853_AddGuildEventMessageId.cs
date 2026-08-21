@@ -2,14 +2,11 @@
 
 #nullable disable
 
-namespace CCTavern.Migrations.MariaDB
-{
+namespace CCTavern.Migrations.MariaDB {
     /// <inheritdoc />
-    public partial class AddGuildEventMessageId : Migration
-    {
+    public partial class AddGuildEventMessageId : Migration {
         /// <inheritdoc />
-        protected override void Up(MigrationBuilder migrationBuilder)
-        {
+        protected override void Up(MigrationBuilder migrationBuilder) {
             migrationBuilder.AddColumn<ulong>(
                 name: "MessageId",
                 table: "GuildEvents",
@@ -23,8 +20,7 @@ namespace CCTavern.Migrations.MariaDB
         }
 
         /// <inheritdoc />
-        protected override void Down(MigrationBuilder migrationBuilder)
-        {
+        protected override void Down(MigrationBuilder migrationBuilder) {
             migrationBuilder.DropIndex(
                 name: "IX_GuildEvents_MessageId",
                 table: "GuildEvents");

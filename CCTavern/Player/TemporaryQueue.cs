@@ -1,4 +1,5 @@
 ﻿using CCTavern.Database;
+
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -6,14 +7,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CCTavern.Player
-{
-    public class TemporaryQueue
-    {
+namespace CCTavern.Player {
+    public class TemporaryQueue {
         public ulong GuildId { get; private set; }
 
-        public TemporaryQueue(ulong guildId)
-        {
+        public TemporaryQueue(ulong guildId) {
             GuildId = guildId;
         }
 
@@ -24,30 +22,24 @@ namespace CCTavern.Player
 
         #region Classes
 
-        public abstract class TemporarySongQueueItem
-        {
+        public abstract class TemporarySongQueueItem {
             public abstract GuildQueueItem GetQueueItem();
             public abstract void FinishedPlaying(TemporaryQueue tempQueue);
         }
 
-        public class TemporarySong : TemporarySongQueueItem
-        {
+        public class TemporarySong : TemporarySongQueueItem {
             public GuildQueueItem QueueItem { get; }
 
-            public TemporarySong(GuildQueueItem qi)
-            {
+            public TemporarySong(GuildQueueItem qi) {
                 QueueItem = qi;
             }
 
-            public override GuildQueueItem GetQueueItem()
-            {
+            public override GuildQueueItem GetQueueItem() {
                 return QueueItem;
             }
 
-            public override void FinishedPlaying(TemporaryQueue tempQueue)
-            {
-                if (tempQueue.SongItems == null)
-                {
+            public override void FinishedPlaying(TemporaryQueue tempQueue) {
+                if (tempQueue.SongItems == null) {
                     tempQueue.SongCount = 0;
                     return;
                 }
@@ -60,8 +52,7 @@ namespace CCTavern.Player
             }
         }
 
-        public class TemporaryPlaylist : TemporarySongQueueItem
-        {
+        public class TemporaryPlaylist : TemporarySongQueueItem {
             public string Title { get; set; }
 
             public int PlaylistSongCount => Songs.Count;
@@ -70,19 +61,15 @@ namespace CCTavern.Player
 
             public List<GuildQueueItem> Songs { get; }
 
-            public TemporaryPlaylist(string title, ulong? createdByUserId, List<GuildQueueItem> songs)
-            {
+            public TemporaryPlaylist(string title, ulong? createdByUserId, List<GuildQueueItem> songs) {
                 Title = title;
                 CreatedByUserId = createdByUserId;
                 Songs = songs;
             }
 
-            public override void FinishedPlaying(TemporaryQueue tempQueue)
-            {
-                if (Songs.Count == 0)
-                {
-                    if (tempQueue.SongItems == null)
-                    {
+            public override void FinishedPlaying(TemporaryQueue tempQueue) {
+                if (Songs.Count == 0) {
+                    if (tempQueue.SongItems == null) {
                         tempQueue.SongCount = 0;
                         return;
                     }
@@ -96,10 +83,8 @@ namespace CCTavern.Player
                 if (tempQueue.SongCount < 0)
                     tempQueue.SongCount = 0;
 
-                if (Songs.Count == 0)
-                {
-                    if (tempQueue.SongItems == null)
-                    {
+                if (Songs.Count == 0) {
+                    if (tempQueue.SongItems == null) {
                         tempQueue.SongCount = 0;
                         return;
                     }
@@ -108,10 +93,7 @@ namespace CCTavern.Player
                 }
             }
 
-            public override GuildQueueItem GetQueueItem()
-            {
-                return Songs[0];
-            }
+            public override GuildQueueItem GetQueueItem() => Songs[0];
         }
 
         #endregion

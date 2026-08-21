@@ -144,7 +144,7 @@ namespace CCTavern.Commands {
                     } else {
                         await _Play_Single(ctx, db, player, trackQueryResults.Value.Track);
                     }
-                    
+
                     return;
                 case TrackRequestedPlayMode.Playlist:
                     await _Play_Playlist(ctx, db, player, trackQueryResults.Value);

@@ -12,7 +12,7 @@ namespace CCTavern.Database {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.None)]
         public ulong Id { get; set; }
-        
+
         public string Name { get; set; }
         public string? Prefixes { get; set; } = null;
 

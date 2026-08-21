@@ -1,6 +1,7 @@
 ﻿using CCTavern.Database;
 using CCTavern.Logger;
 using CCTavern.Player;
+
 using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
@@ -29,11 +30,10 @@ using TimeSpanParserUtil;
 
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
-namespace CCTavern.Commands
-{
+namespace CCTavern.Commands {
     internal class MusicCommandModule : BaseAudioCommandModule {
         private readonly ILogger<MusicCommandModule> logger;
-        
+
         public MusicCommandModule(MusicBotHelper mbHelper, ILogger<MusicCommandModule> logger, IAudioService audioService,
                 IDbContextFactory<TavernContext> databaseFactory)
                 : base(audioService, mbHelper, databaseFactory) {
@@ -71,9 +71,9 @@ namespace CCTavern.Commands
 
                 await ctx.RespondAsync($"Left <#{voiceChannelId}>!");
 
-                if (ctx?.Guild != null) 
+                if (ctx?.Guild != null)
                     mbHelper.AnnounceLeave(ctx.Guild.Id);
-                
+
                 // Dispose the bot
                 await playerState.Player.DisposeAsync();
             } else {
@@ -342,7 +342,7 @@ namespace CCTavern.Commands
                 await ctx.RespondAsync("Failed to jump to track (could not be found).");
                 return;
             }
-            
+
             await ctx.RespondAsync($"Currently playing {await dbTrack.GetTagline(db, true)}.");
         }
 
@@ -398,9 +398,9 @@ namespace CCTavern.Commands
         [RequireGuild, RequireBotPermissions(Permissions.UseVoice)]
         public async Task RandomJump(CommandContext ctx,
             [Description("If the song should instantly be played or play after the current one")]
-            bool replaceCurrentTrack = true, 
+            bool replaceCurrentTrack = true,
             [Description("Start position to use when generating a random number")]
-            int startPosition = -1, 
+            int startPosition = -1,
             [Description("Last position to use when generating a random number")]
             int endPosition = -1
         ) {
@@ -438,10 +438,10 @@ namespace CCTavern.Commands
                 await ctx.RespondAsync("Sorry bro, there ain't nothing te shuffle. Try adding some songs first.");
                 return;
             }
-            
+
             // Update the random positions
             if (startPosition == -1) startPosition = 0;
-            if (endPosition == -1)   endPosition = guildQueueQuery.Count();
+            if (endPosition == -1) endPosition = guildQueueQuery.Count();
 
             // Get a random track from the database
             var rand = new Random();
@@ -472,7 +472,7 @@ namespace CCTavern.Commands
             // If we are playing the track 
             if (replaceCurrentTrack) {
                 guild.CurrentTrack = dbTrack.Position;
-                guild.NextTrack    = dbTrack.Position + 1;
+                guild.NextTrack = dbTrack.Position + 1;
                 await db.AddGuildEventAsync(
                     guild.Id,
                     GuildEventKind.TrackJumped,
@@ -486,8 +486,7 @@ namespace CCTavern.Commands
                 // Swap the track
                 await playerQuery.Player.PlayAsync(track);
                 await ctx.RespondAsync($"Jumped to track {await dbTrack.GetTagline(db, true)}.");
-            } 
-            else {
+            } else {
                 // Update the next track
                 guild.NextTrack = dbTrack.Position;
                 await db.AddGuildEventAsync(

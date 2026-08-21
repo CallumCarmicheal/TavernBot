@@ -1,17 +1,16 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
+
 using MySql.EntityFrameworkCore.Metadata;
+
+using System;
 
 #nullable disable
 
-namespace CCTavern.Migrations
-{
+namespace CCTavern.Migrations {
     /// <inheritdoc />
-    public partial class CreateTrackPlaylistPositions : Migration
-    {
+    public partial class CreateTrackPlaylistPositions : Migration {
         /// <inheritdoc />
-        protected override void Up(MigrationBuilder migrationBuilder)
-        {
+        protected override void Up(MigrationBuilder migrationBuilder) {
             migrationBuilder.AlterColumn<DateTime>(
                 name: "UpdatedAt",
                 table: "Guilds",
@@ -514,8 +513,7 @@ namespace CCTavern.Migrations
 
             migrationBuilder.CreateTable(
                 name: "TrackPlaylistPositions",
-                columns: table => new
-                {
+                columns: table => new {
                     Id = table.Column<ulong>(type: "bigint unsigned", nullable: false)
                         .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
                     TrackSource = table.Column<string>(type: "longtext", nullable: false),
@@ -525,16 +523,14 @@ namespace CCTavern.Migrations
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
                 },
-                constraints: table =>
-                {
+                constraints: table => {
                     table.PrimaryKey("PK_TrackPlaylistPositions", x => x.Id);
                 })
                 .Annotation("MySQL:Charset", "utf8mb4");
         }
 
         /// <inheritdoc />
-        protected override void Down(MigrationBuilder migrationBuilder)
-        {
+        protected override void Down(MigrationBuilder migrationBuilder) {
             migrationBuilder.DropTable(
                 name: "TrackPlaylistPositions");
 

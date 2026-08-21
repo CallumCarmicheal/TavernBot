@@ -19,4 +19,3 @@ public sealed class TavernUser : BaseDbEntity {
     public ICollection<ArchivedTrack> RequestedArchivedTracks { get; set; } = [];
     public ICollection<ArchivedMessage> AuthoredArchivedMessages { get; set; } = [];
 }
-

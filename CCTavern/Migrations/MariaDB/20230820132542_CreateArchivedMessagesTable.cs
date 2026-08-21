@@ -1,21 +1,19 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
+
 using MySql.EntityFrameworkCore.Metadata;
+
+using System;
 
 #nullable disable
 
-namespace CCTavern.Migrations
-{
+namespace CCTavern.Migrations {
     /// <inheritdoc />
-    public partial class CreateArchivedMessagesTable : Migration
-    {
+    public partial class CreateArchivedMessagesTable : Migration {
         /// <inheritdoc />
-        protected override void Up(MigrationBuilder migrationBuilder)
-        {
+        protected override void Up(MigrationBuilder migrationBuilder) {
             migrationBuilder.CreateTable(
                 name: "ArchivedMessages",
-                columns: table => new
-                {
+                columns: table => new {
                     Id = table.Column<ulong>(type: "bigint unsigned", nullable: false)
                         .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
                     MessageId = table.Column<ulong>(type: "bigint unsigned", nullable: false),
@@ -27,8 +25,7 @@ namespace CCTavern.Migrations
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
                 },
-                constraints: table =>
-                {
+                constraints: table => {
                     table.PrimaryKey("PK_ArchivedMessages", x => x.Id);
                     table.ForeignKey(
                         name: "FK_ArchivedMessages_CachedUsers_AuthorId",
@@ -56,8 +53,7 @@ namespace CCTavern.Migrations
         }
 
         /// <inheritdoc />
-        protected override void Down(MigrationBuilder migrationBuilder)
-        {
+        protected override void Down(MigrationBuilder migrationBuilder) {
             migrationBuilder.DropTable(
                 name: "ArchivedMessages");
         }

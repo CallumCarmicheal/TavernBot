@@ -1,24 +1,22 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
+
 using MySql.EntityFrameworkCore.Metadata;
+
+using System;
 
 #nullable disable
 
-namespace CCTavern.Migrations
-{
+namespace CCTavern.Migrations {
     /// <inheritdoc />
-    public partial class InitialDatabase : Migration
-    {
+    public partial class InitialDatabase : Migration {
         /// <inheritdoc />
-        protected override void Up(MigrationBuilder migrationBuilder)
-        {
+        protected override void Up(MigrationBuilder migrationBuilder) {
             migrationBuilder.AlterDatabase()
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "Guilds",
-                columns: table => new
-                {
+                columns: table => new {
                     Id = table.Column<ulong>(type: "bigint unsigned", nullable: false),
                     Name = table.Column<string>(type: "longtext", nullable: false),
                     Prefixes = table.Column<string>(type: "longtext", nullable: true),
@@ -30,16 +28,14 @@ namespace CCTavern.Migrations
                     CurrentTrack = table.Column<ulong>(type: "bigint unsigned", nullable: false),
                     IsPlaying = table.Column<bool>(type: "tinyint(1)", nullable: false),
                 },
-                constraints: table =>
-                {
+                constraints: table => {
                     table.PrimaryKey("PK_Guilds", x => x.Id);
                 })
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "CachedUsers",
-                columns: table => new
-                {
+                columns: table => new {
                     Id = table.Column<ulong>(type: "bigint unsigned", nullable: false)
                         .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
                     UserId = table.Column<ulong>(type: "bigint unsigned", nullable: false),
@@ -47,8 +43,7 @@ namespace CCTavern.Migrations
                     DisplayName = table.Column<string>(type: "longtext", nullable: false),
                     GuildId = table.Column<ulong>(type: "bigint unsigned", nullable: false),
                 },
-                constraints: table =>
-                {
+                constraints: table => {
                     table.PrimaryKey("PK_CachedUsers", x => x.Id);
                     table.ForeignKey(
                         name: "FK_CachedUsers_Guilds_GuildId",
@@ -61,16 +56,14 @@ namespace CCTavern.Migrations
 
             migrationBuilder.CreateTable(
                 name: "GuildQueuePlaylists",
-                columns: table => new
-                {
+                columns: table => new {
                     Id = table.Column<ulong>(type: "bigint unsigned", nullable: false)
                         .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
                     Title = table.Column<string>(type: "longtext", nullable: false),
                     PlaylistSongCount = table.Column<int>(type: "int", nullable: false),
                     CreatedById = table.Column<ulong>(type: "bigint unsigned", nullable: true),
                 },
-                constraints: table =>
-                {
+                constraints: table => {
                     table.PrimaryKey("PK_GuildQueuePlaylists", x => x.Id);
                     table.ForeignKey(
                         name: "FK_GuildQueuePlaylists_CachedUsers_CreatedById",
@@ -82,8 +75,7 @@ namespace CCTavern.Migrations
 
             migrationBuilder.CreateTable(
                 name: "GuildQueueItems",
-                columns: table => new
-                {
+                columns: table => new {
                     Id = table.Column<ulong>(type: "bigint unsigned", nullable: false)
                         .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
                     Position = table.Column<ulong>(type: "bigint unsigned", nullable: false),
@@ -95,8 +87,7 @@ namespace CCTavern.Migrations
                     GuildId = table.Column<ulong>(type: "bigint unsigned", nullable: false),
                     PlaylistId = table.Column<ulong>(type: "bigint unsigned", nullable: true),
                 },
-                constraints: table =>
-                {
+                constraints: table => {
                     table.PrimaryKey("PK_GuildQueueItems", x => x.Id);
                     table.ForeignKey(
                         name: "FK_GuildQueueItems_CachedUsers_RequestedById",
@@ -146,8 +137,7 @@ namespace CCTavern.Migrations
         }
 
         /// <inheritdoc />
-        protected override void Down(MigrationBuilder migrationBuilder)
-        {
+        protected override void Down(MigrationBuilder migrationBuilder) {
             migrationBuilder.DropTable(
                 name: "GuildQueueItems");
 

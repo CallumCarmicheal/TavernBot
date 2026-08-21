@@ -1,31 +1,34 @@
-﻿using DSharpPlus.CommandsNext;
+﻿using CCTavern.Database;
+using CCTavern.Player;
 
-using CCTavern.Database;
+using DSharpPlus.CommandsNext;
+using DSharpPlus.Entities;
 
-using Lavalink4NET.Players.Queued;
+using Lavalink4NET;
+using Lavalink4NET.Events.Players;
+using Lavalink4NET.Filters;
+using Lavalink4NET.Integrations.ExtraFilters;
+using Lavalink4NET.Player;
 using Lavalink4NET.Players;
+using Lavalink4NET.Players.Queued;
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+
+using MySqlX.XDevAPI.Common;
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Lavalink4NET;
-using System.Threading;
-using CCTavern.Player;
-using DSharpPlus.Entities;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
-using MySqlX.XDevAPI.Common;
-using ZstdSharp.Unsafe;
 using System.Diagnostics.Tracing;
+using System.Linq;
+using System.Numerics;
 using System.Reflection;
 using System.Runtime.ConstrainedExecution;
-using Lavalink4NET.Events.Players;
-using Lavalink4NET.Integrations.ExtraFilters;
-using System.Numerics;
-using Lavalink4NET.Player;
-using Lavalink4NET.Filters;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+
+using ZstdSharp.Unsafe;
 
 namespace CCTavern.Commands {
     public class BaseAudioCommandModule : BaseCommandModule {
@@ -40,7 +43,7 @@ namespace CCTavern.Commands {
             this.databaseFactory = databaseFactory;
         }
 
-        protected async ValueTask< (PlayerResult<TavernPlayer> playerResult, bool isPlayerConnected) > GetPlayerAsync(ulong guildId, ulong? voiceChannelId = null, bool connectToVoiceChannel = true) {
+        protected async ValueTask<(PlayerResult<TavernPlayer> playerResult, bool isPlayerConnected)> GetPlayerAsync(ulong guildId, ulong? voiceChannelId = null, bool connectToVoiceChannel = true) {
             return await mbHelper.GetPlayerAsync(guildId, voiceChannelId, connectToVoiceChannel);
         }
 

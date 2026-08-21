@@ -1,16 +1,14 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
+
+using System;
 
 #nullable disable
 
-namespace CCTavern.Migrations.MariaDB
-{
+namespace CCTavern.Migrations.MariaDB {
     /// <inheritdoc />
-    public partial class IntroduceUsersAndGuildUsers : Migration
-    {
+    public partial class IntroduceUsersAndGuildUsers : Migration {
         /// <inheritdoc />
-        protected override void Up(MigrationBuilder migrationBuilder)
-        {
+        protected override void Up(MigrationBuilder migrationBuilder) {
             // Run checks that only depend on the legacy schema before issuing
             // any DDL. MariaDB DDL is not fully transactional, so failing here
             // avoids leaving a partially expanded schema.
@@ -118,31 +116,27 @@ namespace CCTavern.Migrations.MariaDB
 
             migrationBuilder.CreateTable(
                 name: "Users",
-                columns: table => new
-                {
+                columns: table => new {
                     Id = table.Column<ulong>(type: "bigint unsigned", nullable: false),
                     Username = table.Column<string>(type: "varchar(64)", maxLength: 64, nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
                 },
-                constraints: table =>
-                {
+                constraints: table => {
                     table.PrimaryKey("PK_Users", x => x.Id);
                 })
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "GuildUsers",
-                columns: table => new
-                {
+                columns: table => new {
                     GuildId = table.Column<ulong>(type: "bigint unsigned", nullable: false),
                     UserId = table.Column<ulong>(type: "bigint unsigned", nullable: false),
                     DisplayName = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
                 },
-                constraints: table =>
-                {
+                constraints: table => {
                     table.PrimaryKey("PK_GuildUsers", x => new { x.GuildId, x.UserId });
                     table.ForeignKey(
                         name: "FK_GuildUsers_Guilds_GuildId",
@@ -389,8 +383,7 @@ namespace CCTavern.Migrations.MariaDB
         }
 
         /// <inheritdoc />
-        protected override void Down(MigrationBuilder migrationBuilder)
-        {
+        protected override void Down(MigrationBuilder migrationBuilder) {
             migrationBuilder.DropForeignKey(
                 name: "FK_ArchivedMessages_Users_AuthorUserId",
                 table: "ArchivedMessages");

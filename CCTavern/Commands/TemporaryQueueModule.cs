@@ -1,9 +1,14 @@
 ﻿using CCTavern.Database;
 using CCTavern.Logger;
-using DSharpPlus.CommandsNext.Attributes;
-using DSharpPlus.CommandsNext;
-using DSharpPlus.Entities;
+using CCTavern.Player;
+
 using DSharpPlus;
+using DSharpPlus.CommandsNext;
+using DSharpPlus.CommandsNext.Attributes;
+using DSharpPlus.Entities;
+using DSharpPlus.Interactivity.Extensions;
+
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 using System;
@@ -11,12 +16,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using DSharpPlus.Interactivity.Extensions;
-using CCTavern.Player;
 
-namespace CCTavern.Commands
-{
+namespace CCTavern.Commands {
     internal class TemporaryQueueModule : BaseCommandModule {
         const int ITEMS_PER_PAGE = 10;
         private readonly IDbContextFactory<TavernContext> databaseFactory;

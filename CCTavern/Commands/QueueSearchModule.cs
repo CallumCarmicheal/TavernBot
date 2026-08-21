@@ -220,7 +220,7 @@ namespace CCTavern.Commands {
             }
         }
 
-    #region Parsing model / Tokens
+        #region Parsing model / Tokens
         record Token(string? Key, string Op, string Value, bool Negate);
 
         sealed class Segment {
@@ -682,16 +682,16 @@ namespace CCTavern.Commands {
             return (t.Negate ? "-" : "") + $"{k} {opText} \"{t.Value}\" {cs}";
         }
 
-    #endregion
+        #endregion
 
-    #region Expression combinators
+        #region Expression combinators
         static Expression True() => Expression.Equal(Expression.Constant(1), Expression.Constant(1));
         static Expression False() => Expression.Not(True());
         static Expression And(Expression a, Expression b) => Expression.AndAlso(a, b);
         static Expression Or(Expression a, Expression b) => Expression.OrElse(a, b);
-    #endregion
+        #endregion
 
-    #region Key/ordering helpers
+        #region Key/ordering helpers
         static string NormalizeKey(string key) {
             var k = key.ToLowerInvariant();
             if (k is "text") k = "title";
@@ -720,9 +720,9 @@ namespace CCTavern.Commands {
             if (ordered == null) return desc ? source.OrderByDescending(key) : source.OrderBy(key);
             return desc ? ordered.ThenByDescending(key) : ordered.ThenBy(key);
         }
-    #endregion
+        #endregion
 
-    #region Parsing Utilities
+        #region Parsing Utilities
         static bool TryParseMentionId(string input, out ulong id) {
             id = 0;
             var m = Regex.Match(input, @"^<@(?<id>\d+)>$");
@@ -788,7 +788,7 @@ namespace CCTavern.Commands {
                 return true;
             return DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out dt);
         }
-    #endregion
+        #endregion
 
         /// <summary>
         /// Build the help text

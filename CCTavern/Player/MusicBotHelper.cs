@@ -224,7 +224,7 @@ namespace CCTavern.Player {
             GuildStates[guildId].TrackChapters = chapters;
         }
 
-        internal GuildState GetOrCreateGuildState(ulong guildId) => 
+        internal GuildState GetOrCreateGuildState(ulong guildId) =>
             GuildStates.GetOrAdd(guildId, id => new GuildState(id));
 
         public async Task<GuildQueueItem> CreateGuildQueueItem(

@@ -10,7 +10,7 @@ namespace CCTavern.Web.LLM {
 
         }
 
-        public void ClassifyGuildsRecentTracks(ulong guildId) { 
+        public void ClassifyGuildsRecentTracks(ulong guildId) {
             // Get the recent tracks.
 
 

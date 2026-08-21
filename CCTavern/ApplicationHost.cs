@@ -46,7 +46,7 @@ namespace CCTavern {
             this.logger = logger;
         }
 
-        public async Task StartAsync(CancellationToken stoppingToken) { 
+        public async Task StartAsync(CancellationToken stoppingToken) {
             discordClient.UseInteractivity(new InteractivityConfiguration() {
                 PollBehaviour = PollBehaviour.KeepEmojis,
                 Timeout = TimeSpan.FromSeconds(30)
@@ -112,8 +112,9 @@ namespace CCTavern {
 
             try { await discordClient.DisconnectAsync(); } 
             catch (Exception ex) { logger.LogWarning(ex, "Discord disconnection failed."); }
+            
             try { await audioService.StopAsync(); } 
-            catch (Exception ex) { logger.LogWarning(ex, "Audio service shutdown failed."); } 
+            catch (Exception ex) { logger.LogWarning(ex, "Audio service shutdown failed."); }
         }
 
         private async Task DiscordClient_SocketClosed(DiscordClient sender, DSharpPlus.EventArgs.SocketCloseEventArgs e) {

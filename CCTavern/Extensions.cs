@@ -101,8 +101,7 @@ namespace CCTavern {
             return null;
         }
 
-        public static T? GetNearestByItemTimeSpan<T>(this SortedList<TimeSpan, T> thisList, TimeSpan thisValue)
-        {
+        public static T? GetNearestByItemTimeSpan<T>(this SortedList<TimeSpan, T> thisList, TimeSpan thisValue) {
             var keys = thisList.Keys;
             var _where = keys.Where(k => k <= thisValue);
 

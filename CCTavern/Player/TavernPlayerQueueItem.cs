@@ -14,7 +14,7 @@ namespace CCTavern.Player {
         public string TrackUrl { get; set; }
         public string TrackTitle { get; set; }
         public string TrackThumbnail { get; set; }
-        
+
         public string? AuthorUrl { get; set; }
         public string AuthorDisplayName { get; set; }
         public string AuthorAvatarUrl { get; set; }

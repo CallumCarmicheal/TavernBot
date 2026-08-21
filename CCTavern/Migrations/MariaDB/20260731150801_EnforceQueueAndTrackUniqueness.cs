@@ -2,14 +2,11 @@
 
 #nullable disable
 
-namespace CCTavern.Migrations.MariaDB
-{
+namespace CCTavern.Migrations.MariaDB {
     /// <inheritdoc />
-    public partial class EnforceQueueAndTrackUniqueness : Migration
-    {
+    public partial class EnforceQueueAndTrackUniqueness : Migration {
         /// <inheritdoc />
-        protected override void Up(MigrationBuilder migrationBuilder)
-        {
+        protected override void Up(MigrationBuilder migrationBuilder) {
             // Fail before permanent DDL if any data would violate the new unique indexes.
             migrationBuilder.Sql(
                 """
@@ -88,8 +85,7 @@ namespace CCTavern.Migrations.MariaDB
         }
 
         /// <inheritdoc />
-        protected override void Down(MigrationBuilder migrationBuilder)
-        {
+        protected override void Down(MigrationBuilder migrationBuilder) {
             // Restore the foreign-key-supporting indexes before removing their replacements.
             migrationBuilder.Sql(
                 "CREATE INDEX IF NOT EXISTS `IX_GuildQueueItems_GuildId` ON `GuildQueueItems` (`GuildId`);");

@@ -1,11 +1,12 @@
-﻿using System;
+﻿using CCTavern;
+
+using Microsoft.Extensions.Logging;
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
-using Microsoft.Extensions.Logging;
-using CCTavern;
 
 #pragma warning disable CS8767 // Nullability of reference types in type of parameter doesn't match implicitly implemented member (possibly because of nullability attributes).
 #pragma warning disable CS8633 // Nullability in constraints for type parameter doesn't match the constraints for type parameter in implicitly implemented interface method'.
@@ -30,11 +31,11 @@ namespace CCTavern.Logger {
                 logger.Log(logLevel, eventId, state, exception, formatter);
         }
 
-        public IDisposable BeginScope<TState>(TState state) 
+        public IDisposable BeginScope<TState>(TState state)
             => new DisposableStim();
 
         private class DisposableStim : IDisposable {
-            public void Dispose() {  }
+            public void Dispose() { }
         }
     }
 }

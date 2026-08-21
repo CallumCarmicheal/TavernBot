@@ -14,7 +14,7 @@ namespace CCTavern.Database {
 
         public ulong MessageId { get; set; }
 
-        public DateTime DateMessageCreated { get; set; } 
+        public DateTime DateMessageCreated { get; set; }
 
         #region GuildQueueItem
 

@@ -8,10 +8,8 @@ using System.Threading.Tasks;
 
 using static CCTavern.Library.YoutubeChaptersParser;
 
-namespace CCTavern.Player
-{
-    internal class GuildState
-    {
+namespace CCTavern.Player {
+    internal class GuildState {
 
         public ulong GuildId { get; set; }
 
@@ -20,20 +18,18 @@ namespace CCTavern.Player
         public bool SetNextFlag { get; set; } = false;
         public bool ShuffleEnabled { get; set; } = false;
         public bool RepeatEnabled { get; internal set; } = false;
-        public int  TimesRepeated { get; set; } = 0;
+        public int TimesRepeated { get; set; } = 0;
 
         public MusicEmbedState? MusicEmbed { get; set; } = null!;
         public SortedList<TimeSpan, IVideoChapter>? TrackChapters { get; set; }
 
 
-        public GuildState(ulong guildId)
-        {
+        public GuildState(ulong guildId) {
             GuildId = guildId;
         }
     }
 
-    internal class MusicEmbedState
-    {
+    internal class MusicEmbedState {
         //public ulong MessageId { get; set; } 
 
         public DiscordEmbedBuilder Embed { get; set; }

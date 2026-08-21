@@ -1,17 +1,16 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
+
 using MySql.EntityFrameworkCore.Metadata;
+
+using System;
 
 #nullable disable
 
-namespace CCTavern.Migrations.MariaDB
-{
+namespace CCTavern.Migrations.MariaDB {
     /// <inheritdoc />
-    public partial class RemoveCachedUsers : Migration
-    {
+    public partial class RemoveCachedUsers : Migration {
         /// <inheritdoc />
-        protected override void Up(MigrationBuilder migrationBuilder)
-        {
+        protected override void Up(MigrationBuilder migrationBuilder) {
             // Abort before removing the legacy schema if any populated legacy
             // actor does not agree with its replacement Discord user ID.
             migrationBuilder.Sql(
@@ -143,8 +142,7 @@ namespace CCTavern.Migrations.MariaDB
         }
 
         /// <inheritdoc />
-        protected override void Down(MigrationBuilder migrationBuilder)
-        {
+        protected override void Down(MigrationBuilder migrationBuilder) {
             // The legacy schema can only represent an actor through a guild
             // profile. Refuse the rollback before DDL if one is missing.
             migrationBuilder.Sql(
@@ -232,8 +230,7 @@ namespace CCTavern.Migrations.MariaDB
 
             migrationBuilder.CreateTable(
                 name: "CachedUsers",
-                columns: table => new
-                {
+                columns: table => new {
                     Id = table.Column<ulong>(type: "bigint unsigned", nullable: false)
                         .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
                     GuildId = table.Column<ulong>(type: "bigint unsigned", nullable: false),
@@ -243,8 +240,7 @@ namespace CCTavern.Migrations.MariaDB
                     UserId = table.Column<ulong>(type: "bigint unsigned", nullable: false),
                     Username = table.Column<string>(type: "longtext", nullable: false)
                 },
-                constraints: table =>
-                {
+                constraints: table => {
                     table.PrimaryKey("PK_CachedUsers", x => x.Id);
                     table.ForeignKey(
                         name: "FK_CachedUsers_Guilds_GuildId",
