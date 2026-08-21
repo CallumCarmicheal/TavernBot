@@ -1,5 +1,6 @@
 ﻿using CCTavern.Database;
 using CCTavern.Library;
+using CCTavern.Library.Lyrics;
 using CCTavern.Logger;
 
 using DSharpPlus;
@@ -16,7 +17,9 @@ using Microsoft.Extensions.Logging;
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
@@ -29,7 +32,7 @@ namespace CCTavern.Player {
         private readonly IAudioService audioService;
         private readonly BotInactivityManager botInactivityManager;
         private readonly IDbContextFactory<TavernContext> databaseFactory;
-        private readonly LavaLyricsProvider lyricsProvider;
+        private readonly ILyricsProvider lyricsProvider;
 
         private LavaLyricsResponse? currentLyrics = null;
 
@@ -43,7 +46,7 @@ namespace CCTavern.Player {
             audioService = properties.ServiceProvider!.GetRequiredService<IAudioService>();
             botInactivityManager = properties.ServiceProvider!.GetRequiredService<BotInactivityManager>();
             databaseFactory = properties.ServiceProvider!.GetRequiredService<IDbContextFactory<TavernContext>>();
-            lyricsProvider = properties.ServiceProvider!.GetRequiredService<LavaLyricsProvider>();
+            lyricsProvider = properties.ServiceProvider!.GetRequiredService<ILyricsProvider>();
 
             cancellationTokenSource = new CancellationTokenSource();
             _timer = new Timer(callback: ProgressBarTimerCallback, state: null, dueTime: Timeout.Infinite, period: Timeout.Infinite);
@@ -294,6 +297,8 @@ namespace CCTavern.Player {
         protected override async ValueTask NotifyTrackEndedAsync(ITrackQueueItem trackQueueItem, TrackEndReason endReason, CancellationToken cancellationToken = default) {
             logger.LogInformation(TLE.MBFin, "-------------PlaybackFinished : {reason}", endReason.ToString());
 
+            // Clean up the past lyrics
+            try { currentLyrics = null; } catch { }
             try {
                 if (endReason == TrackEndReason.Replaced) {
                     botInactivityManager.GuildStateChanged(GuildId, State);
@@ -546,13 +551,11 @@ namespace CCTavern.Player {
             }
         }
 
-
         private async Task LoadLyricsAsync() {
             try {
                 currentLyrics = await lyricsProvider.GetCurrentLyricsAsync(
                     SessionId,
                     GuildId,
-                    skipTrackSource: false,
                     cancellationTokenSource.Token);
             } catch (OperationCanceledException) when (cancellationTokenSource.IsCancellationRequested) {
                 // Expected when the player/track is being torn down.
@@ -641,7 +644,7 @@ namespace CCTavern.Player {
                     var current = lines[currentIndex];
 
                     if (!string.IsNullOrWhiteSpace(current.Line))
-                        output.Add($"\u001b[1;32m▶ {current.Line}\u001b[0m");
+                        output.Add($"+ {current.Line}");
                 }
 
                 // Upcoming lyrics
@@ -651,13 +654,16 @@ namespace CCTavern.Player {
 
                     if (line.Timestamp > endMs)               break;
                     if (string.IsNullOrWhiteSpace(line.Line)) continue;
-                    
-                    output.Add($"\u001b[0;37m  {line.Line}\u001b[0m");
+
+                    output.Add($"  {line.Line}");
                 }
 
                 if (output.Count > 0) {
-                    var lyricsCodeblock = "```ansi\n" +string.Join('\n', output) + "\n```";
-
+                    var lyricsCodeblock = "```diff\n" + string.Join('\n', output) + "\n```";
+                    progressText += lyricsCodeblock;
+                } else {
+                    var visCodeblock = GenerateVisualizer(Position, 39);
+                    progressText += visCodeblock;
                 }
             }
 
@@ -670,6 +676,73 @@ namespace CCTavern.Player {
 
             return true;
         }
+
+    #region Waveform for Lyrics
+        private static string GenerateVisualizer(TimeSpan position, int width = 24, bool useAnsi = false) {
+            const string levels = "▁▂▃▄▅▆▇█";
+
+            var step = (int)(position.TotalSeconds / 7);
+            var random = new Random(step);
+
+            var bars = new char[width];
+            var level = random.Next(2, 6);
+
+            for (var i = 0; i < width; i++) {
+                level += random.Next(-2, 3);
+                level = Math.Clamp(level, 0, levels.Length - 1);
+
+                bars[i] = levels[level];
+            }
+
+            if (useAnsi)
+                return ColouriseVisualizerAnsi(bars);
+            return ColouriseVisualizerCodeblocks(position, width, bars);
+        }
+
+        private static string ColouriseVisualizerCodeblocks(TimeSpan position, int width, char[] bars) {
+            if (width < 3)
+                throw new ArgumentOutOfRangeException(nameof(width), "Width must be at least 3 characters.");
+
+            var step = (int)(position.TotalSeconds / 7);
+
+            var (language, prefix) = (step % 4) switch {
+                0 => ("fix",  "  "),
+                1 => ("yaml", "  "),
+                2 => ("diff", "+ "),
+                3 => ("md",   "# "),
+                _ => throw new UnreachableException()
+            };
+
+            var barWidth = width - prefix.Length;
+            var visualizer = new string(bars[..Math.Min(barWidth, bars.Length)]);
+
+            return $"```{language}\n{prefix}{visualizer}```";
+        }
+
+        private static string ColouriseVisualizerAnsi(ReadOnlySpan<char> bars) {
+            var sb = new StringBuilder("```ansi\n");
+
+            foreach (var bar in bars) {
+                sb.Append(bar switch {
+                    '▁' => "\u001b[34m", // Blue
+                    '▂' => "\u001b[34m",
+                    '▃' => "\u001b[36m", // Cyan
+                    '▄' => "\u001b[36m",
+                    '▅' => "\u001b[32m", // Green
+                    '▆' => "\u001b[33m", // Yellow
+                    '▇' => "\u001b[31m", // Red
+                    '█' => "\u001b[31m",
+                    _ => "\u001b[0m"
+                });
+
+                sb.Append(bar);
+            }
+
+            sb.Append("\u001b[0m\n```");
+            return sb.ToString();
+        }
+
+    #endregion
 
     #region Guild and Track Functions
 

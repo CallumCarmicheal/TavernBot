@@ -9,7 +9,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace CCTavern.Library;
+namespace CCTavern.Library.Lyrics;
 
 public sealed class LavaLyricsResponse {
     [JsonPropertyName("sourceName")]
@@ -50,12 +50,22 @@ public sealed class LavaLyricsWindow {
     public IReadOnlyList<LavaLyricLine> All { get; init; } = Array.Empty<LavaLyricLine>();
 }
 
-public sealed class LavaLyricsProvider {
+public sealed class LavaLyricsProvider : ILyricsProvider {
     private readonly IHttpClientFactory _httpClientFactory;
 
     public LavaLyricsProvider(IHttpClientFactory httpClientFactory) {
         _httpClientFactory = httpClientFactory;
     }
+
+    /// <summary>
+    /// Gets timed lyrics for the track currently playing in the specified guild.
+    ///
+    /// Returns null when:
+    /// - no lyrics could be found (204)
+    /// - no track is currently playing (404)
+    /// </summary>
+    public Task<LavaLyricsResponse?> GetCurrentLyricsAsync(string sessionId, ulong guildId, CancellationToken cancellationToken = default)
+        => GetCurrentLyricsAsync(sessionId, guildId, false, cancellationToken);
 
     /// <summary>
     /// Gets timed lyrics for the track currently playing in the specified guild.
@@ -207,4 +217,5 @@ public sealed class LavaLyricsProvider {
 
         return result;
     }
+
 }
