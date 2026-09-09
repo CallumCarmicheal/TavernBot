@@ -553,6 +553,7 @@ namespace CCTavern.Player {
 
         private async Task LoadLyricsAsync() {
             try {
+                // Get current chapter song.
                 currentLyrics = await lyricsProvider.GetCurrentLyricsAsync(
                     SessionId,
                     GuildId,
@@ -591,7 +592,7 @@ namespace CCTavern.Player {
             var progressText = $"```{remainingText.currentTime} {progressBar} {remainingText.timeLeft}```";
 
             // Update track chapter
-            if (guildState.TrackChapters != null && guildState?.TrackChapters?.Count <= 1) {
+            if (guildState.TrackChapters is { Count: > 1 }) { 
                 var nearestChapter = guildState.TrackChapters?.GetNearestByItemTimeSpanWithTimespanRegion(Position);
 
                 if (nearestChapter != null && nearestChapter.Value.Entry != null) {

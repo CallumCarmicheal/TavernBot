@@ -30,13 +30,23 @@ public static class TavernContextGuildEventExtensions {
     ) {
         ArgumentNullException.ThrowIfNull(database);
 
-        if (queueItem != null && queueItemId.HasValue)
-            throw new ArgumentException("Specify either a queue item or a queue item ID, not both.");
+        if (queueItem != null && queueItemId.HasValue && queueItem.Id != queueItemId.Value)
+            throw new ArgumentException("If specifying both a queueItem and queueItemId they need to have the same value.");
+
+        // Detached items can carry a Guild (and users) from another context.
+        // Reference persisted items by key instead of attaching that entire graph.
+        // Keep tracked items as navigations so newly queued items get their generated ID.
+        if (queueItem != null && database.Entry(queueItem).State == EntityState.Detached) {
+            if (queueItem.Id == 0)
+                throw new ArgumentException("Add new queue items to this context before recording an event.", nameof(queueItem));
+
+            queueItemId = queueItem.Id;
+            queueItem = null;
+        }
 
         var guildEvent = new GuildEventRecord {
             GuildId = guildId,
             ActorUserId = actor?.User.Id,
-            ActorUser = actor?.User,
             ActorUsername = actor?.User.Username,
             ActorDisplayName = actor?.GuildUser.DisplayName,
             Kind = kind,
